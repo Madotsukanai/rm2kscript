@@ -1,1 +1,0 @@
-/usr/bin/c++ -g -Wl,--dependency-file=CMakeFiles/test_game_roundtrip.dir/link.d CMakeFiles/test_game_roundtrip.dir/tests/test_game_roundtrip.cpp.o -o test_game_roundtrip  librm2kscript_core.a /usr/lib/liblcf.so.0 /usr/lib/libinih.so /usr/lib/libicui18n.so /usr/lib/libicuuc.so -ldl /usr/lib/libicudata.so /usr/lib/libexpat.so.1.13.0 -lm

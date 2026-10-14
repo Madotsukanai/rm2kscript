@@ -1,2 +1,0 @@
-/usr/bin/ar qc librm2kscript_core.a CMakeFiles/rm2kscript_core.dir/src/lexer.cpp.o CMakeFiles/rm2kscript_core.dir/src/decoder.cpp.o CMakeFiles/rm2kscript_core.dir/src/encoder.cpp.o CMakeFiles/rm2kscript_core.dir/src/commands.cpp.o
-/usr/bin/ranlib librm2kscript_core.a
