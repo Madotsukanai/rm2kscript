@@ -84,7 +84,7 @@ build_expat() {
 build_inih() {
     [[ -f "$PREFIX/lib/libinih.a" ]] && { info "inih: キャッシュ済み"; return; }
     info "inih ${INIH_VERSION} をビルド中..."
-    local src="$WORK_DIR/inih-${INIH_VERSION#r}"
+    local src="$WORK_DIR/inih-${INIH_VERSION}"
     if [[ ! -d "$src" ]]; then
         curl -fsSL "https://github.com/benhoyt/inih/archive/refs/tags/${INIH_VERSION}.tar.gz" \
             | tar xz -C "$WORK_DIR"
