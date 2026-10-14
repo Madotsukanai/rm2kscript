@@ -21,7 +21,14 @@ ifdef GAME_DIR
 CMAKE_FLAGS += -DGAME_DIR=$(GAME_DIR)
 endif
 
-.PHONY: all release debug test install win64 clean distclean
+.PHONY: all release debug test install win64 clean distclean submodules
+
+# liblcf は git submodule (third_party/liblcf)。未取得なら初期化する (git 管理下の場合のみ)
+submodules:
+	@if [ -e .git ] && [ ! -f third_party/liblcf/CMakeLists.txt ]; then \
+		echo "[make] git submodule update --init --recursive"; \
+		git submodule update --init --recursive; \
+	fi
 
 # ────────────────────────────────────────────────────────────────────────────
 # Release ビルド
@@ -30,7 +37,7 @@ endif
 all: release
 
 # 毎回 configure し直す (make test GAME_DIR=... など CMAKE_FLAGS の変更が既存の build/ にも反映されるように)
-release:
+release: submodules
 	cmake -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
@@ -38,7 +45,7 @@ release:
 # Debug ビルド
 # ────────────────────────────────────────────────────────────────────────────
 
-debug:
+debug: submodules
 	cmake -B $(DEBUG_DIR) -DCMAKE_BUILD_TYPE=Debug $(CMAKE_FLAGS)
 	cmake --build $(DEBUG_DIR) -j$(JOBS)
 
@@ -60,7 +67,7 @@ install: release
 # Windows クロスビルド
 # ────────────────────────────────────────────────────────────────────────────
 
-win64:
+win64: submodules
 	bash scripts/build-win64.sh
 
 # ────────────────────────────────────────────────────────────────────────────

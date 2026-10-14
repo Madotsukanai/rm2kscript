@@ -16,6 +16,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <cctype>
 
 using namespace rm2k;
 
@@ -104,6 +105,18 @@ static void write_text_file(const std::string& path, const std::string& content)
     if (!f) throw std::runtime_error("write failed: " + path);
 }
 
+// 元ファイルを上書きする前に <path>.bak へ退避する (失敗したら false)
+static bool backup_file(const std::string& path) {
+    std::error_code ec;
+    std::filesystem::copy_file(path, path + ".bak",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    if (ec) {
+        std::cerr << "Error: cannot back up " << path << ": " << ec.message() << std::endl;
+        return false;
+    }
+    return true;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // NameTable を LDB から構築
 // ──────────────────────────────────────────────────────────────────────────────
@@ -170,6 +183,8 @@ static int cmd_encode(const std::string& script_path,
     }
 
     std::string dest = out_path.empty() ? lmu_path : out_path;
+    // 元ファイルをそのまま上書きする場合はバックアップを取る
+    if (out_path.empty() && !backup_file(dest)) return 1;
     bool ok = lcf::LMU_Reader::Save(dest, *map, g_engine, encoding);
     if (!ok) {
         std::cerr << "Error: failed to save " << dest << std::endl;
@@ -233,6 +248,7 @@ static int cmd_encode_db(const std::string& script_path,
     }
 
     std::string dest = out_path.empty() ? ldb_path : out_path;
+    if (out_path.empty() && !backup_file(dest)) return 1;
     bool ok = lcf::LDB_Reader::Save(dest, *db, encoding);
     if (!ok) {
         std::cerr << "Error: failed to save " << dest << std::endl;
@@ -247,6 +263,25 @@ static int cmd_encode_db(const std::string& script_path,
 // ──────────────────────────────────────────────────────────────────────────────
 
 namespace fs = std::filesystem;
+
+static std::string to_lower(std::string s) {
+    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+// dir 内で name と大文字小文字を無視して一致するファイルを探す (Linux では MAP0001.LMU / RPG_RT.LDB などが
+// 大文字のゲームがある)。見つからなければ dir / name を返す。
+static fs::path find_ci(const fs::path& dir, const std::string& name) {
+    fs::path base = dir.empty() ? fs::path(".") : dir;
+    fs::path direct = dir / name;
+    std::error_code ec;
+    if (fs::exists(direct, ec)) return direct;
+    const std::string ln = to_lower(name);
+    for (fs::directory_iterator it(base, ec), end; !ec && it != end; it.increment(ec)) {
+        if (to_lower(it->path().filename().string()) == ln) return it->path();
+    }
+    return direct;
+}
 
 // ゲームディレクトリの全 .lmu + RPG_RT.ldb をデコードして out_dir に書き出す
 // マップ: MapNNNN.lmu → out_dir/MapNNNN.rs2k
@@ -271,9 +306,9 @@ static int cmd_decode_project(const std::string& game_dir,
     std::vector<fs::path> lmu_files;
     for (const auto& entry : fs::directory_iterator(gdir)) {
         if (!entry.is_regular_file()) continue;
-        auto fn = entry.path().filename().string();
-        if (fn.size() >= 3 && fn.substr(0, 3) == "Map"
-            && entry.path().extension() == ".lmu")
+        auto fn = to_lower(entry.path().filename().string());
+        if (fn.size() >= 3 && fn.substr(0, 3) == "map"
+            && to_lower(entry.path().extension().string()) == ".lmu")
             lmu_files.push_back(entry.path());
     }
     std::sort(lmu_files.begin(), lmu_files.end());
@@ -296,7 +331,7 @@ static int cmd_decode_project(const std::string& game_dir,
     }
 
     // RPG_RT.ldb
-    fs::path ldb_path = gdir / "RPG_RT.ldb";
+    fs::path ldb_path = find_ci(gdir, "RPG_RT.ldb");
     if (fs::exists(ldb_path)) {
         auto db = lcf::LDB_Reader::Load(ldb_path.string(), encoding);
         if (!db) {
@@ -345,7 +380,7 @@ static int cmd_encode_project(const std::string& script_dir,
 
     // バリデーション用に DB を事前ロード
     std::unique_ptr<lcf::rpg::Database> val_db;
-    fs::path ldb_path = gdir / "RPG_RT.ldb";
+    fs::path ldb_path = find_ci(gdir, "RPG_RT.ldb");
     if (fs::exists(ldb_path)) {
         val_db = lcf::LDB_Reader::Load(ldb_path.string(), encoding);
     }
@@ -414,7 +449,7 @@ static int cmd_encode_project(const std::string& script_dir,
 
         } else {
             // MapNNNN.rs2k → MapNNNN.lmu
-            fs::path lmu_path = gdir / (stem + ".lmu");
+            fs::path lmu_path = find_ci(gdir, stem + ".lmu");
             if (!fs::exists(lmu_path)) {
                 std::cerr << "Error: " << lmu_path << " not found\n";
                 ++errors; continue;
@@ -546,10 +581,10 @@ int main(int argc, char* argv[]) {
         fs::path auto_ldb;
         if (cmd == "decode" && !positional.empty()) {
             // decode: positional[0] = LMU
-            auto_ldb = fs::path(positional[0]).parent_path() / "RPG_RT.ldb";
+            auto_ldb = find_ci(fs::path(positional[0]).parent_path(), "RPG_RT.ldb");
         } else if (cmd == "encode" && positional.size() >= 2) {
             // encode: positional[0] = script, positional[1] = LMU
-            auto_ldb = fs::path(positional[1]).parent_path() / "RPG_RT.ldb";
+            auto_ldb = find_ci(fs::path(positional[1]).parent_path(), "RPG_RT.ldb");
         } else if (cmd == "decode-db" && !positional.empty()) {
             // ldb 自身
             auto_ldb = positional[0];
@@ -558,10 +593,10 @@ int main(int argc, char* argv[]) {
             auto_ldb = positional[1];
         } else if (cmd == "decode-project" && !positional.empty()) {
             // decode-project: positional[0] = game_dir
-            auto_ldb = fs::path(positional[0]) / "RPG_RT.ldb";
+            auto_ldb = find_ci(fs::path(positional[0]), "RPG_RT.ldb");
         } else if (cmd == "encode-project" && positional.size() >= 2) {
             // encode-project: positional[0] = script_dir, positional[1] = game_dir
-            auto_ldb = fs::path(positional[1]) / "RPG_RT.ldb";
+            auto_ldb = find_ci(fs::path(positional[1]), "RPG_RT.ldb");
         }
         if (!auto_ldb.empty() && fs::exists(auto_ldb))
             names_ldb = auto_ldb.string();

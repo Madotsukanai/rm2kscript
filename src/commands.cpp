@@ -179,6 +179,17 @@ static inline std::string str(const lcf::DBString& ds) {
 // register_all_commands
 // ──────────────────────────────────────────────────────────────────────────────
 
+// add/remove を ident (add/remove) または整数 (0/1) で受け取る。それ以外はエラー
+// (以前は arg_ident が Int に対して空文字を返し、op=1 が黙って add 扱いになっていた)
+static int32_t add_remove_op(const std::vector<Arg>& args, const std::string& key) {
+    const Arg* a = find_arg_by_key(args, key);
+    if (!a) return 0;
+    if (a->val.kind == ArgVal::Int) return a->val.ival ? 1 : 0;
+    if (a->val.sval == "remove") return 1;
+    if (a->val.sval == "add")    return 0;
+    throw std::runtime_error("'" + key + "' must be add or remove (got '" + a->val.sval + "')");
+}
+
 void register_all_commands() {
     static std::once_flag flag;
     std::call_once(flag, []() {
@@ -631,8 +642,7 @@ void register_all_commands() {
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::string op_s = arg_ident(s.args,0,"op","add");
-            int32_t op_v = (op_s == "remove") ? 1 : 0;
+            int32_t op_v = add_remove_op(s.args, "op");
             // item= は数値または var[N]
             int32_t item_src_v = 0, item_id = 1;
             const Arg* ia = find_arg_by_key(s.args, "item");
@@ -683,8 +693,7 @@ void register_all_commands() {
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::string op_s = arg_ident(s.args,0,"op","add");
-            int32_t op = (op_s == "remove" || op_s == "1") ? 1 : 0;
+            int32_t op = add_remove_op(s.args, "op");
             // 旧形式互換: 位置引数0が "add"/"remove" の場合
             const Arg* p0 = find_arg_impl(s.args, 0, "");
             if (p0 && p0->val.kind == ArgVal::Ident) {
@@ -1514,10 +1523,8 @@ void register_all_commands() {
     });
 
     // ── BGM ──────────────────────────────────────────────────────────────────
-    // params: [bitfield, volume, tempo, balance]
-    // bitfield=0: 全て定数。bitfield の各ビットが変数参照を示す（通常ゲームでは常に0）
-    // fade は PlayBGM とは別コマンド(FadeOutBGM)。PlayBGM の p[0] は bitfield。
-    // デコード上は bitfield=0 を fade=0 として扱い省略する慣習を維持する。
+    // params: [fadein_ms, volume, tempo, balance]  (EasyRPG でも p[0] は fadein。テキスト上は fade=N)
+    // p[0] はフェードイン(ms)。FadeOutBGM は別コマンド。
     reg.register_cmd(CmdDef{ LcfCode::PlayBGM, "PlayBGM",
         [](const LcfCmd& c) -> std::string {
             std::string r = "PlayBGM(" + quote(str(c.string))
@@ -2212,6 +2219,33 @@ void register_all_commands() {
     });
 
     // ── END ──────────────────────────────────────────────────────────────────
+    // RawCommand: デコーダが未登録コマンドを無損失で出力する形式
+    //   RawCommand(code=N, str="...", p0=.., p1=.., ...)
+    {
+        CmdDef d;
+        d.code   = LcfCode::END;   // alias_only: コード逆引きには登録されない
+        d.name   = "RawCommand";
+        d.decode = nullptr;
+        d.encode = [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            const Arg* code_a = find_arg_by_key(s.args, "code");
+            if (!code_a) throw std::runtime_error("RawCommand requires code=N");
+            LcfCmd c;
+            c.code   = code_a->val.ival;
+            c.indent = ctx.indent;
+            const Arg* str_a = find_arg_by_key(s.args, "str");
+            c.string = lcf::DBString(str_a ? str_a->val.sval : std::string());
+            std::vector<int32_t> params;
+            for (size_t i = 0; ; ++i) {
+                const Arg* a = find_arg_by_key(s.args, "p" + std::to_string(i));
+                if (!a) break;
+                params.push_back(a->val.ival);
+            }
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        };
+        reg.register_cmd(std::move(d), /*alias_only=*/true);
+    }
+
     reg.register_cmd(CmdDef{ LcfCode::END, "END",
         [](const LcfCmd&) -> std::string { return ""; },
         [](const CmdStmt&, EncodeCtx&, CmdVec&) {}

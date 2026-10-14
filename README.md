@@ -19,6 +19,24 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 - Windows (MinGW ビルド): `rm2kscript-windows-x86_64.exe`
 - Windows (MSVC ビルド): `rm2kscript-windows-msvc-x86_64.exe`
 
+## ビルド
+
+liblcf は git submodule (`third_party/liblcf`) として同梱しており、ソースから直接ビルドされます。
+
+```bash
+git clone --recurse-submodules <this repo>
+# 既に clone 済みの場合: git submodule update --init --recursive
+
+# liblcf が使う依存 (expat / inih / ICU) はシステムで用意する (例: Ubuntu)
+sudo apt-get install cmake ninja-build libexpat1-dev libinih-dev libicu-dev
+
+make          # Release ビルド -> build/rm2kscript
+make test     # テスト (make test GAME_DIR=/path/to/Game で実ゲームの往復テストも実行)
+```
+
+システムにインストール済みの liblcf を使いたい場合は `CMAKE_FLAGS=-DRM2K_USE_SYSTEM_LIBLCF=ON make` とします。
+liblcf のバージョンを上げるときは `git -C third_party/liblcf checkout <tag>` の後、メインリポジトリでサブモジュールの変更をコミットしてください。
+
 ## 使い方
 
 ```bash

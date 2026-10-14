@@ -27,7 +27,7 @@ EXPAT_VERSION="2.9.0"
 INIH_VERSION="r62"
 ICU_VERSION="78.3"         # Major.Minor
 ICU_TAG="release-78-3"    # GitHub tag 形式
-LIBLCF_REF="master"        # liblcf ブランチ/タグ
+# (liblcf は third_party/liblcf の submodule のコミットで固定される)
 
 DEPS_ONLY=false
 if [[ "${1:-}" == "--deps-only" ]]; then
@@ -165,37 +165,11 @@ build_icu() {
 
 # ── liblcf ────────────────────────────────────────────────────────────────────
 
-build_liblcf() {
-    [[ -f "$PREFIX/lib/cmake/liblcf/liblcf-config.cmake" ]] && \
-        { info "liblcf: キャッシュ済み"; return; }
-    info "liblcf をビルド中..."
-    local src="$WORK_DIR/liblcf"
-    if [[ ! -d "$src" ]]; then
-        git clone --depth=1 https://github.com/EasyRPG/liblcf.git "$src"
-    fi
-    local build="$WORK_DIR/build-liblcf"
-    rm -rf "$build" && mkdir "$build"
-    cmake "$src" -B "$build" \
-        -DCMAKE_SYSTEM_NAME=Windows \
-        -DCMAKE_CXX_COMPILER="${MINGW}-g++" \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DLIBLCF_WITH_ICU=ON \
-        "-DICU_ROOT=$PREFIX" \
-        "-DICU_INCLUDE_DIR=$PREFIX/include" \
-        "-DICU_i18n_LIBRARY=$PREFIX/lib/libicui18n.a" \
-        "-DICU_uc_LIBRARY=$PREFIX/lib/libicuuc.a" \
-        "-DICU_data_LIBRARY=$PREFIX/lib/libicudata.a" \
-        "-DCMAKE_PREFIX_PATH=$PREFIX" \
-        -DCMAKE_FIND_ROOT_PATH="$PREFIX" \
-        -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-        -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-        -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \
-        -G Ninja
-    ninja -C "$build" -j"$JOBS"
-    ninja -C "$build" install
-    info "liblcf: 完了"
+# liblcf は git submodule (third_party/liblcf) で、rm2kscript の CMake がソースから直接組み込む。
+# ここでは依存 (expat/inih/ICU) しかビルドしない。
+check_liblcf_submodule() {
+    [[ -f "$REPO_DIR/third_party/liblcf/CMakeLists.txt" ]] || \
+        error "third_party/liblcf が空です。'git submodule update --init --recursive' を実行してください。"
 }
 
 # ── rm2kscript.exe ────────────────────────────────────────────────────────────
@@ -208,6 +182,7 @@ build_rm2kscript() {
         -DCMAKE_SYSTEM_NAME=Windows \
         -DCMAKE_CXX_COMPILER="${MINGW}-g++" \
         -DCMAKE_BUILD_TYPE=Release \
+        -DLIBLCF_WITH_ICU=ON \
         "-DCMAKE_PREFIX_PATH=$PREFIX" \
         -DCMAKE_FIND_ROOT_PATH="$PREFIX" \
         -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
@@ -230,7 +205,7 @@ build_rm2kscript() {
 build_expat
 build_inih
 build_icu
-build_liblcf
+check_liblcf_submodule
 
 if ! $DEPS_ONLY; then
     build_rm2kscript

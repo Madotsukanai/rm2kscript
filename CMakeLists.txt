@@ -10,8 +10,26 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
-# liblcf
-find_package(liblcf REQUIRED)
+# liblcf: 既定では git submodule (third_party/liblcf) をソースから組み込む。
+# システムにインストール済みの liblcf を使う場合: cmake -DRM2K_USE_SYSTEM_LIBLCF=ON
+# (submodule が未取得の場合も find_package にフォールバックする)
+option(RM2K_USE_SYSTEM_LIBLCF "Use an installed liblcf instead of third_party/liblcf" OFF)
+set(RM2K_LIBLCF_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/liblcf")
+
+if(NOT RM2K_USE_SYSTEM_LIBLCF AND EXISTS "${RM2K_LIBLCF_DIR}/CMakeLists.txt")
+    message(STATUS "liblcf: using submodule ${RM2K_LIBLCF_DIR}")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(LIBLCF_ENABLE_TOOLS OFF CACHE BOOL "" FORCE)
+    set(LIBLCF_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+    set(LIBLCF_UPDATE_MIMEDB OFF CACHE BOOL "" FORCE)
+    add_subdirectory("${RM2K_LIBLCF_DIR}" third_party/liblcf EXCLUDE_FROM_ALL)
+else()
+    if(NOT RM2K_USE_SYSTEM_LIBLCF)
+        message(WARNING "third_party/liblcf is empty. Run: git submodule update --init --recursive "
+                        "(falling back to an installed liblcf)")
+    endif()
+    find_package(liblcf REQUIRED)
+endif()
 
 # ASan/UBSan ビルド (GCC/Clang のみ): cmake -DRM2K_SANITIZE=ON
 option(RM2K_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)

@@ -16,24 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake ninja-build \
-            liblcf-dev || true
-          # liblcf が apt にない場合はソースビルド
-          if ! dpkg -s liblcf-dev &>/dev/null 2>&1; then
-            sudo apt-get install -y \
-              libexpat1-dev libinih-dev libicu-dev
-            git clone --depth=1 https://github.com/EasyRPG/liblcf.git /tmp/liblcf
-            cmake -S /tmp/liblcf -B /tmp/liblcf/build \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_SHARED_LIBS=OFF \
-              -G Ninja
-            cmake --build /tmp/liblcf/build -j$(nproc)
-            sudo cmake --install /tmp/liblcf/build
-          fi
+          sudo apt-get install -y cmake ninja-build libexpat1-dev libinih-dev libicu-dev
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
@@ -64,26 +53,17 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install liblcf (vcpkg)
-        run: |
-          vcpkg install expat inih icu --triplet x64-windows-static
-          git clone --depth=1 https://github.com/EasyRPG/liblcf.git C:/liblcf
-          cmake -S C:/liblcf -B C:/liblcf/build `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DBUILD_SHARED_LIBS=OFF `
-            -DLIBLCF_WITH_ICU=ON `
-            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            "-DVCPKG_TARGET_TRIPLET=x64-windows-static" `
-            -G "Visual Studio 17 2022" -A x64
-          cmake --build C:/liblcf/build --config Release -j4
-          cmake --install C:/liblcf/build --prefix C:/liblcf-install
+      - name: Install dependencies (vcpkg)
+        run: vcpkg install expat inih icu --triplet x64-windows-static
 
       - name: Configure
         run: |
           cmake -B build `
             -DCMAKE_BUILD_TYPE=Release `
-            "-DCMAKE_PREFIX_PATH=C:/liblcf-install" `
+            -DLIBLCF_WITH_ICU=ON `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
             "-DVCPKG_TARGET_TRIPLET=x64-windows-static" `
             -G "Visual Studio 17 2022" -A x64
@@ -111,6 +91,8 @@ jobs:
       PREFIX: ${{ github.workspace }}/win-sysroot
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install MinGW toolchain
         run: |
@@ -125,7 +107,7 @@ jobs:
         id: cache-sysroot
         with:
           path: win-sysroot
-          key: win-sysroot-${{ hashFiles('scripts/build-win64.sh') }}-v1
+          key: win-sysroot-${{ hashFiles('scripts/build-win64.sh') }}-v2
 
       - name: Build Windows dependencies
         if: steps.cache-sysroot.outputs.cache-hit != 'true'
@@ -137,6 +119,7 @@ jobs:
             -DCMAKE_SYSTEM_NAME=Windows \
             -DCMAKE_CXX_COMPILER=${MINGW}-g++ \
             -DCMAKE_BUILD_TYPE=Release \
+            -DLIBLCF_WITH_ICU=ON \
             -DCMAKE_PREFIX_PATH="${PREFIX}" \
             -DCMAKE_FIND_ROOT_PATH="${PREFIX}" \
             -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
