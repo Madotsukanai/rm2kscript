@@ -44,7 +44,11 @@ rm2kscript encode-db CommonEvents.rs2k RPG_RT.ldb
 
 ```
 event(イベントID, x=X座標, y=Y座標) {
-    page(ページ番号, trigger=action, layer=same, sprite="Actor1", sprite_index=0) {
+    page(ページ番号,
+    	 trigger=action,
+    	 layer=same,
+    	 sprite="Actor1",
+    	 sprite_index=0) {
         message("こんにちは！");
 
         if (switch[5] == ON) {
