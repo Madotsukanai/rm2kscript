@@ -70,8 +70,9 @@ static const Arg* get_cond_rhs(const std::vector<Arg>& args) {
 }
 
 // cond_pN キーを params に追加 (known_idx = 既知パラメータ開始インデックス)
-static void append_cond_extra(const std::vector<Arg>& args, size_t known_idx,
-                               std::vector<int32_t>& params) {
+// 返値: 追加後の params.size() (= trim0 の min_size として使う)
+static size_t append_cond_extra(const std::vector<Arg>& args, size_t known_idx,
+                                  std::vector<int32_t>& params) {
     // cond_pN キーを連続して探す
     for (size_t i = known_idx; ; ++i) {
         std::string key = "cond_p" + std::to_string(i);
@@ -81,6 +82,14 @@ static void append_cond_extra(const std::vector<Arg>& args, size_t known_idx,
         }
         if (!found) break;
     }
+    return params.size();
+}
+
+// cond_p_count= の値を返す。なければ -1
+static int32_t get_cond_p_count(const std::vector<Arg>& args) {
+    for (const auto& a : args)
+        if (a.key == "cond_p_count") return a.val.ival;
+    return -1;
 }
 
 static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
@@ -88,13 +97,28 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
                                          const NameTable* names = nullptr,
                                          const lcf::rpg::Database* db = nullptr,
                                          SourceLoc loc = {}) {
-    // ConditionalBranch は常に6個のパラメータ (EasyRPG CmdSetup<...,6>)
-    // デコード時に末尾の 0 を省略したため、ここで resize(6,0) して補完する
-    auto pad6 = [](std::vector<int32_t> p) -> std::vector<int32_t> {
-        p.resize(6, 0); return p;
+    // ConditionalBranch のパラメータ列を min_size に調整する。
+    // min_size より長い場合は末尾の連続ゼロを削除し、短い場合は0でパディングする。
+    auto trim0 = [](std::vector<int32_t> p, size_t min_size) -> std::vector<int32_t> {
+        while (p.size() > min_size && p.back() == 0)
+            p.pop_back();
+        while (p.size() < min_size)
+            p.push_back(0);
+        return p;
     };
 
     if (args.empty()) throw CompileError("empty condition", loc);
+
+    // デコーダが出力した cond_p_count= があればそれをパラメータ数の上限として使う
+    // (元のバイナリが標準より少ない要素数だった場合の復元)
+    int32_t explicit_count = get_cond_p_count(args);
+    // min_size 決定ヘルパー: cond_pN が追加された場合はその個数、
+    // cond_p_count= が指定された場合はその値、どちらもなければ自然なサイズ
+    auto final_size = [&](size_t before, size_t after) -> size_t {
+        if (after > before) return after;                  // cond_pN あり
+        if (explicit_count >= 0) return static_cast<size_t>(explicit_count); // cond_p_count あり
+        return before;                                     // 自然サイズ
+    };
 
     // switch[N] == ON/OFF
     const Arg* sw = nullptr;
@@ -126,8 +150,11 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             throw CompileError("switch condition must be '== ON' or '== OFF'", loc);
         int32_t val = (val_s == "OFF") ? 1 : 0;
         std::vector<int32_t> p = {0, id, val};
-        append_cond_extra(args, 3, p);
-        return pad6(p);
+        size_t before3 = p.size();
+        size_t after3 = append_cond_extra(args, 3, p);
+        // cond_pN が追加された場合はその個数まで保持（元バイナリの要素数を復元）
+        // なければ自然なサイズ（3要素）を維持
+        return trim0(p, final_size(before3, after3));
     }
 
     // var[N] op value
@@ -169,8 +196,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             }
         }
         std::vector<int32_t> p = {1, id, src, val, op_i};
-        append_cond_extra(args, 5, p);
-        return pad6(p);
+        size_t before5 = p.size();
+        size_t after5 = append_cond_extra(args, 5, p);
+        return trim0(p, final_size(before5, after5));
     }
 
     // cond_raw(p0=T, p1=.., [str=".."])  — デコーダが高水準表現できなかった条件を無損失で戻す
@@ -202,8 +230,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
                 if (b.key == "str" && str_out) *str_out = b.val.sval;
             }
             std::vector<int32_t> p = {5, actor, sub, val};
-            append_cond_extra(args, 4, p);
-            return pad6(p);
+            size_t before_h = p.size();
+            size_t after_h = append_cond_extra(args, 4, p);
+            return trim0(p, final_size(before_h, after_h));
         }
     }
 
@@ -217,8 +246,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             }
             if (a.key.empty()) item_id = arg_int(args, 0, "", 1);
             std::vector<int32_t> p = {4, item_id, mode};
-            append_cond_extra(args, 3, p);
-            return pad6(p);
+            size_t before_i = p.size();
+            size_t after_i = append_cond_extra(args, 3, p);
+            return trim0(p, final_size(before_i, after_i));
         }
     }
 
@@ -241,8 +271,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
                 catch (...) { throw CompileError("on_vehicle: id must be boat/ship/airship", loc); }
             }
             std::vector<int32_t> p = {7, id_i};
-            append_cond_extra(args, 2, p);
-            return pad6(p);
+            size_t before_v = p.size();
+            size_t after_v = append_cond_extra(args, 2, p);
+            return trim0(p, final_size(before_v, after_v));
         }
     }
 
@@ -264,8 +295,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             else if (dir_s != "up")
                 throw CompileError("char_facing: dir must be up/right/down/left", loc);
             std::vector<int32_t> p = {6, who_i, dir_i};
-            append_cond_extra(args, 3, p);
-            return pad6(p);
+            size_t before_c = p.size();
+            size_t after_c = append_cond_extra(args, 3, p);
+            return trim0(p, final_size(before_c, after_c));
         }
     }
 
@@ -279,9 +311,10 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
                 if (b.key == "op")   op_s   = b.val.sval;
             }
             int32_t op_i = (op_s == "le") ? 1 : 0;
-            std::vector<int32_t> p = {3, gold_v, op_i};
-            append_cond_extra(args, 3, p);
-            return pad6(p);
+            std::vector<int32_t> p = {3, gold_v, op_i, 0};
+            size_t before_g = p.size();
+            size_t after_g = append_cond_extra(args, 4, p);
+            return trim0(p, final_size(before_g, after_g));
         }
     }
 
@@ -289,8 +322,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
     for (const auto& a : args) {
         if (a.key == "key_decision") {
             std::vector<int32_t> p = {8};
-            append_cond_extra(args, 1, p);
-            return pad6(p);
+            size_t before_kd = p.size();
+            size_t after_kd = append_cond_extra(args, 1, p);
+            return trim0(p, final_size(before_kd, after_kd));
         }
     }
 
@@ -298,8 +332,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
     for (const auto& a : args) {
         if (a.key == "bgm_looped") {
             std::vector<int32_t> p = {9};
-            append_cond_extra(args, 1, p);
-            return pad6(p);
+            size_t before_bl = p.size();
+            size_t after_bl = append_cond_extra(args, 1, p);
+            return trim0(p, final_size(before_bl, after_bl));
         }
     }
 
@@ -312,8 +347,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             const Arg* rhs = get_cond_rhs(args);
             if (rhs) val = rhs->val.ival;
             std::vector<int32_t> p = {2, val, op_i};
-            append_cond_extra(args, 3, p);
-            return pad6(p);
+            size_t before_t = p.size();
+            size_t after_t = append_cond_extra(args, 3, p);
+            return trim0(p, final_size(before_t, after_t));
         }
     }
 
@@ -326,8 +362,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             const Arg* rhs = get_cond_rhs(args);
             if (rhs) val = rhs->val.ival;
             std::vector<int32_t> p = {10, val, op_i};
-            append_cond_extra(args, 3, p);
-            return pad6(p);
+            size_t before_t2 = p.size();
+            size_t after_t2 = append_cond_extra(args, 3, p);
+            return trim0(p, final_size(before_t2, after_t2));
         }
     }
 
@@ -337,12 +374,12 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
         std::string op_s = get_cond_op(args);
         int32_t op_i = (op_s == "<=") ? 1 : 0;
         int32_t val  = arg_int(args, 2, "");
-        return pad6({3, val, op_i});
+        return trim0({3, val, op_i}, 3);
     }
 
     // 未知/不正な条件はエラー (以前は switch[1]==ON に黙ってフォールバックしていた)
     throw CompileError("unsupported or malformed condition (see docs/language.md for supported conditions)", loc);
-    return pad6({0, 1, 0});
+    return trim0({0, 1, 0}, 3);
 }
 
 // push_branch_end の前方宣言 (encode_stmt で使用するため)
@@ -368,6 +405,23 @@ void Encoder::encode_stmt(const StmtPtr& stmt_v, int32_t indent,
             encode_while(stmt, indent, out);
         } else if constexpr (std::is_same_v<T, ForStmt>) {
             encode_for(stmt, indent, out);
+        } else if constexpr (std::is_same_v<T, LoopStmt>) {
+            // loop { body }  →  Loop; body; END(indent+1); EndLoop(indent)
+            out.push_back(make_cmd(LcfCode::Loop, indent));
+            if (stmt.body)
+                for (const auto& st : stmt.body->stmts)
+                    encode_stmt(st, indent + 1, out);
+            push_branch_end(out, indent + 1);
+            LcfCmd el;
+            el.code   = static_cast<int32_t>(LcfCode::EndLoop);
+            el.indent = indent;
+            out.push_back(el);
+        } else if constexpr (std::is_same_v<T, BreakStmt>) {
+            out.push_back(make_cmd(LcfCode::BreakLoop, indent));
+        } else if constexpr (std::is_same_v<T, GotoStmt>) {
+            out.push_back(make_cmd(LcfCode::JumpToLabel, indent, {stmt.label_id}));
+        } else if constexpr (std::is_same_v<T, LabelStmt>) {
+            out.push_back(make_cmd(LcfCode::Label, indent, {stmt.label_id}));
         } else if constexpr (std::is_same_v<T, CmdStmt>) {
             // RawCommand(code=N, str="..", p0=.., p1=.., ...): デコーダが高水準表現できなかったコマンドをそのまま復元する
             if (stmt.name == "RawCommand") {
@@ -465,17 +519,60 @@ void Encoder::encode_stmt(const StmtPtr& stmt_v, int32_t indent,
                 // 未知コマンドはエラー (以前は「unknown: X」コメントに黙って変換していた)
                 throw CompileError("unknown command '" + stmt.name + "'", stmt.loc);
             }
-            // Loop() { ... } などのボディがある場合: indent+1 でエンコード
+            // Loop() { ... } などのボディがある場合
             if (stmt.body) {
-                for (const auto& st : stmt.body->stmts)
-                    encode_stmt(st, indent + 1, out);
-                // Loop の場合: ボディ末尾 END(indent+1) + EndLoop(indent) を追加
-                if (stmt.name == "Loop") {
-                    push_branch_end(out, indent + 1);
-                    LcfCmd el;
-                    el.code   = static_cast<int32_t>(LcfCode::EndLoop);
-                    el.indent = indent;
-                    out.push_back(el);
+                if (stmt.name == "EnemyEncounter") {
+                        // EnemyEncounter { VictoryHandler {...} EscapeHandler {...} EndBattle {} } の処理
+                        // body 内の各ハンドラーは EnemyEncounter と同じ indent でエンコードし、
+                        // 各 body は indent+1 でエンコードする。
+                        for (const auto& sub_v : stmt.body->stmts) {
+                            // sub_v は CmdStmt の VictoryHandler / EscapeHandler / EndBattle のはず
+                            if (!std::holds_alternative<CmdStmt>(sub_v)) {
+                                encode_stmt(sub_v, indent, out);
+                                continue;
+                            }
+                            const auto& sub = std::get<CmdStmt>(sub_v);
+                            if (sub.name == "VictoryHandler") {
+                                // VictoryHandler (indent) + body (indent+1) + END(indent+1)
+                                out.push_back(make_cmd(LcfCode::VictoryHandler, indent));
+                                if (sub.body)
+                                    for (const auto& st : sub.body->stmts)
+                                        encode_stmt(st, indent + 1, out);
+                                push_branch_end(out, indent + 1);
+                            } else if (sub.name == "EscapeHandler") {
+                                // EscapeHandler (indent) + body (indent+1) + END(indent+1)
+                                out.push_back(make_cmd(LcfCode::EscapeHandler, indent));
+                                if (sub.body)
+                                    for (const auto& st : sub.body->stmts)
+                                        encode_stmt(st, indent + 1, out);
+                                push_branch_end(out, indent + 1);
+                            } else if (sub.name == "DefeatHandler") {
+                                // DefeatHandler (indent) + body (indent+1) + END(indent+1)
+                                out.push_back(make_cmd(LcfCode::DefeatHandler, indent));
+                                if (sub.body)
+                                    for (const auto& st : sub.body->stmts)
+                                        encode_stmt(st, indent + 1, out);
+                                push_branch_end(out, indent + 1);
+                            } else if (sub.name == "EndBattle") {
+                                // EndBattle (indent)
+                                // 末尾 END(indent) は上位ブランチ (if/Loop/page) が追加するので不要
+                                out.push_back(make_cmd(LcfCode::EndBattle, indent));
+                            } else {
+                                // 未知のサブコマンドはそのままエンコード
+                                encode_stmt(sub_v, indent, out);
+                            }
+                        }
+                } else {
+                    for (const auto& st : stmt.body->stmts)
+                        encode_stmt(st, indent + 1, out);
+                    // Loop の場合: ボディ末尾 END(indent+1) + EndLoop(indent) を追加
+                    if (stmt.name == "Loop") {
+                        push_branch_end(out, indent + 1);
+                        LcfCmd el;
+                        el.code   = static_cast<int32_t>(LcfCode::EndLoop);
+                        el.indent = indent;
+                        out.push_back(el);
+                    }
                 }
             }
         }
@@ -618,8 +715,9 @@ void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
     LcfCmd c;
     c.code   = static_cast<int32_t>(LcfCode::ControlVars);
     c.indent = indent;
-    // src_extra=0 を常に付与（RPGツクール2003は7個で保存するため）
-    c.parameters = lcf::DBArray<int32_t>{type, id1, id2_v, op_i, src, val, 0};
+    // src_extra=0 は末尾0として省略する (EasyRPG は CmdSetup<...,7> で実行時に補完する)
+    // RPGツクール2000 が保存した 6 パラメータのファイルにも対応するため末尾0を付与しない
+    c.parameters = lcf::DBArray<int32_t>{type, id1, id2_v, op_i, src, val};
     out.push_back(c);
 }
 
@@ -698,9 +796,9 @@ void Encoder::encode_for(const ForStmt& s, int32_t indent,
     } else {
         src = 0; val = s.init_val.ival;
     }
-    // ControlVars: type=0(single), id1=id, id2=id, op=0(=), src, val, src_extra=0
+    // ControlVars: type=0(single), id1=id, id2=id, op=0(=), src, val — 末尾0省略
     out.push_back(make_cmd(LcfCode::ControlVars, indent,
-        {0, var_id, var_id, 0, src, val, 0}));
+        trim_trailing_zeros({0, var_id, var_id, 0, src, val})));
 
     // Loop
     out.push_back(make_cmd(LcfCode::Loop, indent));

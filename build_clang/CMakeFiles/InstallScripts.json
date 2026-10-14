@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/madotsukanai/Projects/rm2kscript/build_clang/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

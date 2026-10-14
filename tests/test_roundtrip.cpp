@@ -8,6 +8,7 @@
 
 #include <lcf/lmu/reader.h>
 #include <lcf/rpg/map.h>
+#include <lcf/rpg/database.h>
 #include <lcf/rpg/eventcommand.h>
 
 #include <cassert>
@@ -327,17 +328,25 @@ static bool must_fail_page(const std::string& body, const std::string& page_opts
 
 static bool test_golden_switch_var() {
     bool a = golden("switch[3] = ON;",
-        {{C(LcfCode::ControlSwitches), 0, {0, 3, 3, 1}, ""}}, "golden switch");
-    bool b = golden("var[2] += 10;",
-        {{C(LcfCode::ControlVars), 0, {0, 2, 2, 1, 0, 10, 0}, ""}}, "golden var");
-    return a && b;
+        {{C(LcfCode::ControlSwitches), 0, {0, 3, 3, 1}, ""}}, "golden switch ON");
+    bool b = golden("switch[5] = OFF;",
+        {{C(LcfCode::ControlSwitches), 0, {0, 5, 5, 0}, ""}}, "golden switch OFF");
+    bool c = golden("switch[2] = toggle;",
+        {{C(LcfCode::ControlSwitches), 0, {0, 2, 2, 2}, ""}}, "golden switch toggle");
+    bool d = golden("var[2] += 10;",
+        {{C(LcfCode::ControlVars), 0, {0, 2, 2, 1, 0, 10}, ""}}, "golden var");
+    // ControlVars キー形式も末尾0を省略した6パラメータで出力されること
+    bool e = golden("ControlVars(var=3, type=0, id2=3, op_code=0, src=0, src_val=99);",
+        {{C(LcfCode::ControlVars), 0, {0, 3, 3, 0, 0, 99}, ""}}, "golden ControlVars key-form trim zeros");
+    return a && b && c && d && e;
 }
 
 static bool test_golden_if_else() {
     return golden(
         "if (switch[1] == ON) { switch[2] = OFF; } else { switch[2] = ON; }",
         {
-            {C(LcfCode::ConditionalBranch), 0, {0, 1, 0, 0, 0, 0}, ""},
+            // switch[1]==ON → type=0, id=1, val=0(ON) → cond_pN なし → {0,1,0}
+            {C(LcfCode::ConditionalBranch), 0, {0, 1, 0}, ""},
             {C(LcfCode::ControlSwitches),   1, {0, 2, 2, 0}, ""},
             {C(LcfCode::END),               1, {}, ""},
             {C(LcfCode::ElseBranch),        0, {}, ""},
@@ -350,6 +359,189 @@ static bool test_golden_if_else() {
 static bool test_golden_raw_command() {
     return golden("RawCommand(code=99999, str=\"x\", p0=1, p1=2);",
         {{99999, 0, {1, 2}, "x"}}, "golden RawCommand");
+}
+
+// ─── while ゴールデンテスト ──────────────────────────────────────────────────
+
+static bool test_golden_while() {
+    // while (var[1] >= 1) { var[1] -= 1; }
+    // 展開: Loop { if(var[1]>=1){} else{BreakLoop} body END EndLoop
+    return golden(
+        "while (var[1] >= 1) { var[1] -= 1; }",
+        {
+            {C(LcfCode::Loop),              0, {}, ""},
+            // ConditionalBranch: var[1] >= 1 → type=1(var), id=1, src=0(const), val=1, op=1(>=)
+            // cond_pN なし → 自然サイズ {1, 1, 0, 1, 1}
+            {C(LcfCode::ConditionalBranch), 1, {1, 1, 0, 1, 1}, ""},
+            {C(LcfCode::END),               2, {}, ""},
+            {C(LcfCode::ElseBranch),        1, {}, ""},
+            {C(LcfCode::BreakLoop),         2, {}, ""},
+            {C(LcfCode::END),               2, {}, ""},
+            {C(LcfCode::EndBranch),         1, {}, ""},
+            // body: var[1] -= 1 → 末尾0省略後: {0, 1, 1, 2, 0, 1}
+            {C(LcfCode::ControlVars),       1, {0, 1, 1, 2, 0, 1}, ""},
+            {C(LcfCode::END),               1, {}, ""},
+            {C(LcfCode::EndLoop),           0, {}, ""},
+        }, "golden while");
+}
+
+// ─── for ゴールデンテスト ────────────────────────────────────────────────────
+
+static bool test_golden_for() {
+    // for (var[2] = 1; var[2] <= 5; var[2] += 1) { Wait(frames=1); }
+    return golden(
+        "for (var[2] = 1; var[2] <= 5; var[2] += 1) { Wait(frames=1); }",
+        {
+            // init: var[2] = 1 → 末尾0省略後: {0, 2, 2, 0, 0, 1}
+            {C(LcfCode::ControlVars),       0, {0, 2, 2, 0, 0, 1}, ""},
+            {C(LcfCode::Loop),              0, {}, ""},
+            // ConditionalBranch: var[2] <= 5 → type=1, id=2, src=0, val=5, op=2(<=) → cond_pN なし → {1,2,0,5,2}
+            {C(LcfCode::ConditionalBranch), 1, {1, 2, 0, 5, 2}, ""},
+            {C(LcfCode::END),               2, {}, ""},
+            {C(LcfCode::ElseBranch),        1, {}, ""},
+            {C(LcfCode::BreakLoop),         2, {}, ""},
+            {C(LcfCode::END),               2, {}, ""},
+            {C(LcfCode::EndBranch),         1, {}, ""},
+            {C(LcfCode::Wait),              1, {1}, ""},
+            // step: var[2] += 1 → 末尾0省略後: {0, 2, 2, 1, 0, 1}
+            {C(LcfCode::ControlVars),       1, {0, 2, 2, 1, 0, 1}, ""},
+            {C(LcfCode::END),               1, {}, ""},
+            {C(LcfCode::EndLoop),           0, {}, ""},
+        }, "golden for");
+}
+
+// ─── while / for ラウンドトリップ ───────────────────────────────────────────
+
+static bool test_while_roundtrip() {
+    return roundtrip(R"(
+event(20, x=0, y=0) {
+    page(1, trigger=action, layer=same) {
+        while (var[1] >= 1) {
+            var[1] -= 1;
+        }
+    }
+}
+)", "while roundtrip");
+}
+
+static bool test_for_roundtrip() {
+    return roundtrip(R"(
+event(21, x=0, y=0) {
+    page(1, trigger=action, layer=same) {
+        for (var[2] = 1; var[2] <= 5; var[2] += 1) {
+            Wait(frames=1);
+        }
+    }
+}
+)", "for roundtrip");
+}
+
+// ─── DB (コモンイベント) ラウンドトリップ ───────────────────────────────────
+
+static bool roundtrip_db(const std::string& script, const std::string& label) {
+    lcf::rpg::Database db;
+    Encoder enc;
+    try {
+        enc.encode_to_database(script, db);
+    } catch (const std::exception& e) {
+        std::cerr << "[FAIL] " << label << " — encode error: " << e.what() << "\n";
+        return false;
+    }
+
+    Decoder dec;
+    std::string decoded = dec.decode_common_events(db);
+
+    lcf::rpg::Database db2;
+    Encoder enc2;
+    try {
+        enc2.encode_to_database(decoded, db2);
+    } catch (const std::exception& e) {
+        std::cerr << "[FAIL] " << label << " — re-encode error: " << e.what() << "\n";
+        return false;
+    }
+
+    Decoder dec2;
+    std::string decoded2 = dec2.decode_common_events(db2);
+
+    if (decoded != decoded2) {
+        std::cerr << "[FAIL] " << label << " — text mismatch\n";
+        std::istringstream s1(decoded), s2(decoded2);
+        std::string l1, l2;
+        int linenum = 0;
+        while (std::getline(s1, l1) && std::getline(s2, l2)) {
+            ++linenum;
+            if (l1 != l2) {
+                std::cerr << "  line " << linenum << ":\n"
+                          << "  < " << l1 << "\n"
+                          << "  > " << l2 << "\n";
+                break;
+            }
+        }
+        return false;
+    }
+
+    std::cerr << "[PASS] " << label << "\n";
+    return true;
+}
+
+static bool test_db_roundtrip() {
+    return roundtrip_db(R"(
+event(1, name="init") {
+    page(1, trigger=auto_start) {
+        switch[1] = ON;
+        var[1] = 100;
+        message("common event");
+    }
+}
+event(2, name="heal") {
+    page(1, trigger=parallel, cond_switch=1) {
+        ChangeHP(actor=1, delta=50, die_allowed=0);
+    }
+}
+)", "db roundtrip");
+}
+
+// ─── int32_t 境界値テスト ────────────────────────────────────────────────────
+
+static bool test_int32_bounds() {
+    bool ok = true;
+    auto try_encode = [](const std::string& body, bool expect_fail, const std::string& label) -> bool {
+        auto map = make_empty_map();
+        Encoder enc;
+        std::string script = "event(1, x=0, y=0) {\n    page(1, trigger=action) {\n"
+                             + body + "\n    }\n}\n";
+        bool threw = false;
+        try { enc.encode_to_map(script, map); }
+        catch (const std::exception&) { threw = true; }
+        if (threw == expect_fail) {
+            std::cerr << "[PASS] " << label << "\n";
+            return true;
+        }
+        std::cerr << "[FAIL] " << label << (expect_fail ? " — should have thrown\n" : " — unexpected error\n");
+        return false;
+    };
+    ok &= try_encode("var[1] = 2147483647;",  false, "int32 max (2147483647)");
+    ok &= try_encode("var[1] = -2147483648;", false, "int32 min (-2147483648)");
+    ok &= try_encode("var[1] = 2147483648;",  true,  "int32 overflow (2147483648)");
+    return ok;
+}
+
+// ─── for ステップ変数混在エラーテスト ───────────────────────────────────────
+
+static bool test_for_step_errors() {
+    bool ok = true;
+    // step が別の数値変数 → エラー
+    {
+        auto map = make_empty_map();
+        Encoder enc;
+        std::string script = "event(1, x=0, y=0) {\n    page(1, trigger=action) {\n"
+                             "for (var[1] = 0; var[1] < 5; var[2] += 1) {}\n    }\n}\n";
+        bool threw = false;
+        try { enc.encode_to_map(script, map); } catch (const std::exception&) { threw = true; }
+        if (threw) std::cerr << "[PASS] for step different var correctly rejected\n";
+        else { std::cerr << "[FAIL] for step different var: should have thrown\n"; ok = false; }
+    }
+    return ok;
 }
 
 static bool test_errors() {
@@ -385,6 +577,13 @@ int main() {
     run(test_golden_switch_var);
     run(test_golden_if_else);
     run(test_golden_raw_command);
+    run(test_golden_while);
+    run(test_golden_for);
+    run(test_while_roundtrip);
+    run(test_for_roundtrip);
+    run(test_db_roundtrip);
+    run(test_int32_bounds);
+    run(test_for_step_errors);
     run(test_errors);
 
     if (failures == 0) {

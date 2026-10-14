@@ -1,7 +1,9 @@
 #include "commands.h"
 #include "textutil.h"
+#include <cassert>
 #include <cctype>
 #include <cstdlib>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
@@ -18,6 +20,13 @@ CommandRegistry& CommandRegistry::instance() {
 }
 
 void CommandRegistry::register_cmd(CmdDef def, bool alias_only) {
+    // 同じ名前を alias_only=false で二重登録するのはバグ。デバッグ時に検出する。
+    assert(by_name_.find(def.name) == by_name_.end()
+           && "CommandRegistry: duplicate command name registration");
+    if (!alias_only) {
+        assert(by_code_.find(static_cast<int32_t>(def.code)) == by_code_.end()
+               && "CommandRegistry: duplicate command code registration");
+    }
     size_t idx = defs_.size();
     by_name_[def.name] = idx;
     if (!alias_only)
@@ -145,8 +154,9 @@ static inline std::string str(const lcf::DBString& ds) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 void register_all_commands() {
+    static std::once_flag flag;
+    std::call_once(flag, []() {
     auto& reg = CommandRegistry::instance();
-    if (!reg.all().empty()) return;
 
     // ── 文章表示 ─────────────────────────────────────────────────────────────
     auto encode_message_fn = [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
@@ -336,7 +346,9 @@ void register_all_commands() {
             return "ControlSwitches(switch[var[" + std::to_string(id1) + "]] = " + op + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            const Arg* type_a = find_arg(s.args, 0, "type");
+            // キー引数 type= がある場合は明示的キー形式 (ControlSwitches(type=N,...))
+            // find_arg_by_key を使い位置フォールスルーを避ける
+            const Arg* type_a = find_arg_by_key(s.args, "type");
             if (type_a) {
                 int32_t type  = type_a->val.ival;
                 int32_t id1   = arg_int(s.args, 0, "id",      1);
@@ -348,11 +360,35 @@ void register_all_commands() {
             const Arg* sw = find_arg(s.args, 0, "switch");
             if (!sw) throw std::runtime_error("ControlSwitches: missing switch arg");
             int32_t id1 = sw->val.ival;
+            // switch[var[N]] 形式: sval="" or sval="-" で間接指定
+            if (sw->val.kind == ArgVal::Indexed && sw->val.sval == "var") {
+                // type=2: 変数インデックス
+                out.push_back(make_cmd(LcfCode::ControlSwitches, ctx.indent, {2, id1, id1, 0}));
+                return;
+            }
             int32_t id2 = id1;
-            const Arg* to = find_arg(s.args, 1, "to");
+            // to= は名前検索のみ (位置フォールスルーなし)
+            const Arg* to = find_arg_by_key(s.args, "to");
             if (to) id2 = to->val.ival;
             int32_t type = (id1 == id2) ? 0 : 1;
-            std::string op_s = arg_ident(s.args, 1, "op", "ON");
+            // op は "op" キーを優先 (parse_arglist が switch[N] = OP を op="=" + {OP} に分解する)
+            // switch[N] = OFF → op="=", 次の位置引数="OFF"
+            // switch[N] = ON  → op="=", 次の位置引数="ON"
+            const Arg* op_a = find_arg_by_key(s.args, "op");
+            std::string op_s = "ON";
+            if (op_a) {
+                if (op_a->val.sval == "=") {
+                    // do_compound が = を消費して次の引数が実際の値
+                    // args の中で op の後の最初の無名引数を探す
+                    bool after_op = false;
+                    for (const auto& a : s.args) {
+                        if (a.key == "op") { after_op = true; continue; }
+                        if (after_op && a.key.empty()) { op_s = a.val.sval; break; }
+                    }
+                } else {
+                    op_s = op_a->val.sval;
+                }
+            }
             int32_t op_i = (op_s=="OFF"?0: op_s=="ON"?1:2);
             out.push_back(make_cmd(LcfCode::ControlSwitches, ctx.indent, {type, id1, id2, op_i}));
         }
@@ -371,22 +407,24 @@ void register_all_commands() {
             int32_t val  = param(c,5);
             static const char* ops[] = {"=","+=","-=","*=","/=","%="};
             std::string op_s = (op < 6) ? ops[op] : "=";
-            // src<=1 かつ src_extra=0 かつ type<=1 のときシンプル形式
-            int32_t src_extra = (c.parameters.size() > 6) ? param(c,6) : 0;
-            if (src <= 1 && src_extra == 0 && type <= 1) {
+            // src<=1 かつ src_extra=0 かつ type<=1 かつ元が7パラメータでないときシンプル形式
+            bool has_src_extra = (c.parameters.size() > 6);
+            int32_t src_extra = has_src_extra ? param(c,6) : 0;
+            if (src <= 1 && src_extra == 0 && type <= 1 && !has_src_extra) {
                 std::string rhs = (src == 0) ? std::to_string(val) : "var[" + std::to_string(val) + "]";
                 if (type == 0)
                     return "ControlVars(var[" + std::to_string(id1) + "] " + op_s + " " + rhs + ")";
                 return "ControlVars(var[" + std::to_string(id1) + ".." + std::to_string(id2) + "] " + op_s + " " + rhs + ")";
             }
-            // キー形式: src>=2 / type>=2 / src_extra!=0
+            // キー形式: src>=2 / type>=2 / src_extra!=0 / 元が7パラメータ
             std::string r = "ControlVars(var=" + std::to_string(id1)
                  + ", type=" + std::to_string(type)
                  + ", id2=" + std::to_string(id2)
                  + ", op_code=" + std::to_string(op)
                  + ", src=" + std::to_string(src)
                  + ", src_val=" + std::to_string(val);
-            if (src_extra != 0)
+            // src_extra は元が7パラメータのとき (has_src_extra) のみ出力（0でも）してバイナリを保持する
+            if (has_src_extra)
                 r += ", src_extra=" + std::to_string(src_extra);
             r += ")";
             return r;
@@ -407,12 +445,18 @@ void register_all_commands() {
                 else if (op_s == "*=") op_i = 3;
                 else if (op_s == "/=") op_i = 4;
                 else if (op_s == "%=") op_i = 5;
-                // src_extra: 常に7個目の0を付与（type>=2のキー形式で省略されていても補完）
-                int32_t src_extra_v = 0;
+                // src_extra キーが存在する場合は7パラメータを固定出力（0でも省略しない）
+                // src_extra キーがない場合（シンプル形式からのエンコード等）は末尾0を省略する
                 const Arg* extra_a = find_arg_by_key(s.args, "src_extra");
-                if (extra_a) src_extra_v = extra_a->val.ival;
-                std::vector<int32_t> params = {type_v, id1, id2_v, op_i, src, val, src_extra_v};
-                out.push_back(make_cmd(LcfCode::ControlVars, ctx.indent, params));
+                if (extra_a) {
+                    // 元が7パラメータのデコード結果 → 7個固定で出力
+                    std::vector<int32_t> params = {type_v, id1, id2_v, op_i, src, val, extra_a->val.ival};
+                    out.push_back(make_cmd(LcfCode::ControlVars, ctx.indent, params));
+                } else {
+                    std::vector<int32_t> params = {type_v, id1, id2_v, op_i, src, val};
+                    out.push_back(make_cmd(LcfCode::ControlVars, ctx.indent,
+                                           trim_trailing_zeros(params)));
+                }
                 return;
             } else {
                 const Arg* vi = find_arg(s.args, 0, "");
@@ -430,6 +474,7 @@ void register_all_commands() {
                 else if (op_s == "/=") op_i = 4;
                 else if (op_s == "%=") op_i = 5;
             }
+            // 末尾0は省略する (EasyRPG は CmdSetup<...,7> で実行時に補完する)
             out.push_back(make_cmd(LcfCode::ControlVars, ctx.indent, {0, id1, id1, op_i, src, val}));
         }
     });
@@ -550,7 +595,10 @@ void register_all_commands() {
                 if (!a) break;
                 params.push_back(a->val.ival);
             }
-            out.push_back(make_cmd(LcfCode::ChangeItems, ctx.indent, params));
+            // 末尾0を省略: op,item_src,item_id,amt_src の4個は必須
+            // (amount=0 は元ファイルが保存していないことがある)
+            out.push_back(make_cmd(LcfCode::ChangeItems, ctx.indent,
+                trim_trailing_zeros(params, 4)));
         }
     });
 
@@ -596,7 +644,10 @@ void register_all_commands() {
                 if (!a) break;
                 params.push_back(a->val.ival);
             }
-            out.push_back(make_cmd(LcfCode::ChangePartyMembers, ctx.indent, params));
+            // 末尾0を省略: op,src の2個は意味的に必須
+            // (actor=0 は元ファイルが保存していないことがある)
+            out.push_back(make_cmd(LcfCode::ChangePartyMembers, ctx.indent,
+                trim_trailing_zeros(params, 2)));
         }
     });
 
@@ -807,19 +858,27 @@ void register_all_commands() {
             int32_t who  = param(c,0); int32_t actor = param(c,1);
             int32_t op   = param(c,2); int32_t src   = param(c,3); int32_t item = param(c,4);
             std::string t = who_text(who, actor);
-            std::string rhs = (src==0) ? std::to_string(item) : "var["+std::to_string(item)+"]";
-            return "ChangeEquipment(" + t + ", op=" + std::to_string(op)
-                 + ", src=" + std::to_string(src) + ", item=" + rhs + ")";
+            std::string r = "ChangeEquipment(" + t + ", op=" + std::to_string(op)
+                          + ", src=" + std::to_string(src);
+            // item= は元ファイルに5番目のパラメータが存在する場合のみ出力する
+            if (c.parameters.size() >= 5) {
+                std::string rhs = (src==0) ? std::to_string(item) : "var["+std::to_string(item)+"]";
+                r += ", item=" + rhs;
+            }
+            return r + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             auto [who, actor] = parse_who(s.args);
             int32_t op  = arg_int(s.args,0,"op",0);
             int32_t src = arg_int(s.args,0,"src",0);
             int32_t item = 0;
-            const Arg* ia = find_arg_impl(s.args, 0, "item");
+            const Arg* ia = find_arg_by_key(s.args, "item");
             if (ia) item = ia->val.ival;
+            // item= キーが指定されているなら5個固定、なければ4個まで trim する
+            bool has_item = (ia != nullptr);
+            std::vector<int32_t> params = {who, actor, op, src, item};
             out.push_back(make_cmd(LcfCode::ChangeEquipment, ctx.indent,
-                {who, actor, op, src, item}));
+                trim_trailing_zeros(params, has_item ? 5 : 4)));
         }
     });
 
@@ -1230,10 +1289,13 @@ void register_all_commands() {
             std::string w = (who == -1)    ? "player"
                           : (who == 10001) ? "this"
                           :                  "event=" + std::to_string(who);
-            std::string r = "MoveEvent(" + w
-                          + ", freq=" + std::to_string(freq)
-                          + ", repeat=" + std::to_string(rep)
-                          + ", skip=" + std::to_string(skip);
+            std::string r = "MoveEvent(" + w;
+            // freq/rep/skip が全て0のとき省略（元ファイルで省略されているケース対応）
+            if (freq != 0 || rep != 0 || skip != 0) {
+                r += ", freq=" + std::to_string(freq)
+                   + ", repeat=" + std::to_string(rep)
+                   + ", skip=" + std::to_string(skip);
+            }
 
             // 移動コマンド列を move=[...] 形式でデコード
             // code 0-31, 36-41: 1要素。32/33: switch_on/off(id)。34/35: 文字列引数あり
@@ -1314,10 +1376,20 @@ void register_all_commands() {
             } else if (const Arg* p0 = find_arg_impl(s.args, 0, "")) {
                 who = who_from_arg(*p0);
             }
-            int32_t freq = find_arg_by_key(s.args,"freq")   ? find_arg_by_key(s.args,"freq")->val.ival   : 8;
+            int32_t freq = find_arg_by_key(s.args,"freq")   ? find_arg_by_key(s.args,"freq")->val.ival   : 0;
             int32_t rep  = find_arg_by_key(s.args,"repeat") ? find_arg_by_key(s.args,"repeat")->val.ival : 0;
             int32_t skip = find_arg_by_key(s.args,"skip")   ? find_arg_by_key(s.args,"skip")->val.ival   : 0;
-            std::vector<int32_t> params = {who, freq, rep, skip};
+            // freq/rep/skip が明示されているか確認
+            bool has_freq = (find_arg_by_key(s.args,"freq")   != nullptr);
+            bool has_rep  = (find_arg_by_key(s.args,"repeat") != nullptr);
+            bool has_skip = (find_arg_by_key(s.args,"skip")   != nullptr);
+            bool has_frs  = has_freq || has_rep || has_skip;
+            std::vector<int32_t> params = {who};
+            if (has_frs) {
+                params.push_back(freq);
+                params.push_back(rep);
+                params.push_back(skip);
+            }
 
             // move=[...] リスト形式
             const Arg* mv = find_arg_by_key(s.args, "move");
@@ -1336,10 +1408,23 @@ void register_all_commands() {
                 }
             } else {
                 // pN= 形式との後方互換（change_graphic/play_sfx 等）
-                append_extra_params(s, 4, params);
+                // has_frs の場合 p0=who, p1=freq, p2=rep, p3=skip まで埋まっているので p4 から
+                size_t extra_start = has_frs ? 4 : 1;
+                append_extra_params(s, extra_start, params);
             }
 
-            out.push_back(make_cmd(LcfCode::MoveEvent, ctx.indent, params));
+            // move コマンドリストの末尾0は有効なコマンド(up=0)なので削除してはならない
+            // ただし move が空のとき (params.size() <= 4) は末尾0を削除して元のバイナリ数に合わせる
+            // has_frs の場合は最低4個 ({who,freq,rep,skip}) を保持する
+            size_t min_sz = has_frs ? 4 : 1;
+            size_t move_start = has_frs ? 4 : 1;
+            if (params.size() > move_start) {
+                // move コマンドあり: 末尾0は有効コマンド(up=0)なので削除しない
+                out.push_back(make_cmd(LcfCode::MoveEvent, ctx.indent, params));
+            } else {
+                out.push_back(make_cmd(LcfCode::MoveEvent, ctx.indent,
+                    trim_trailing_zeros(params, min_sz)));
+            }
         }
     });
 
@@ -1383,8 +1468,10 @@ void register_all_commands() {
             std::string r = "PlayBGM(" + quote(str(c.string))
                           + ", fade="    + std::to_string(param(c,0))
                           + ", volume="  + std::to_string(param(c,1))
-                          + ", tempo="   + std::to_string(param(c,2))
-                          + ", balance=" + std::to_string(param(c,3));
+                          + ", tempo="   + std::to_string(param(c,2));
+            // balance= は元ファイルに4番目のパラメータが存在する場合のみ出力
+            if (c.parameters.size() >= 4)
+                r += ", balance=" + std::to_string(param(c,3));
             r += ")";
             return r;
         },
@@ -1397,9 +1484,15 @@ void register_all_commands() {
             const Arg* tpo_a = find_arg_by_key(s.args, "tempo");
             int32_t tpo = tpo_a ? tpo_a->val.ival : 100;
             const Arg* bal_a = find_arg_by_key(s.args, "balance");
-            int32_t bal = bal_a ? bal_a->val.ival : 50;
-            std::vector<int32_t> params = {bitfield, vol, tpo, bal};
-            out.push_back(make_cmd(LcfCode::PlayBGM, ctx.indent, arg_str(s.args,0,""), params));
+            // balance= キーがあれば4個固定（balance=0 は有効値なので trim しない）
+            // balance= キーがなければ3個まで trim する
+            if (bal_a) {
+                out.push_back(make_cmd(LcfCode::PlayBGM, ctx.indent, arg_str(s.args,0,""),
+                    {bitfield, vol, tpo, bal_a->val.ival}));
+            } else {
+                out.push_back(make_cmd(LcfCode::PlayBGM, ctx.indent, arg_str(s.args,0,""),
+                    trim_trailing_zeros({bitfield, vol, tpo}, 3)));
+            }
         }
     });
 
@@ -1900,7 +1993,7 @@ void register_all_commands() {
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::InputNumber, ctx.indent,
-                {arg_int(s.args,0,"digits",4), arg_int(s.args,1,"var",1)}));
+                trim_trailing_zeros({arg_int(s.args,0,"digits",4), arg_int(s.args,1,"var",1)})));
         }
     });
 
@@ -1921,6 +2014,11 @@ void register_all_commands() {
     });
 
     // ── バトル関連 ────────────────────────────────────────────────────────────
+    // EnemyEncounter の後は VictoryHandler が来て victory body (indent+1) が続く。
+    // VictoryHandler/EscapeHandler/EndBattle ブロックの END は body コマンドの LCF indent が
+    // デコード→エンコード往復で保存されないため、現状ではバイナリ完全再現はできない。
+    // (パーサーが中括弧ベースのネストのみを LCF indent に反映するため、
+    //  VictoryHandler body の装飾的インデントが失われる)
     reg.register_cmd(CmdDef{ LcfCode::VictoryHandler, "VictoryHandler",
         [](const LcfCmd&) -> std::string { return "VictoryHandler()"; },
         [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
@@ -1931,6 +2029,12 @@ void register_all_commands() {
         [](const LcfCmd&) -> std::string { return "EscapeHandler()"; },
         [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::EscapeHandler, ctx.indent));
+        }
+    });
+    reg.register_cmd(CmdDef{ LcfCode::DefeatHandler, "DefeatHandler",
+        [](const LcfCmd&) -> std::string { return "DefeatHandler()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::DefeatHandler, ctx.indent));
         }
     });
     reg.register_cmd(CmdDef{ LcfCode::EndBattle, "EndBattle",
@@ -2262,6 +2366,7 @@ void register_all_commands() {
                   arg_int(s.args, 4, "switch_id", 1) }));
         }
     });
+    }); // std::call_once
 }
 
 } // namespace rm2k

@@ -469,8 +469,10 @@ static int cmd_encode_project(const std::string& script_dir,
         fs::path bak = pr.second;
         bak += ".bak";
         ec.clear();
-        if (!fs::exists(bak))
-            fs::copy_file(pr.second, bak, ec);
+        // .bak が既に存在する場合も overwrite_existing で常に上書きする
+        // (以前は exists() チェックで存在時に copy_file を省略していたため ec が空=成功扱いのまま
+        //  バックアップなしに本番ファイルが上書きされていた)
+        fs::copy_file(pr.second, bak, fs::copy_options::overwrite_existing, ec);
         if (ec) {
             std::cerr << "Error: cannot back up " << pr.second << ": " << ec.message() << "\n"
                       << "encode-project: no files were modified\n";

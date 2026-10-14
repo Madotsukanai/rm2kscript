@@ -1,0 +1,1 @@
+/usr/bin/c++ -g -Wl,--dependency-file=CMakeFiles/rm2kscript.dir/link.d CMakeFiles/rm2kscript.dir/src/main.cpp.o -o rm2kscript  librm2kscript_core.a /usr/lib/liblcf.so.0 /usr/lib/libinih.so /usr/lib/libicui18n.so /usr/lib/libicuuc.so -ldl /usr/lib/libicudata.so /usr/lib/libexpat.so.1.13.0 -lm

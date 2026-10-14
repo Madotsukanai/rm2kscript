@@ -82,6 +82,7 @@ private:
     StmtPtr                parse_stmt();
     IfStmt                 parse_if();
     WhileStmt              parse_while();
+    LoopStmt               parse_loop();
     ForStmt                parse_for();
     ChoiceStmt       parse_choice(Token name_tok);
     CmdStmt          parse_cmd(Token name_tok);

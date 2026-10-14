@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <cctype>
+#include <limits>
 #include <stdexcept>
 #include <unordered_map>
 #include <algorithm>
@@ -72,7 +73,15 @@ Token Lexer::read_number(bool negative) {
     if (negative) { advance(); s += '-'; } // consume '-'
     while (pos_ < src_.size() && is_digit_c(peek())) s += advance();
     int32_t v = 0;
-    try { v = static_cast<int32_t>(std::stoi(s)); }
+    // std::stoi は int 幅なので INT_MIN/INT_MAX での動作が処理系依存。
+    // std::stoll で long long に読んでから int32_t 範囲を明示チェックする。
+    try {
+        long long ll = std::stoll(s);
+        if (ll < static_cast<long long>(std::numeric_limits<int32_t>::min()) ||
+            ll > static_cast<long long>(std::numeric_limits<int32_t>::max()))
+            throw std::out_of_range("out of int32 range");
+        v = static_cast<int32_t>(ll);
+    }
     catch (const std::exception&) { throw LexError("integer literal out of range: " + s, loc); }
     Token t; t.kind = TokenKind::Int; t.text = s; t.ival = v; t.loc = loc;
     return t;
@@ -83,6 +92,9 @@ static const std::unordered_map<std::string, TokenKind> kKeywords = {
     {"else",  TokenKind::Kw_else},
     {"while", TokenKind::Kw_while},
     {"for",   TokenKind::Kw_for},
+    {"loop",  TokenKind::Kw_loop},
+    {"break", TokenKind::Kw_break},
+    {"goto",  TokenKind::Kw_goto},
 };
 
 Token Lexer::read_ident_or_kw() {
@@ -138,6 +150,7 @@ std::vector<Token> Lexer::tokenize() {
         else if (c == ']') { advance(); sym(TokenKind::RBracket); }
         else if (c == ',') { advance(); sym(TokenKind::Comma); }
         else if (c == ';') { advance(); sym(TokenKind::Semi); }
+        else if (c == ':') { advance(); sym(TokenKind::Colon, ":"); }
         else if (c == '.') { advance(); sym(TokenKind::Dot); }
         else if (c == '@') { advance(); sym(TokenKind::At); }
         else if (c == '#') { advance(); sym(TokenKind::Hash); }
@@ -419,6 +432,27 @@ StmtPtr Parser::parse_stmt() {
     if (check(TokenKind::Kw_if))    return parse_if();
     if (check(TokenKind::Kw_while)) return parse_while();
     if (check(TokenKind::Kw_for))   return parse_for();
+    if (check(TokenKind::Kw_loop))  return parse_loop();
+    if (check(TokenKind::Kw_break)) {
+        BreakStmt s; s.loc = peek().loc;
+        consume(); // break
+        expect(TokenKind::Semi, ";");
+        return s;
+    }
+    if (check(TokenKind::Kw_goto)) {
+        GotoStmt s; s.loc = peek().loc;
+        consume(); // goto
+        s.label_id = expect(TokenKind::Int, "label id").ival;
+        expect(TokenKind::Semi, ";");
+        return s;
+    }
+    // LN:  (ラベル定義: 整数リテラルのあとにコロン)
+    if (check(TokenKind::Int) && peek(1).kind == TokenKind::Colon) {
+        LabelStmt s; s.loc = peek().loc;
+        s.label_id = consume().ival; // N
+        consume(); // :
+        return s;
+    }
 
     // switch[N] = ON/OFF/toggle  (直接代入)
     // switch["name"] = ON/OFF/toggle  (名前テーブル使用)
@@ -548,6 +582,14 @@ WhileStmt Parser::parse_while() {
     return s;
 }
 
+LoopStmt Parser::parse_loop() {
+    LoopStmt s;
+    s.loc = peek().loc;
+    consume(); // loop
+    s.body = std::make_unique<StmtBlock>(parse_block());
+    return s;
+}
+
 // for (var[N] = init; cond; var[N] op= step) { body }
 // または for (var["name"] = init; cond; var["name"] op= step) { body }
 ForStmt Parser::parse_for() {
@@ -584,12 +626,26 @@ ForStmt Parser::parse_for() {
         throw ParseError("for: expected var[N] in step", peek().loc);
     consume(); // var
     consume(); // [
+    // init と step が同じ変数を指すか検証。
+    // init が名前指定 (var_label 非空) なら step も同じ名前でなければならない。
+    // init が数値指定 (var_label 空)   なら step も同じ数値でなければならない。
+    // 名前と数値の混在はエラー。
     if (check(TokenKind::String)) {
-        if (consume().text != s.var_label)
-            throw ParseError("for: step must use the same variable as init", peek().loc);
+        Token step_tok = consume();
+        if (!s.var_label.empty()) {
+            if (step_tok.text != s.var_label)
+                throw ParseError("for: step must use the same variable as init", step_tok.loc);
+        } else {
+            // init が数値なのに step が名前 → 混在
+            throw ParseError("for: step must use the same variable as init (init used a number, step uses a name)", step_tok.loc);
+        }
     } else {
         Token step_id = expect(TokenKind::Int, "var id");
-        if (!s.var_label.empty() || step_id.ival != s.var_id)
+        if (!s.var_label.empty()) {
+            // init が名前なのに step が数値 → 混在
+            throw ParseError("for: step must use the same variable as init (init used a name, step uses a number)", step_id.loc);
+        }
+        if (step_id.ival != s.var_id)
             throw ParseError("for: step must use the same variable as init", step_id.loc);
     }
     expect(TokenKind::RBracket, "]");

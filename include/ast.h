@@ -27,6 +27,8 @@ enum class TokenKind {
     At, Hash,
     Kw_if, Kw_else,
     Kw_while, Kw_for,
+    Kw_loop, Kw_break, Kw_goto,
+    Colon,
     Eof,
 };
 
@@ -123,6 +125,29 @@ struct WhileStmt {
     SourceLoc                  loc;
 };
 
+// loop { body }
+struct LoopStmt {
+    std::unique_ptr<StmtBlock> body;
+    SourceLoc                  loc;
+};
+
+// break;
+struct BreakStmt {
+    SourceLoc loc;
+};
+
+// goto LN;
+struct GotoStmt {
+    int32_t label_id = 0;
+    SourceLoc loc;
+};
+
+// LN:
+struct LabelStmt {
+    int32_t label_id = 0;
+    SourceLoc loc;
+};
+
 // for (var[N] = init; cond_args; var[N] op= step) { body }
 struct ForStmt {
     // init: var[id] = init_val
@@ -139,7 +164,7 @@ struct ForStmt {
 };
 
 using StmtPtr = std::variant<CmdStmt, IfStmt, ChoiceStmt, SwitchAssign, VarAssign,
-                              WhileStmt, ForStmt>;
+                              WhileStmt, ForStmt, LoopStmt, BreakStmt, GotoStmt, LabelStmt>;
 
 struct StmtBlock {
     std::vector<StmtPtr> stmts;

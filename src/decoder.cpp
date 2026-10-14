@@ -50,14 +50,19 @@ static std::string raw_command_text(const lcf::rpg::EventCommand& cmd) {
 //   6 = char facing, 7 = vehicle, 8 = key decision, 9 = bgm looped, 10 = timer2
 
 // extra_cond_params: type の「既知パラメータ数（type含む）」以降を cond_pN として追加
-// 末尾の連続する 0 は省略する（エンコーダ側で resize(6,0) により復元される）
+// また、実際のパラメータ数が known_total より少ない場合は cond_p_count=N を出力して
+// エンコーダがバイナリを完全復元できるようにする。
 static std::string extra_cond_params(const lcf::rpg::EventCommand& c, size_t known_total) {
-    size_t last = c.parameters.size();
-    while (last > known_total && c.parameters[last - 1] == 0)
-        --last;
     std::string r;
-    for (size_t i = known_total; i < last; ++i)
-        r += ", cond_p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+    size_t actual = c.parameters.size();
+    if (actual < known_total) {
+        // 標準より少ない要素数: エンコーダが同じ要素数で再生成できるよう記録
+        r += ", cond_p_count=" + std::to_string(actual);
+    } else {
+        // 標準以上の要素数: known_total 以降を cond_pN として出力
+        for (size_t i = known_total; i < actual; ++i)
+            r += ", cond_p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+    }
     return r;
 }
 
@@ -224,9 +229,12 @@ static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
     static const char* ops[] = {"=","+=","-=","*=","/=","%="};
 
     // src<=1 かつ src_extra(p[6])=0 かつ type<=1（single/range）かつ op が標準の場合のみシンプル形式。
-    // それ以外 (type=2 の間接指定、src>=2、範囲外の op など) はキー形式で無損失に保持する。
-    int32_t src_extra = (c.parameters.size() > 6) ? p(6) : 0;
-    if (src >= 0 && src <= 1 && src_extra == 0 && type >= 0 && type <= 1 && op >= 0 && op < 6) {
+    // ただし元が7パラメータのとき (has_src_extra=true) はキー形式で保持してバイナリを保持する。
+    // それ以外 (type=2 の間接指定、src>=2、範囲外の op など) もキー形式。
+    bool has_src_extra = (c.parameters.size() > 6);
+    int32_t src_extra = has_src_extra ? p(6) : 0;
+    if (src >= 0 && src <= 1 && src_extra == 0 && type >= 0 && type <= 1 && op >= 0 && op < 6
+        && !has_src_extra) {
         std::string v1 = names ? names->var_label(id1) : std::to_string(id1);
         std::string v2 = names ? names->var_label(id2) : std::to_string(id2);
         std::string lhs = (type == 0) ? "var[" + v1 + "]" : "var[" + v1 + ".." + v2 + "]";
@@ -240,27 +248,29 @@ static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
         return indent_str(ind) + lhs + " " + ops[op] + " " + rhs + ";";
     }
     // キー形式: ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=val [,src_extra=p6])
+    // src_extra は元が7パラメータのとき (has_src_extra=true) のみ出力（0でも）してバイナリを保持する
     std::string r = indent_str(ind) + "ControlVars(var=" + std::to_string(id1)
          + ", type=" + std::to_string(type)
          + ", id2=" + std::to_string(id2)
          + ", op_code=" + std::to_string(op)
          + ", src=" + std::to_string(src)
          + ", src_val=" + std::to_string(val);
-    if (c.parameters.size() > 6)
-        r += ", src_extra=" + std::to_string(p(6));
+    if (has_src_extra)
+        r += ", src_extra=" + std::to_string(src_extra);
     r += ");";
     return r;
 }
 
 // decode_cmds_impl: i を参照で受け取り、stop_code に出会ったら止まる
-// stop_code1/2 が LcfCode::END の場合は EOF まで
+// stop_code1/2/3 が LcfCode::END の場合は EOF まで
 static void decode_cmds_impl(
     const std::vector<lcf::rpg::EventCommand>& cmds,
     size_t& i, size_t n, int base_indent,
     std::ostringstream& out,
     const NameTable* names,
     LcfCode stop1 = LcfCode::END,
-    LcfCode stop2 = LcfCode::END)
+    LcfCode stop2 = LcfCode::END,
+    LcfCode stop3 = LcfCode::END)
 {
     while (i < n) {
         const auto& cmd = cmds[i];
@@ -276,6 +286,7 @@ static void decode_cmds_impl(
         }
         if (stop1 != LcfCode::END && code == stop1) break;
         if (stop2 != LcfCode::END && code == stop2) break;
+        if (stop3 != LcfCode::END && code == stop3) break;
 
         // ── ShowMessage + ShowMessage_2 を統合 ───────────────────────────
         if (code == LcfCode::ShowMessage) {
@@ -373,15 +384,111 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── Loop ─────────────────────────────────────────────────────────
+        // ── Loop / EndLoop ───────────────────────────────────────────────
         if (code == LcfCode::Loop) {
-            out << indent_str(vis) << "Loop() {\n";
+            out << indent_str(vis) << "loop {\n";
             ++i; continue;
         }
         if (code == LcfCode::EndLoop) {
-            // EndLoop の cmd.indent は Loop と同じ値
-            out << indent_str(vis) << "}  // end loop\n";
+            out << indent_str(vis) << "}\n";
             ++i; continue;
+        }
+        if (code == LcfCode::BreakLoop) {
+            out << indent_str(vis) << "break;\n";
+            ++i; continue;
+        }
+        if (code == LcfCode::Label) {
+            int32_t lid = cmd.parameters.empty() ? 0 : cmd.parameters[0];
+            out << indent_str(vis) << lid << ":\n";
+            ++i; continue;
+        }
+        if (code == LcfCode::JumpToLabel) {
+            int32_t lid = cmd.parameters.empty() ? 0 : cmd.parameters[0];
+            out << indent_str(vis) << "goto " << lid << ";\n";
+            ++i; continue;
+        }
+
+        // ── EnemyEncounter { VictoryHandler {...} [EscapeHandler {...}] [DefeatHandler {...}] EndBattle {} } ──
+        // 戦闘ブランチはハンドラー+EndBattle で構成される。
+        // ハンドラー順は VictoryHandler → (EscapeHandler?) → (DefeatHandler?) → EndBattle。
+        // 各ブロックの body は cmd.indent+1 で保存されている。
+        // ブロック構文でデコードして再エンコード時に LCF indent を正しく復元する。
+        if (code == LcfCode::EnemyEncounter) {
+            const CmdDef* ee_def = CommandRegistry::instance().find_by_code(code);
+            std::string ee_text = ee_def ? ee_def->decode(cmd) : raw_command_text(cmd);
+            // 次のコマンドがハンドラーかどうかを確認
+            // ハンドラーがない場合 (can_escape=0, can_lose=0 など) は通常コマンドとして出力
+            bool has_handler = (i + 1 < n) && (
+                cmds[i+1].code == static_cast<int>(LcfCode::VictoryHandler) ||
+                cmds[i+1].code == static_cast<int>(LcfCode::EscapeHandler)  ||
+                cmds[i+1].code == static_cast<int>(LcfCode::DefeatHandler)  ||
+                cmds[i+1].code == static_cast<int>(LcfCode::EndBattle));
+            if (!has_handler) {
+                // ハンドラーなし: 通常コマンドとして出力
+                out << indent_str(vis) << ee_text << ";\n";
+                ++i;
+                continue;
+            }
+            out << indent_str(vis) << ee_text << " {\n";
+            ++i;
+            // 各ハンドラーは EnemyEncounter と同じ LCF indent を持つ。
+            // テキスト上では EnemyEncounter より1レベル深く出力する (inner = vis+1)。
+            // body コマンドは EnemyEncounter より2レベル深く出力する。
+            // body の LCF indent は (EnemyEncounter.indent + 1) なので、
+            // decode_cmds_impl に base_indent+1 を渡すことでテキストインデントが inner+1 になる。
+            int inner = vis + 1;
+            // EnemyEncounter の LCF indent
+            int ee_indent = cmd.indent;
+            // 次の同 indent コマンドが EndBattle になるまで各ハンドラーをデコード
+            // ただし VictoryHandler/EscapeHandler/DefeatHandler 以外の同インデントコマンドが来たら終了
+            while (i < n) {
+                // より浅いインデントのコマンドが来たら終了
+                if (cmds[i].indent < ee_indent) break;
+                int next_code = cmds[i].code;
+                // EndBattle で終了
+                if (next_code == static_cast<int>(LcfCode::EndBattle)) break;
+                // ハンドラー以外の同インデントコマンドが来たら終了 (ハンドラーなし形式)
+                if (cmds[i].indent == ee_indent
+                    && next_code != static_cast<int>(LcfCode::VictoryHandler)
+                    && next_code != static_cast<int>(LcfCode::EscapeHandler)
+                    && next_code != static_cast<int>(LcfCode::DefeatHandler)) break;
+                if (next_code == static_cast<int>(LcfCode::VictoryHandler)) {
+                    out << indent_str(inner) << "VictoryHandler {\n";
+                    ++i;
+                    decode_cmds_impl(cmds, i, n, base_indent + 1, out, names,
+                                     LcfCode::EscapeHandler, LcfCode::DefeatHandler,
+                                     LcfCode::EndBattle);
+                    out << indent_str(inner) << "}\n";
+                } else if (next_code == static_cast<int>(LcfCode::EscapeHandler)) {
+                    out << indent_str(inner) << "EscapeHandler {\n";
+                    ++i;
+                    decode_cmds_impl(cmds, i, n, base_indent + 1, out, names,
+                                     LcfCode::DefeatHandler, LcfCode::EndBattle);
+                    out << indent_str(inner) << "}\n";
+                } else if (next_code == static_cast<int>(LcfCode::DefeatHandler)) {
+                    out << indent_str(inner) << "DefeatHandler {\n";
+                    ++i;
+                    decode_cmds_impl(cmds, i, n, base_indent + 1, out, names,
+                                     LcfCode::EscapeHandler, LcfCode::EndBattle);
+                    out << indent_str(inner) << "}\n";
+                } else {
+                    // 未知のハンドラー: そのままデコード
+                    const CmdDef* hdef = CommandRegistry::instance().find_by_code(
+                        static_cast<LcfCode>(next_code));
+                    if (hdef && hdef->decode)
+                        out << indent_str(inner) << hdef->decode(cmds[i]) << ";\n";
+                    else
+                        out << indent_str(inner) << raw_command_text(cmds[i]) << ";\n";
+                    ++i;
+                }
+            }
+            // EndBattle (body は通常空、直後に END(indent) のみ)
+            if (i < n && cmds[i].code == static_cast<int>(LcfCode::EndBattle)) {
+                out << indent_str(inner) << "EndBattle {}\n";
+                ++i;
+            }
+            out << indent_str(vis) << "}\n";
+            continue;
         }
 
         // ── 構造外で現れた ShowChoiceOption/End/ShowMessage_2 ────────────

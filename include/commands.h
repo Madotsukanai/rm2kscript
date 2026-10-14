@@ -81,6 +81,17 @@ inline LcfCmd make_cmd(LcfCode code, int32_t indent,
     return make_cmd(code, indent, "", params);
 }
 
+// パラメータ列の末尾の連続する 0 を省略するヘルパー。
+// EasyRPG は CmdSetup<..., N> で実行時に resize(N, 0) するため、
+// バイナリ保存時に末尾0は不要。元のファイルと同じ最小限のパラメータ数を保つために使う。
+// min_size: この個数を下回らないように末尾0を保持する（デフォルト=1）
+inline std::vector<int32_t> trim_trailing_zeros(std::vector<int32_t> v,
+                                                  size_t min_size = 1) {
+    while (v.size() > min_size && v.back() == 0)
+        v.pop_back();
+    return v;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // 引数アクセスヘルパー
 // ──────────────────────────────────────────────────────────────────────────────

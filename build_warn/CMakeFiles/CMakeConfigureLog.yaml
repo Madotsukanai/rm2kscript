@@ -1,0 +1,4250 @@
+
+---
+events:
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineSystem.cmake:12 (find_program)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_UNAME"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "uname"
+    candidate_directories:
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+    searched_directories:
+      - "/usr/local/bin/uname"
+    found: "/usr/bin/uname"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineSystem.cmake:218 (message)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      The system is: Linux - 7.2.9-2-cachyos - x86_64
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeUnixFindMake.cmake:5 (find_program)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_MAKE_PROGRAM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gmake"
+      - "make"
+      - "smake"
+    candidate_directories:
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+    searched_directories:
+      - "/usr/local/bin/gmake"
+      - "/usr/bin/gmake"
+      - "/usr/local/bin/make"
+    found: "/usr/bin/make"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompiler.cmake:73 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:69 (_cmake_find_compiler)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER"
+    description: "CXX compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "c++"
+      - "CC"
+      - "g++"
+      - "aCC"
+      - "cl"
+      - "bcc"
+      - "xlC"
+      - "icpx"
+      - "icx"
+      - "clang++"
+    candidate_directories:
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+    searched_directories:
+      - "/usr/local/bin/c++"
+    found: "/usr/bin/c++"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:501 (find_file)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:538 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/usr/share/cmake/Modules/"
+    found: "/usr/share/cmake/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: /usr/bin/c++ 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is GNU, found in:
+        /home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/4.4.4/CompilerIdCXX/a.out
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_AR"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ar"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/ar"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_RANLIB"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ranlib"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/ranlib"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_STRIP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "strip"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/strip"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_LINKER"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ld"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/ld"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_NM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "nm"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/nm"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJDUMP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objdump"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/objdump"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJCOPY"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objcopy"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/objcopy"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_READELF"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "readelf"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/readelf"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_DLLTOOL"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "dlltool"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    searched_directories:
+      - "/usr/bin/dlltool"
+      - "/usr/local/bin/dlltool"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_ADDR2LINE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "addr2line"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    found: "/usr/bin/addr2line"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:247 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_TAPI"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "tapi"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    searched_directories:
+      - "/usr/bin/tapi"
+      - "/usr/local/bin/tapi"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/GNU-FindBinUtils.cmake:18 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER_AR"
+    description: "A wrapper around 'ar' adding the appropriate '--plugin' option for the GCC compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gcc-ar-16.2"
+      - "gcc-ar-16"
+      - "gcc-ar16"
+      - "gcc-ar"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    searched_directories:
+      - "/usr/bin/gcc-ar-16.2"
+      - "/usr/local/bin/gcc-ar-16.2"
+      - "/usr/bin/gcc-ar-16"
+      - "/usr/local/bin/gcc-ar-16"
+      - "/usr/bin/gcc-ar16"
+      - "/usr/local/bin/gcc-ar16"
+    found: "/usr/bin/gcc-ar"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/GNU-FindBinUtils.cmake:30 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER_RANLIB"
+    description: "A wrapper around 'ranlib' adding the appropriate '--plugin' option for the GCC compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gcc-ranlib-16.2"
+      - "gcc-ranlib-16"
+      - "gcc-ranlib16"
+      - "gcc-ranlib"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+    searched_directories:
+      - "/usr/bin/gcc-ranlib-16.2"
+      - "/usr/local/bin/gcc-ranlib-16.2"
+      - "/usr/bin/gcc-ranlib-16"
+      - "/usr/local/bin/gcc-ranlib-16"
+      - "/usr/bin/gcc-ranlib16"
+      - "/usr/local/bin/gcc-ranlib16"
+    found: "/usr/bin/gcc-ranlib"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:123 (try_compile)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/CMakeScratch/TryCompile-9YiUGQ"
+      binary: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/CMakeScratch/TryCompile-9YiUGQ"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: false
+      stdout: |
+        Change Dir: '/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/CMakeScratch/TryCompile-9YiUGQ'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_3d9da/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_3d9da.dir/build.make CMakeFiles/cmTC_3d9da.dir/build
+        make[1]: Entering directory '/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/CMakeScratch/TryCompile-9YiUGQ'
+        Building CXX object CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -v -o CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/c++
+        Target: x86_64-pc-linux-gnu
+        Configured with: ../gcc/configure --enable-languages=ada,c,c++,d,fortran,go,lto,m2,objc,obj-c++,rust,cobol --enable-bootstrap --prefix=/usr --libdir=/usr/lib --libexecdir=/usr/lib --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://github.com/CachyOS/CachyOS-PKGBUILDS/issues --with-build-config=bootstrap-lto --with-gcc-major-version-only --with-linker-hash-style=gnu --with-system-zlib --enable-cet=auto --enable-checking=release --enable-clocale=gnu --enable-default-pie --enable-default-ssp --enable-gnu-indirect-function --enable-gnu-unique-object --enable-libstdcxx-backtrace --enable-link-serialization=1 --enable-linker-build-id --enable-lto --enable-multilib --enable-plugin --enable-shared --enable-threads=posix --disable-fixincludes --disable-libssp --disable-libstdcxx-pch --disable-werror
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 16.2.1 20260810 (GCC) 
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_3d9da.dir/'
+         /usr/lib/gcc/x86_64-pc-linux-gnu/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_3d9da.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/ccYPyKVk.s
+        GNU C++20 (GCC) version 16.2.1 20260810 (x86_64-pc-linux-gnu)
+        	compiled by GNU C version 16.2.1 20260810, GMP version 6.3.0, MPFR version 4.2.2, MPC version 1.4.1, isl version isl-0.28-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-pc-linux-gnu/16/include-fixed"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../x86_64-pc-linux-gnu/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16
+         /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/x86_64-pc-linux-gnu
+         /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/backward
+         /usr/lib/gcc/x86_64-pc-linux-gnu/16/include
+         /usr/local/include
+         /usr/include
+        End of search list.
+        Compiler executable checksum: 28a31ad65a3474623aa15fc494746870
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_3d9da.dir/'
+         as -v --64 -o CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccYPyKVk.s
+        GNU assembler version 2.47 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.47
+        COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.'
+        Linking CXX executable cmTC_3d9da
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3d9da.dir/link.txt --verbose=1
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/c++
+        COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper
+        Target: x86_64-pc-linux-gnu
+        Configured with: ../gcc/configure --enable-languages=ada,c,c++,d,fortran,go,lto,m2,objc,obj-c++,rust,cobol --enable-bootstrap --prefix=/usr --libdir=/usr/lib --libexecdir=/usr/lib --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://github.com/CachyOS/CachyOS-PKGBUILDS/issues --with-build-config=bootstrap-lto --with-gcc-major-version-only --with-linker-hash-style=gnu --with-system-zlib --enable-cet=auto --enable-checking=release --enable-clocale=gnu --enable-default-pie --enable-default-ssp --enable-gnu-indirect-function --enable-gnu-unique-object --enable-libstdcxx-backtrace --enable-link-serialization=1 --enable-linker-build-id --enable-lto --enable-multilib --enable-plugin --enable-shared --enable-threads=posix --disable-fixincludes --disable-libssp --disable-libstdcxx-pch --disable-werror
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 16.2.1 20260810 (GCC) 
+        COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_3d9da' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_3d9da.'
+         /usr/lib/gcc/x86_64-pc-linux-gnu/16/collect2 -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/16/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccZ4qR8K.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_3d9da /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/16 -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o
+        collect2 version 16.2.1 20260810
+        /usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/16/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccZ4qR8K.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_3d9da /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/16 -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o
+        GNU ld (GNU Binutils) 2.47
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_3d9da' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_3d9da.'
+        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_3d9da
+        make[1]: Leaving directory '/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/CMakeScratch/TryCompile-9YiUGQ'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:255 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16]
+          add: [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/x86_64-pc-linux-gnu]
+          add: [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/backward]
+          add: [/usr/lib/gcc/x86_64-pc-linux-gnu/16/include]
+          add: [/usr/local/include]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16] ==> [/usr/include/c++/16]
+        collapse include dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/x86_64-pc-linux-gnu] ==> [/usr/include/c++/16/x86_64-pc-linux-gnu]
+        collapse include dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/backward] ==> [/usr/include/c++/16/backward]
+        collapse include dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/include] ==> [/usr/lib/gcc/x86_64-pc-linux-gnu/16/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/usr/include/c++/16;/usr/include/c++/16/x86_64-pc-linux-gnu;/usr/include/c++/16/backward;/usr/lib/gcc/x86_64-pc-linux-gnu/16/include;/usr/local/include;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:291 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|wild|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|wild))("|,| |$)]
+        ignore line: [Change Dir: '/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/CMakeScratch/TryCompile-9YiUGQ']
+        ignore line: []
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_3d9da/fast]
+        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_3d9da.dir/build.make CMakeFiles/cmTC_3d9da.dir/build]
+        ignore line: [make[1]: Entering directory '/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/CMakeScratch/TryCompile-9YiUGQ']
+        ignore line: [Building CXX object CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/c++]
+        ignore line: [Target: x86_64-pc-linux-gnu]
+        ignore line: [Configured with: ../gcc/configure --enable-languages=ada c c++ d fortran go lto m2 objc obj-c++ rust cobol --enable-bootstrap --prefix=/usr --libdir=/usr/lib --libexecdir=/usr/lib --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://github.com/CachyOS/CachyOS-PKGBUILDS/issues --with-build-config=bootstrap-lto --with-gcc-major-version-only --with-linker-hash-style=gnu --with-system-zlib --enable-cet=auto --enable-checking=release --enable-clocale=gnu --enable-default-pie --enable-default-ssp --enable-gnu-indirect-function --enable-gnu-unique-object --enable-libstdcxx-backtrace --enable-link-serialization=1 --enable-linker-build-id --enable-lto --enable-multilib --enable-plugin --enable-shared --enable-threads=posix --disable-fixincludes --disable-libssp --disable-libstdcxx-pch --disable-werror]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 16.2.1 20260810 (GCC) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_3d9da.dir/']
+        ignore line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_3d9da.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/ccYPyKVk.s]
+        ignore line: [GNU C++20 (GCC) version 16.2.1 20260810 (x86_64-pc-linux-gnu)]
+        ignore line: [	compiled by GNU C version 16.2.1 20260810  GMP version 6.3.0  MPFR version 4.2.2  MPC version 1.4.1  isl version isl-0.28-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-pc-linux-gnu/16/include-fixed"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../x86_64-pc-linux-gnu/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16]
+        ignore line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/x86_64-pc-linux-gnu]
+        ignore line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../include/c++/16/backward]
+        ignore line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/16/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Compiler executable checksum: 28a31ad65a3474623aa15fc494746870]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_3d9da.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccYPyKVk.s]
+        ignore line: [GNU assembler version 2.47 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.47]
+        ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [Linking CXX executable cmTC_3d9da]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3d9da.dir/link.txt --verbose=1]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/c++]
+        ignore line: [COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper]
+        ignore line: [Target: x86_64-pc-linux-gnu]
+        ignore line: [Configured with: ../gcc/configure --enable-languages=ada c c++ d fortran go lto m2 objc obj-c++ rust cobol --enable-bootstrap --prefix=/usr --libdir=/usr/lib --libexecdir=/usr/lib --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://github.com/CachyOS/CachyOS-PKGBUILDS/issues --with-build-config=bootstrap-lto --with-gcc-major-version-only --with-linker-hash-style=gnu --with-system-zlib --enable-cet=auto --enable-checking=release --enable-clocale=gnu --enable-default-pie --enable-default-ssp --enable-gnu-indirect-function --enable-gnu-unique-object --enable-libstdcxx-backtrace --enable-link-serialization=1 --enable-linker-build-id --enable-lto --enable-multilib --enable-plugin --enable-shared --enable-threads=posix --disable-fixincludes --disable-libssp --disable-libstdcxx-pch --disable-werror]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 16.2.1 20260810 (GCC) ]
+        ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/16/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_3d9da' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_3d9da.']
+        link line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/16/collect2 -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/16/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccZ4qR8K.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_3d9da /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/16 -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o]
+          arg [/usr/lib/gcc/x86_64-pc-linux-gnu/16/collect2] ==> ignore
+          arg [-plugin] ==> ignore
+          arg [/usr/lib/gcc/x86_64-pc-linux-gnu/16/liblto_plugin.so] ==> ignore
+          arg [-plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccZ4qR8K.res] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-latomic_asneeded] ==> ignore
+          arg [-plugin-opt=-pass-through=-lc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-pie] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_3d9da] ==> ignore
+          arg [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o]
+          arg [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o]
+          arg [/usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o]
+          arg [-L/usr/lib/gcc/x86_64-pc-linux-gnu/16] ==> dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16]
+          arg [-L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib] ==> dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib]
+          arg [-L/lib/../lib] ==> dir [/lib/../lib]
+          arg [-L/usr/lib/../lib] ==> dir [/usr/lib/../lib]
+          arg [-L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../..] ==> dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../..]
+          arg [-L/lib] ==> dir [/lib]
+          arg [-L/usr/lib] ==> dir [/usr/lib]
+          arg [-v] ==> ignore
+          arg [CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [-lstdc++] ==> lib [stdc++]
+          arg [-lm] ==> lib [m]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-latomic_asneeded] ==> lib [atomic_asneeded]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [/usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o]
+          arg [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o]
+        ignore line: [collect2 version 16.2.1 20260810]
+        link line: [/usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/16/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccZ4qR8K.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_3d9da /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/16 -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o] ==> linker [/usr/bin/ld]
+        link line: [/usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/16/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccZ4qR8K.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_3d9da /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/16 -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o] ==> linker architecture flags [-m;elf]
+        ignore line: [/usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/16/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccZ4qR8K.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_3d9da /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/16 -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_3d9da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o]
+        linker tool for 'CXX': /usr/bin/ld -m;elf
+        collapse obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/Scrt1.o] ==> [/usr/lib/Scrt1.o]
+        collapse obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crti.o] ==> [/usr/lib/crti.o]
+        collapse obj [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib/crtn.o] ==> [/usr/lib/crtn.o]
+        collapse library dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16] ==> [/usr/lib/gcc/x86_64-pc-linux-gnu/16]
+        collapse library dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../../../lib] ==> [/usr/lib]
+        collapse library dir [/lib/../lib] ==> [/lib]
+        collapse library dir [/usr/lib/../lib] ==> [/usr/lib]
+        collapse library dir [/usr/lib/gcc/x86_64-pc-linux-gnu/16/../../..] ==> [/usr/lib]
+        collapse library dir [/lib] ==> [/lib]
+        collapse library dir [/usr/lib] ==> [/usr/lib]
+        implicit libs: [stdc++;m;gcc_s;gcc;atomic_asneeded;c;gcc_s;gcc]
+        implicit objs: [/usr/lib/Scrt1.o;/usr/lib/crti.o;/usr/lib/gcc/x86_64-pc-linux-gnu/16/crtbeginS.o;/usr/lib/gcc/x86_64-pc-linux-gnu/16/crtendS.o;/usr/lib/crtn.o]
+        implicit dirs: [/usr/lib/gcc/x86_64-pc-linux-gnu/16;/usr/lib;/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Internal/CMakeDetermineLinkerId.cmake:41 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:337 (cmake_determine_linker_id)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Running the CXX compiler's linker: "/usr/bin/ld" "-v"
+      GNU ld (GNU Binutils) 2.47
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:517 (find_program)"
+      - "/usr/lib/cmake/liblcf/Findinih.cmake:27 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:43 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "PKG_CONFIG_EXECUTABLE"
+    description: "pkg-config executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "pkg-config"
+      - "pkgconf"
+    candidate_directories:
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/pkg-config"
+      - "/usr/local/bin/pkgconf"
+    found: "/usr/bin/pkg-config"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/lib/cmake/liblcf/Findinih.cmake:32 (find_path)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:43 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "path"
+    variable: "INIH_INCLUDE_DIR"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ini.h"
+    candidate_directories:
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/usr/local/include/"
+      - "/usr/local/"
+      - "/usr/include/"
+      - "/usr/"
+      - "/include/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/"
+      - "/opt/include/"
+      - "/opt/"
+      - "/usr/include/X11/"
+    searched_directories:
+      - "/usr/local/bin/ini.h"
+      - "/usr/bin/ini.h"
+      - "/usr/local/include/ini.h"
+      - "/usr/local/ini.h"
+    found: "/usr/include/"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/lib/cmake/liblcf/Findinih.cmake:39 (find_library)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:43 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "library"
+    variable: "INIH_LIBRARY"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "libinih"
+      - "inih"
+    candidate_directories:
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+    found: "/usr/lib/libinih.so"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:226 (find_path)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "path"
+    variable: "ICU_INCLUDE_DIR"
+    description: "ICU include directory"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unicode/utypes.h"
+    candidate_directories:
+      - "/usr/local/bin/include/"
+      - "/usr/local/bin/"
+      - "/usr/bin/include/"
+      - "/usr/bin/"
+      - "/usr/local/include/include/"
+      - "/usr/local/include/"
+      - "/usr/local/include/"
+      - "/usr/local/"
+      - "/usr/include/include/"
+      - "/usr/include/"
+      - "/usr/include/"
+      - "/usr/"
+      - "/include/include/"
+      - "/include/"
+      - "/usr/X11R6/include/include/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/include/include/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/"
+      - "/opt/include/include/"
+      - "/opt/include/"
+      - "/opt/include/"
+      - "/opt/"
+      - "/usr/include/X11/include/"
+      - "/usr/include/X11/"
+    searched_directories:
+      - "/usr/local/bin/include/unicode/utypes.h"
+      - "/usr/local/bin/unicode/utypes.h"
+      - "/usr/bin/include/unicode/utypes.h"
+      - "/usr/bin/unicode/utypes.h"
+      - "/usr/local/include/include/unicode/utypes.h"
+      - "/usr/local/include/unicode/utypes.h"
+      - "/usr/local/include/unicode/utypes.h"
+      - "/usr/local/unicode/utypes.h"
+      - "/usr/include/include/unicode/utypes.h"
+    found: "/usr/include/"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENCNVAL_EXECUTABLE"
+    description: "ICU gencnval executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gencnval"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/gencnval"
+      - "/usr/local/bin/bin/gencnval"
+      - "/usr/local/bin/sbin/gencnval"
+      - "/usr/local/bin/gencnval"
+      - "/usr/bin/bin64/gencnval"
+      - "/usr/bin/bin/gencnval"
+      - "/usr/bin/sbin/gencnval"
+    found: "/usr/bin/gencnval"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_ICUINFO_EXECUTABLE"
+    description: "ICU icuinfo executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icuinfo"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/icuinfo"
+      - "/usr/local/bin/bin/icuinfo"
+      - "/usr/local/bin/sbin/icuinfo"
+      - "/usr/local/bin/icuinfo"
+      - "/usr/bin/bin64/icuinfo"
+      - "/usr/bin/bin/icuinfo"
+      - "/usr/bin/sbin/icuinfo"
+    found: "/usr/bin/icuinfo"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENBRK_EXECUTABLE"
+    description: "ICU genbrk executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "genbrk"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/genbrk"
+      - "/usr/local/bin/bin/genbrk"
+      - "/usr/local/bin/sbin/genbrk"
+      - "/usr/local/bin/genbrk"
+      - "/usr/bin/bin64/genbrk"
+      - "/usr/bin/bin/genbrk"
+      - "/usr/bin/sbin/genbrk"
+    found: "/usr/bin/genbrk"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_ICU-CONFIG_EXECUTABLE"
+    description: "ICU icu-config executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icu-config"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/icu-config"
+      - "/usr/local/bin/bin/icu-config"
+      - "/usr/local/bin/sbin/icu-config"
+      - "/usr/local/bin/icu-config"
+      - "/usr/bin/bin64/icu-config"
+      - "/usr/bin/bin/icu-config"
+      - "/usr/bin/sbin/icu-config"
+    found: "/usr/bin/icu-config"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENRB_EXECUTABLE"
+    description: "ICU genrb executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "genrb"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/genrb"
+      - "/usr/local/bin/bin/genrb"
+      - "/usr/local/bin/sbin/genrb"
+      - "/usr/local/bin/genrb"
+      - "/usr/bin/bin64/genrb"
+      - "/usr/bin/bin/genrb"
+      - "/usr/bin/sbin/genrb"
+    found: "/usr/bin/genrb"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENDICT_EXECUTABLE"
+    description: "ICU gendict executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gendict"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/gendict"
+      - "/usr/local/bin/bin/gendict"
+      - "/usr/local/bin/sbin/gendict"
+      - "/usr/local/bin/gendict"
+      - "/usr/bin/bin64/gendict"
+      - "/usr/bin/bin/gendict"
+      - "/usr/bin/sbin/gendict"
+    found: "/usr/bin/gendict"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_DERB_EXECUTABLE"
+    description: "ICU derb executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "derb"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/derb"
+      - "/usr/local/bin/bin/derb"
+      - "/usr/local/bin/sbin/derb"
+      - "/usr/local/bin/derb"
+      - "/usr/bin/bin64/derb"
+      - "/usr/bin/bin/derb"
+      - "/usr/bin/sbin/derb"
+    found: "/usr/bin/derb"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_PKGDATA_EXECUTABLE"
+    description: "ICU pkgdata executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "pkgdata"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/pkgdata"
+      - "/usr/local/bin/bin/pkgdata"
+      - "/usr/local/bin/sbin/pkgdata"
+      - "/usr/local/bin/pkgdata"
+      - "/usr/bin/bin64/pkgdata"
+      - "/usr/bin/bin/pkgdata"
+      - "/usr/bin/sbin/pkgdata"
+    found: "/usr/bin/pkgdata"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_UCONV_EXECUTABLE"
+    description: "ICU uconv executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "uconv"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/uconv"
+      - "/usr/local/bin/bin/uconv"
+      - "/usr/local/bin/sbin/uconv"
+      - "/usr/local/bin/uconv"
+      - "/usr/bin/bin64/uconv"
+      - "/usr/bin/bin/uconv"
+      - "/usr/bin/sbin/uconv"
+    found: "/usr/bin/uconv"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENCFU_EXECUTABLE"
+    description: "ICU gencfu executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gencfu"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/gencfu"
+      - "/usr/local/bin/bin/gencfu"
+      - "/usr/local/bin/sbin/gencfu"
+      - "/usr/local/bin/gencfu"
+      - "/usr/bin/bin64/gencfu"
+      - "/usr/bin/bin/gencfu"
+      - "/usr/bin/sbin/gencfu"
+    found: "/usr/bin/gencfu"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_MAKECONV_EXECUTABLE"
+    description: "ICU makeconv executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "makeconv"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/makeconv"
+      - "/usr/local/bin/bin/makeconv"
+      - "/usr/local/bin/sbin/makeconv"
+      - "/usr/local/bin/makeconv"
+      - "/usr/bin/bin64/makeconv"
+      - "/usr/bin/bin/makeconv"
+      - "/usr/bin/sbin/makeconv"
+    found: "/usr/bin/makeconv"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENNORM2_EXECUTABLE"
+    description: "ICU gennorm2 executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gennorm2"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/gennorm2"
+      - "/usr/local/bin/bin/gennorm2"
+      - "/usr/local/bin/sbin/gennorm2"
+      - "/usr/local/bin/gennorm2"
+      - "/usr/bin/bin64/gennorm2"
+      - "/usr/bin/bin/gennorm2"
+      - "/usr/bin/sbin/gennorm2"
+    found: "/usr/bin/gennorm2"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENCCODE_EXECUTABLE"
+    description: "ICU genccode executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "genccode"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/genccode"
+      - "/usr/local/bin/bin/genccode"
+      - "/usr/local/bin/sbin/genccode"
+      - "/usr/local/bin/genccode"
+      - "/usr/bin/bin64/genccode"
+      - "/usr/bin/bin/genccode"
+      - "/usr/bin/sbin/genccode"
+    found: "/usr/bin/genccode"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENSPREP_EXECUTABLE"
+    description: "ICU gensprep executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gensprep"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/gensprep"
+      - "/usr/local/bin/bin/gensprep"
+      - "/usr/local/bin/sbin/gensprep"
+      - "/usr/local/bin/gensprep"
+      - "/usr/bin/bin64/gensprep"
+      - "/usr/bin/bin/gensprep"
+      - "/usr/bin/sbin/gensprep"
+    found: "/usr/bin/gensprep"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_ICUPKG_EXECUTABLE"
+    description: "ICU icupkg executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icupkg"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/icupkg"
+      - "/usr/local/bin/bin/icupkg"
+      - "/usr/local/bin/sbin/icupkg"
+      - "/usr/local/bin/icupkg"
+      - "/usr/bin/bin64/icupkg"
+      - "/usr/bin/bin/icupkg"
+      - "/usr/bin/sbin/icupkg"
+    found: "/usr/bin/icupkg"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:261 (find_program)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "program"
+    variable: "ICU_GENCMN_EXECUTABLE"
+    description: "ICU gencmn executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gencmn"
+    candidate_directories:
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/local/bin/bin64/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin64/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/sbin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin64/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/bin64/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/sbin/"
+      - "/usr/bin/"
+      - "/usr/sbin/bin64/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/sbin/"
+      - "/usr/sbin/"
+      - "/usr/bin64/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/bin64/"
+      - "/bin/bin/"
+      - "/bin/sbin/"
+      - "/bin/"
+      - "/sbin/bin64/"
+      - "/sbin/bin/"
+      - "/sbin/sbin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/bin64/"
+      - "/usr/X11R6/bin/bin/"
+      - "/usr/X11R6/bin/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/bin64/"
+      - "/usr/X11R6/sbin/bin/"
+      - "/usr/X11R6/sbin/sbin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/bin64/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/bin64/"
+      - "/usr/pkg/bin/bin/"
+      - "/usr/pkg/bin/sbin/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/bin64/"
+      - "/usr/pkg/sbin/bin/"
+      - "/usr/pkg/sbin/sbin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/bin64/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/bin64/"
+      - "/opt/bin/bin/"
+      - "/opt/bin/sbin/"
+      - "/opt/bin/"
+      - "/opt/sbin/bin64/"
+      - "/opt/sbin/bin/"
+      - "/opt/sbin/sbin/"
+      - "/opt/sbin/"
+      - "/opt/bin64/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/usr/local/bin/bin64/gencmn"
+      - "/usr/local/bin/bin/gencmn"
+      - "/usr/local/bin/sbin/gencmn"
+      - "/usr/local/bin/gencmn"
+      - "/usr/bin/bin64/gencmn"
+      - "/usr/bin/bin/gencmn"
+      - "/usr/bin/sbin/gencmn"
+    found: "/usr/bin/gencmn"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:329 (find_library)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "library"
+    variable: "ICU_I18N_LIBRARY_RELEASE"
+    description: "ICU i18n library (release)"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icui18n"
+      - "icuin"
+    candidate_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+    found: "/usr/lib/libicui18n.so"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:336 (find_library)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "library"
+    variable: "ICU_I18N_LIBRARY_DEBUG"
+    description: "ICU i18n library (debug)"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icui18nd"
+      - "icuind"
+    candidate_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:329 (find_library)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "library"
+    variable: "ICU_UC_LIBRARY_RELEASE"
+    description: "ICU uc library (release)"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icuuc"
+    candidate_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+    found: "/usr/lib/libicuuc.so"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:336 (find_library)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "library"
+    variable: "ICU_UC_LIBRARY_DEBUG"
+    description: "ICU uc library (debug)"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icuucd"
+    candidate_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:329 (find_library)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "library"
+    variable: "ICU_DATA_LIBRARY_RELEASE"
+    description: "ICU data library (release)"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icudata"
+      - "icudt"
+    candidate_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+    found: "/usr/lib/libicudata.so"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:336 (find_library)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "library"
+    variable: "ICU_DATA_LIBRARY_DEBUG"
+    description: "ICU data library (debug)"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icudatad"
+      - "icudtd"
+    candidate_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+      - "/usr/local/bin/lib64/"
+      - "/usr/local/bin/lib/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/"
+      - "/usr/bin/lib/"
+      - "/usr/bin/"
+      - "/usr/local/lib/lib64/"
+      - "/usr/local/lib/lib/"
+      - "/usr/local/lib/"
+      - "/usr/local/lib64/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/lib64/"
+      - "/usr/lib/lib/"
+      - "/usr/lib/"
+      - "/usr/lib64/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/lib64/"
+      - "/lib/lib/"
+      - "/lib/"
+      - "/usr/X11R6/lib/lib64/"
+      - "/usr/X11R6/lib/lib/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/lib64/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/lib64/"
+      - "/usr/pkg/lib/lib/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/lib64/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/lib64/"
+      - "/opt/lib/lib/"
+      - "/opt/lib/"
+      - "/opt/lib64/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/lib64/"
+      - "/usr/lib/X11/lib/"
+      - "/usr/lib/X11/"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:380 (find_file)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "file"
+    variable: "ICU_MAKEFILE_INC"
+    description: "ICU Makefile.inc data file"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "Makefile.inc"
+    candidate_directories:
+      - "/usr/local/bin/lib64/icu/78.3/"
+      - "/usr/local/bin/lib/icu/78.3/"
+      - "/usr/local/bin/lib64/icu/"
+      - "/usr/local/bin/lib/icu/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/icu/78.3/"
+      - "/usr/bin/lib/icu/78.3/"
+      - "/usr/bin/lib64/icu/"
+      - "/usr/bin/lib/icu/"
+      - "/usr/bin/"
+      - "/usr/local/include/lib64/icu/78.3/"
+      - "/usr/local/include/lib/icu/78.3/"
+      - "/usr/local/include/lib64/icu/"
+      - "/usr/local/include/lib/icu/"
+      - "/usr/local/include/"
+      - "/usr/local/lib64/icu/78.3/"
+      - "/usr/local/lib/icu/78.3/"
+      - "/usr/local/lib64/icu/"
+      - "/usr/local/lib/icu/"
+      - "/usr/local/"
+      - "/usr/include/lib64/icu/78.3/"
+      - "/usr/include/lib/icu/78.3/"
+      - "/usr/include/lib64/icu/"
+      - "/usr/include/lib/icu/"
+      - "/usr/include/"
+      - "/usr/lib64/icu/78.3/"
+      - "/usr/lib/icu/78.3/"
+      - "/usr/lib64/icu/"
+      - "/usr/lib/icu/"
+      - "/usr/"
+      - "/include/lib64/icu/78.3/"
+      - "/include/lib/icu/78.3/"
+      - "/include/lib64/icu/"
+      - "/include/lib/icu/"
+      - "/include/"
+      - "/usr/X11R6/include/lib64/icu/78.3/"
+      - "/usr/X11R6/include/lib/icu/78.3/"
+      - "/usr/X11R6/include/lib64/icu/"
+      - "/usr/X11R6/include/lib/icu/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/lib64/icu/78.3/"
+      - "/usr/X11R6/lib/icu/78.3/"
+      - "/usr/X11R6/lib64/icu/"
+      - "/usr/X11R6/lib/icu/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/include/lib64/icu/78.3/"
+      - "/usr/pkg/include/lib/icu/78.3/"
+      - "/usr/pkg/include/lib64/icu/"
+      - "/usr/pkg/include/lib/icu/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/lib64/icu/78.3/"
+      - "/usr/pkg/lib/icu/78.3/"
+      - "/usr/pkg/lib64/icu/"
+      - "/usr/pkg/lib/icu/"
+      - "/usr/pkg/"
+      - "/opt/include/lib64/icu/78.3/"
+      - "/opt/include/lib/icu/78.3/"
+      - "/opt/include/lib64/icu/"
+      - "/opt/include/lib/icu/"
+      - "/opt/include/"
+      - "/opt/lib64/icu/78.3/"
+      - "/opt/lib/icu/78.3/"
+      - "/opt/lib64/icu/"
+      - "/opt/lib/icu/"
+      - "/opt/"
+      - "/usr/include/X11/lib64/icu/78.3/"
+      - "/usr/include/X11/lib/icu/78.3/"
+      - "/usr/include/X11/lib64/icu/"
+      - "/usr/include/X11/lib/icu/"
+      - "/usr/include/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/icu/78.3/Makefile.inc"
+      - "/usr/local/bin/lib/icu/78.3/Makefile.inc"
+      - "/usr/local/bin/lib64/icu/Makefile.inc"
+      - "/usr/local/bin/lib/icu/Makefile.inc"
+      - "/usr/local/bin/Makefile.inc"
+      - "/usr/bin/lib64/icu/78.3/Makefile.inc"
+      - "/usr/bin/lib/icu/78.3/Makefile.inc"
+      - "/usr/bin/lib64/icu/Makefile.inc"
+      - "/usr/bin/lib/icu/Makefile.inc"
+      - "/usr/bin/Makefile.inc"
+      - "/usr/local/include/lib64/icu/78.3/Makefile.inc"
+      - "/usr/local/include/lib/icu/78.3/Makefile.inc"
+      - "/usr/local/include/lib64/icu/Makefile.inc"
+      - "/usr/local/include/lib/icu/Makefile.inc"
+      - "/usr/local/include/Makefile.inc"
+      - "/usr/local/lib64/icu/78.3/Makefile.inc"
+      - "/usr/local/lib/icu/78.3/Makefile.inc"
+      - "/usr/local/lib64/icu/Makefile.inc"
+      - "/usr/local/lib/icu/Makefile.inc"
+      - "/usr/local/Makefile.inc"
+      - "/usr/include/lib64/icu/78.3/Makefile.inc"
+      - "/usr/include/lib/icu/78.3/Makefile.inc"
+      - "/usr/include/lib64/icu/Makefile.inc"
+      - "/usr/include/lib/icu/Makefile.inc"
+      - "/usr/include/Makefile.inc"
+    found: "/usr/lib64/icu/78.3/Makefile.inc"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindICU.cmake:380 (find_file)"
+      - "/usr/share/cmake/Modules/FindICU.cmake:390 (_ICU_FIND)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:47 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    mode: "file"
+    variable: "ICU_PKGDATA_INC"
+    description: "ICU pkgdata.inc data file"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "pkgdata.inc"
+    candidate_directories:
+      - "/usr/local/bin/lib64/icu/78.3/"
+      - "/usr/local/bin/lib/icu/78.3/"
+      - "/usr/local/bin/lib64/icu/"
+      - "/usr/local/bin/lib/icu/"
+      - "/usr/local/bin/"
+      - "/usr/bin/lib64/icu/78.3/"
+      - "/usr/bin/lib/icu/78.3/"
+      - "/usr/bin/lib64/icu/"
+      - "/usr/bin/lib/icu/"
+      - "/usr/bin/"
+      - "/usr/local/include/lib64/icu/78.3/"
+      - "/usr/local/include/lib/icu/78.3/"
+      - "/usr/local/include/lib64/icu/"
+      - "/usr/local/include/lib/icu/"
+      - "/usr/local/include/"
+      - "/usr/local/lib64/icu/78.3/"
+      - "/usr/local/lib/icu/78.3/"
+      - "/usr/local/lib64/icu/"
+      - "/usr/local/lib/icu/"
+      - "/usr/local/"
+      - "/usr/include/lib64/icu/78.3/"
+      - "/usr/include/lib/icu/78.3/"
+      - "/usr/include/lib64/icu/"
+      - "/usr/include/lib/icu/"
+      - "/usr/include/"
+      - "/usr/lib64/icu/78.3/"
+      - "/usr/lib/icu/78.3/"
+      - "/usr/lib64/icu/"
+      - "/usr/lib/icu/"
+      - "/usr/"
+      - "/include/lib64/icu/78.3/"
+      - "/include/lib/icu/78.3/"
+      - "/include/lib64/icu/"
+      - "/include/lib/icu/"
+      - "/include/"
+      - "/usr/X11R6/include/lib64/icu/78.3/"
+      - "/usr/X11R6/include/lib/icu/78.3/"
+      - "/usr/X11R6/include/lib64/icu/"
+      - "/usr/X11R6/include/lib/icu/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/lib64/icu/78.3/"
+      - "/usr/X11R6/lib/icu/78.3/"
+      - "/usr/X11R6/lib64/icu/"
+      - "/usr/X11R6/lib/icu/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/include/lib64/icu/78.3/"
+      - "/usr/pkg/include/lib/icu/78.3/"
+      - "/usr/pkg/include/lib64/icu/"
+      - "/usr/pkg/include/lib/icu/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/lib64/icu/78.3/"
+      - "/usr/pkg/lib/icu/78.3/"
+      - "/usr/pkg/lib64/icu/"
+      - "/usr/pkg/lib/icu/"
+      - "/usr/pkg/"
+      - "/opt/include/lib64/icu/78.3/"
+      - "/opt/include/lib/icu/78.3/"
+      - "/opt/include/lib64/icu/"
+      - "/opt/include/lib/icu/"
+      - "/opt/include/"
+      - "/opt/lib64/icu/78.3/"
+      - "/opt/lib/icu/78.3/"
+      - "/opt/lib64/icu/"
+      - "/opt/lib/icu/"
+      - "/opt/"
+      - "/usr/include/X11/lib64/icu/78.3/"
+      - "/usr/include/X11/lib/icu/78.3/"
+      - "/usr/include/X11/lib64/icu/"
+      - "/usr/include/X11/lib/icu/"
+      - "/usr/include/X11/"
+    searched_directories:
+      - "/usr/local/bin/lib64/icu/78.3/pkgdata.inc"
+      - "/usr/local/bin/lib/icu/78.3/pkgdata.inc"
+      - "/usr/local/bin/lib64/icu/pkgdata.inc"
+      - "/usr/local/bin/lib/icu/pkgdata.inc"
+      - "/usr/local/bin/pkgdata.inc"
+      - "/usr/bin/lib64/icu/78.3/pkgdata.inc"
+      - "/usr/bin/lib/icu/78.3/pkgdata.inc"
+      - "/usr/bin/lib64/icu/pkgdata.inc"
+      - "/usr/bin/lib/icu/pkgdata.inc"
+      - "/usr/bin/pkgdata.inc"
+      - "/usr/local/include/lib64/icu/78.3/pkgdata.inc"
+      - "/usr/local/include/lib/icu/78.3/pkgdata.inc"
+      - "/usr/local/include/lib64/icu/pkgdata.inc"
+      - "/usr/local/include/lib/icu/pkgdata.inc"
+      - "/usr/local/include/pkgdata.inc"
+      - "/usr/local/lib64/icu/78.3/pkgdata.inc"
+      - "/usr/local/lib/icu/78.3/pkgdata.inc"
+      - "/usr/local/lib64/icu/pkgdata.inc"
+      - "/usr/local/lib/icu/pkgdata.inc"
+      - "/usr/local/pkgdata.inc"
+      - "/usr/include/lib64/icu/78.3/pkgdata.inc"
+      - "/usr/include/lib/icu/78.3/pkgdata.inc"
+      - "/usr/include/lib64/icu/pkgdata.inc"
+      - "/usr/include/lib/icu/pkgdata.inc"
+      - "/usr/include/pkgdata.inc"
+    found: "/usr/lib64/icu/78.3/pkgdata.inc"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
+      - "/usr/lib/cmake/liblcf/liblcf-config.cmake:51 (find_dependency)"
+      - "CMakeLists.txt:14 (find_package)"
+    name: "expat"
+    configs:
+      -
+        filename: "expat.cps"
+        kind: "cps"
+      -
+        filename: "expatConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "expat-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "required_explicit"
+      quiet: false
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "expat"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/expatConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/expat-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/lib/cps/expat.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/share/cps/expat.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/expatConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/expat-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/cps/expat.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/share/cps/expat.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/expatConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/expat-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cps/expat.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/cps/expat.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cmake/expat-2.9.0/expatConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found:
+      path: "/usr/lib/cmake/expat-2.9.0/expat-config.cmake"
+      mode: "config"
+      version: "2.9.0"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:14 (find_package)"
+    name: "liblcf"
+    configs:
+      -
+        filename: "liblcf.cps"
+        kind: "cps"
+      -
+        filename: "liblcfConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "liblcf-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "required_explicit"
+      quiet: false
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "liblcf"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/liblcfConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/liblcf-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/lib/cps/liblcf.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/madotsukanai/Projects/rm2kscript/build_warn/CMakeFiles/pkgRedirects/share/cps/liblcf.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/liblcfConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/liblcf-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/cps/liblcf.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/share/cps/liblcf.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/liblcfConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/liblcf-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cps/liblcf.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/cps/liblcf.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cmake/liblcf/liblcfConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found:
+      path: "/usr/lib/cmake/liblcf/liblcf-config.cmake"
+      mode: "config"
+      version: "0.8.1"
+    search_context:
+      ENV{PATH}:
+        - "/usr/local/bin"
+        - "/usr/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_MODULE_PATH:
+        - "/usr/lib/cmake/liblcf"
+...
