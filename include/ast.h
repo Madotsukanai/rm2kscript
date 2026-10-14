@@ -23,7 +23,7 @@ enum class TokenKind {
     Equals, EqEq, Neq,
     Lt, LtEq, Gt, GtEq,                          // < <= > >=
     PlusEq, MinusEq, StarEq, SlashEq, PercentEq,
-    Plus, Minus,        // 単項/二項演算子
+    Plus, Minus, Star,  // 単項/二項演算子
     At, Hash,
     Kw_if, Kw_else,
     Kw_while, Kw_for,

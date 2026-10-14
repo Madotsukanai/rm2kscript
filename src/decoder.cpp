@@ -145,7 +145,8 @@ static std::string decode_cond(const lcf::rpg::EventCommand& c,
             int32_t dir = p(2);
             if (dir < 0 || dir > 3) return raw_cond_text(c);
             static const char* dirs[] = {"up","right","down","left"};
-            std::string who_s = (who == 10001) ? "this" : std::to_string(who);
+            std::string who_s = char_ref_name(who);
+            if (who_s.empty()) who_s = std::to_string(who);
             std::string r = "char_facing(who=" + who_s + ", dir=" + dirs[dir] + ")";
             r += extra_cond_params(c, 3);
             return r;
@@ -220,45 +221,123 @@ static std::string decode_control_switches(const lcf::rpg::EventCommand& c, int 
 static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
                                         const NameTable* names = nullptr) {
     auto p = [&](size_t i) -> int32_t { return i < c.parameters.size() ? c.parameters[i] : 0; };
-    int32_t type = p(0);
-    int32_t id1  = p(1);
-    int32_t id2  = p(2);
-    int32_t op   = p(3);
-    int32_t src  = p(4);
-    int32_t val  = p(5);
+    int32_t type     = p(0);
+    int32_t id1      = p(1);
+    int32_t id2      = p(2);
+    int32_t op       = p(3);
+    int32_t src      = p(4);
+    int32_t val      = p(5);
+    int32_t extra    = p(6); // src_extra: src=3→rand上限, src=4/5/6/8→sub_op or actor/event id
+    bool has_extra   = (c.parameters.size() > 6);
     static const char* ops[] = {"=","+=","-=","*=","/=","%="};
 
-    // src<=1 かつ src_extra(p[6])=0 かつ type<=1（single/range）かつ op が標準の場合のみシンプル形式。
-    // ただし元が7パラメータのとき (has_src_extra=true) はキー形式で保持してバイナリを保持する。
-    // それ以外 (type=2 の間接指定、src>=2、範囲外の op など) もキー形式。
-    bool has_src_extra = (c.parameters.size() > 6);
-    int32_t src_extra = has_src_extra ? p(6) : 0;
-    if (src >= 0 && src <= 1 && src_extra == 0 && type >= 0 && type <= 1 && op >= 0 && op < 6
-        && !has_src_extra) {
+    // op が範囲外はキー形式にフォールバック
+    if (op < 0 || op >= 6) goto key_form;
+
+    {
+        // LHS 構築
         std::string v1 = names ? names->var_label(id1) : std::to_string(id1);
         std::string v2 = names ? names->var_label(id2) : std::to_string(id2);
-        std::string lhs = (type == 0) ? "var[" + v1 + "]" : "var[" + v1 + ".." + v2 + "]";
-        std::string rhs;
-        if (src == 0) {
-            rhs = std::to_string(val);
+        std::string lhs;
+        if      (type == 0) lhs = "var[" + v1 + "]";
+        else if (type == 1) lhs = "var[" + v1 + ".." + v2 + "]";
+        else if (type == 2) {
+            // 間接参照: var[*var[N]] — 数値IDで出力（名前だとエンコード時の名前解決が困難）
+            lhs = "var[*var[" + std::to_string(id1) + "]]";
         } else {
-            std::string rv = names ? names->var_label(val) : std::to_string(val);
-            rhs = "var[" + rv + "]";
+            goto key_form;
         }
+
+        // RHS 構築
+        std::string rhs;
+        switch (src) {
+            case 0: // 定数
+                rhs = std::to_string(val);
+                break;
+            case 1: { // 変数
+                std::string rv = names ? names->var_label(val) : std::to_string(val);
+                rhs = "var[" + rv + "]";
+                break;
+            }
+            case 2: { // 間接参照 *var[N]
+                std::string rv = names ? names->var_label(val) : std::to_string(val);
+                rhs = "*var[" + rv + "]";
+                break;
+            }
+            case 3: // rand(lo, hi)
+                rhs = "rand(" + std::to_string(val) + ", " + std::to_string(extra) + ")";
+                break;
+            case 4: { // item_count(id=N, op=M)
+                // p[5]=item_id=val, p[6]=sub_op=extra
+                static const char* item_ops[] = {"count", "equip"};
+                std::string iop = (extra >= 0 && extra <= 1) ? item_ops[extra] : std::to_string(extra);
+                rhs = "item_count(id=" + std::to_string(val) + ", op=" + iop + ")";
+                break;
+            }
+            case 5: { // actor_stat(id=N, stat=S)
+                // p[5]=actor_id=val, p[6]=sub_op=extra
+                static const char* actor_stats[] = {
+                    "level","exp","hp","mp","max_hp","max_mp",
+                    "atk","def","spi","agi",
+                    "weapon_id","shield_id","armor_id","helmet_id","accessory_id"
+                };
+                std::string stat = (extra >= 0 && extra <= 14) ? actor_stats[extra] : std::to_string(extra);
+                rhs = "actor_stat(id=" + std::to_string(val) + ", stat=" + stat + ")";
+                break;
+            }
+            case 6: { // event_stat(event=N, stat=S)
+                // p[5]=event_id=val, p[6]=sub_op=extra
+                static const char* event_stats[] = {"map_id","x","y","dir","screen_x","screen_y"};
+                std::string stat = (extra >= 0 && extra <= 5) ? event_stats[extra] : std::to_string(extra);
+                std::string eid  = char_ref_name(val);
+                if (eid.empty()) eid = std::to_string(val);
+                rhs = "event_stat(event=" + eid + ", stat=" + stat + ")";
+                break;
+            }
+            case 7: { // system_stat(name)
+                // val=sub_op, extra unused
+                static const char* sys_stats[] = {
+                    "gold","timer1","party_size","save_count",
+                    "battle_count","win_count","defeat_count","escape_count","midi_pos","timer2"
+                };
+                std::string stat = (val >= 0 && val <= 9) ? sys_stats[val] : std::to_string(val);
+                rhs = "system_stat(" + stat + ")";
+                break;
+            }
+            case 8: { // enemy_stat(id=N, stat=S)
+                // p[5]=enemy_id=val, p[6]=sub_op=extra
+                static const char* enemy_stats[] = {"hp","mp","max_hp","max_mp","atk","def","spi","agi"};
+                std::string stat = (extra >= 0 && extra <= 7) ? enemy_stats[extra] : std::to_string(extra);
+                rhs = "enemy_stat(id=" + std::to_string(val) + ", stat=" + stat + ")";
+                break;
+            }
+            default:
+                goto key_form;
+        }
+
+        // has_extra=false(6パラメータ以下)かつ src>=3 は p[6] が省略されている。
+        // エンコード時にバイナリを再現できないためキー形式にフォールバック。
+        // has_extra=true(7パラメータ) の場合のみ C言語風関数記法を使う。
+        // src=0〜2 は has_extra にかかわらず C言語風でよい（src_extra は EasyRPG が無視する）。
+        if (src >= 3 && !has_extra) goto key_form;
+
         return indent_str(ind) + lhs + " " + ops[op] + " " + rhs + ";";
     }
-    // キー形式: ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=val [,src_extra=p6])
-    // src_extra は元が7パラメータのとき (has_src_extra=true) のみ出力（0でも）してバイナリを保持する
-    std::string r = indent_str(ind) + "ControlVars(var=" + std::to_string(id1)
-         + ", type=" + std::to_string(type)
-         + ", id2=" + std::to_string(id2)
-         + ", op_code=" + std::to_string(op)
-         + ", src=" + std::to_string(src)
-         + ", src_val=" + std::to_string(val);
-    if (has_src_extra)
-        r += ", src_extra=" + std::to_string(src_extra);
-    r += ");";
-    return r;
+
+key_form:
+    {
+        // キー形式: ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=val [,src_extra=p6])
+        std::string r = indent_str(ind) + "ControlVars(var=" + std::to_string(id1)
+             + ", type=" + std::to_string(type)
+             + ", id2=" + std::to_string(id2)
+             + ", op_code=" + std::to_string(op)
+             + ", src=" + std::to_string(src)
+             + ", src_val=" + std::to_string(val);
+        if (has_extra)
+            r += ", src_extra=" + std::to_string(extra);
+        r += ");";
+        return r;
+    }
 }
 
 // decode_cmds_impl: i を参照で受け取り、stop_code に出会ったら止まる
@@ -351,12 +430,6 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── ControlVars → var[N] op= val; ───────────────────────────────
-        if (code == LcfCode::ControlVars) {
-            out << decode_control_vars(cmd, vis, names) << "\n";
-            ++i; continue;
-        }
-
         // ── ConditionalBranch ────────────────────────────────────────────
         if (code == LcfCode::ConditionalBranch) {
             out << indent_str(vis) << "if (" << decode_cond(cmd, names) << ") {\n";
@@ -384,9 +457,147 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
+        // ── ControlVars の直後 Loop → for(...) の認識 ────────────────────
+        // for (var[id] = init; cond; var[id] op= step) { body }
+        // 条件: ControlVars(single=, =) → Loop → while パターン → 末尾ステップが同変数の ControlVars
+        if (code == LcfCode::ControlVars) {
+            // while パターンマッチを試みる前に for として認識できるか先読みする
+            auto p = [&](const lcf::rpg::EventCommand& c, size_t k) -> int32_t {
+                return k < c.parameters.size() ? c.parameters[k] : 0;
+            };
+            int32_t cv_type = p(cmd, 0);
+            int32_t cv_id1  = p(cmd, 1);
+            int32_t cv_id2  = p(cmd, 2);
+            int32_t cv_op   = p(cmd, 3);
+            int32_t cv_src  = p(cmd, 4);
+            int32_t cv_val  = p(cmd, 5);
+            bool cv_has_extra = (cmd.parameters.size() > 6);
+            bool cv_simple = (cv_type == 0 && cv_id1 == cv_id2 && cv_op == 0
+                              && cv_src >= 0 && cv_src <= 1 && !cv_has_extra);
+            // 次が Loop かチェック
+            size_t j = i + 1;
+            bool next_is_loop = (j < n && static_cast<LcfCode>(cmds[j].code) == LcfCode::Loop
+                                 && cmds[j].indent == cmd.indent);
+            if (cv_simple && next_is_loop) {
+                // while パターン先読み
+                int32_t loop_ind = cmds[j].indent;
+                // Loop の後に ConditionalBranch(ind+1), END(ind+2), ElseBranch(ind+1),
+                // BreakLoop(ind+2), END(ind+2), EndBranch(ind+1) の6コマンドがあるか
+                auto at = [&](size_t k) -> const lcf::rpg::EventCommand* {
+                    return (k < n) ? &cmds[k] : nullptr;
+                };
+                auto code_at = [&](size_t k) -> LcfCode {
+                    auto* c = at(k); return c ? static_cast<LcfCode>(c->code) : LcfCode::END;
+                };
+                auto ind_at = [&](size_t k) -> int32_t {
+                    auto* c = at(k); return c ? c->indent : -1;
+                };
+                bool while_hdr = (
+                    code_at(j+1) == LcfCode::ConditionalBranch && ind_at(j+1) == loop_ind+1 &&
+                    code_at(j+2) == LcfCode::END               && ind_at(j+2) == loop_ind+2 &&
+                    code_at(j+3) == LcfCode::ElseBranch        && ind_at(j+3) == loop_ind+1 &&
+                    code_at(j+4) == LcfCode::BreakLoop         && ind_at(j+4) == loop_ind+2 &&
+                    code_at(j+5) == LcfCode::END               && ind_at(j+5) == loop_ind+2 &&
+                    code_at(j+6) == LcfCode::EndBranch         && ind_at(j+6) == loop_ind+1
+                );
+                if (while_hdr) {
+                    // EndLoop の位置を探す
+                    size_t el = j + 7;
+                    while (el < n && !(static_cast<LcfCode>(cmds[el].code) == LcfCode::EndLoop
+                                       && cmds[el].indent == loop_ind)) ++el;
+                    // EndLoop の直前(END を除いた直前)の命令がステップ ControlVars か判定
+                    // 構造: body... END(loop_ind+1) EndLoop(loop_ind)
+                    // el-2 が END(loop_ind+1), el-1 が... 実際は el-1=END, el=EndLoop なので
+                    // ステップは el-2 (END の前)
+                    size_t step_idx = (el >= 2) ? el - 2 : n;
+                    // END を飛ばして実際のステップ命令を探す
+                    // (ENDはブランチ内末尾に挿入されるので連続する場合がある)
+                    while (step_idx > j + 7 &&
+                           static_cast<LcfCode>(cmds[step_idx].code) == LcfCode::END)
+                        --step_idx;
+                    const auto* sc = (step_idx > j + 6 && step_idx < n) ? &cmds[step_idx] : nullptr;
+                    bool step_ok = false;
+                    int32_t step_op = 0, step_val = 0, step_src = 0;
+                    if (sc && static_cast<LcfCode>(sc->code) == LcfCode::ControlVars) {
+                        auto sp = [&](size_t k) -> int32_t {
+                            return k < sc->parameters.size() ? sc->parameters[k] : 0;
+                        };
+                        int32_t s_type = sp(0), s_id1 = sp(1), s_id2 = sp(2);
+                        int32_t s_op = sp(3), s_src = sp(4);
+                        bool s_extra = (sc->parameters.size() > 6);
+                        // 同変数・single・op≠0(=は使わない)・src<=1・extra無し
+                        step_ok = (s_type == 0 && s_id1 == cv_id1 && s_id2 == cv_id1
+                                   && s_op >= 1 && s_op <= 5 && s_src >= 0 && s_src <= 1
+                                   && !s_extra);
+                        if (step_ok) { step_op = s_op; step_val = sp(5); step_src = s_src; }
+                    }
+                    if (step_ok) {
+                        // for 文として出力
+                        static const char* ops[] = {"=","+=","-=","*=","/=","%="};
+                        std::string var_s = names ? names->var_label(cv_id1) : std::to_string(cv_id1);
+                        std::string init_s;
+                        if (cv_src == 0) init_s = std::to_string(cv_val);
+                        else init_s = "var[" + (names ? names->var_label(cv_val) : std::to_string(cv_val)) + "]";
+                        std::string step_rhs;
+                        if (step_src == 0) step_rhs = std::to_string(step_val);
+                        else step_rhs = "var[" + (names ? names->var_label(step_val) : std::to_string(step_val)) + "]";
+                        std::string cond_s = decode_cond(cmds[j+1], names);
+                        out << indent_str(vis) << "for (var[" << var_s << "] = " << init_s
+                            << "; " << cond_s << "; var[" << var_s << "] " << ops[step_op]
+                            << " " << step_rhs << ") {\n";
+                        // body: j+7 から step_idx-1 まで (step と末尾ENDを除く)
+                        size_t body_end = step_idx; // step自身は除く
+                        // body_end が END なら更に前
+                        while (body_end > j + 7 &&
+                               static_cast<LcfCode>(cmds[body_end - 1].code) == LcfCode::END
+                               && cmds[body_end - 1].indent > loop_ind)
+                            --body_end;
+                        size_t body_i = j + 7;
+                        decode_cmds_impl(cmds, body_i, body_end, base_indent, out, names);
+                        out << indent_str(vis) << "}\n";
+                        i = el + 1; // EndLoop の次へ
+                        continue;
+                    }
+                    // ステップが不明なら while にフォールバック（ControlVars は通常処理）
+                }
+            }
+            // for に変換できない場合は通常の ControlVars 処理
+            out << decode_control_vars(cmd, vis, names) << "\n";
+            ++i; continue;
+        }
+
         // ── Loop / EndLoop ───────────────────────────────────────────────
         if (code == LcfCode::Loop) {
-            out << indent_str(vis) << "loop {\n";
+            // while(cond) パターンの認識:
+            // Loop(N) ConditionalBranch(N+1) END(N+2) ElseBranch(N+1) BreakLoop(N+2) END(N+2) EndBranch(N+1)
+            int32_t loop_ind = cmd.indent;
+            auto code_at = [&](size_t k) -> LcfCode {
+                return (k < n) ? static_cast<LcfCode>(cmds[k].code) : LcfCode::END;
+            };
+            auto ind_at = [&](size_t k) -> int32_t {
+                return (k < n) ? cmds[k].indent : -1;
+            };
+            bool while_hdr = (
+                code_at(i+1) == LcfCode::ConditionalBranch && ind_at(i+1) == loop_ind+1 &&
+                code_at(i+2) == LcfCode::END               && ind_at(i+2) == loop_ind+2 &&
+                code_at(i+3) == LcfCode::ElseBranch        && ind_at(i+3) == loop_ind+1 &&
+                code_at(i+4) == LcfCode::BreakLoop         && ind_at(i+4) == loop_ind+2 &&
+                code_at(i+5) == LcfCode::END               && ind_at(i+5) == loop_ind+2 &&
+                code_at(i+6) == LcfCode::EndBranch         && ind_at(i+6) == loop_ind+1
+            );
+            if (while_hdr) {
+                std::string cond_s = decode_cond(cmds[i+1], names);
+                out << indent_str(vis) << "while (" << cond_s << ") {\n";
+                // body: i+7 から EndLoop まで
+                size_t body_i = i + 7;
+                decode_cmds_impl(cmds, body_i, n, base_indent, out, names,
+                                 LcfCode::EndLoop);
+                // body_i は EndLoop を指している
+                out << indent_str(vis) << "}\n";
+                i = body_i + 1; // EndLoop の次へ
+                continue;
+            }
+            out << indent_str(vis) << "while(true) {\n";
             ++i; continue;
         }
         if (code == LcfCode::EndLoop) {

@@ -73,14 +73,33 @@ static bool same_cmd(const lcf::rpg::EventCommand& a, const lcf::rpg::EventComma
     if (a.code != b.code || a.indent != b.indent) return false;
     if (std::string(a.string.begin(), a.string.end()) !=
         std::string(b.string.begin(), b.string.end())) return false;
-    if (a.parameters.size() != b.parameters.size()) return false;
+
+    // ControlVars(10220) で src=0/1/2 の場合: EasyRPG は p[6](src_extra) を参照しないため
+    // エンコード時に 7→6 パラメータに圧縮されても意味的に等価。
+    // orig=7パラメータ, now=6パラメータ かつ p[4]<=2 かつ orig p[6]==0 のとき許容する。
+    size_t a_sz = a.parameters.size();
+    size_t b_sz = b.parameters.size();
+    auto ap = [&](size_t i) -> int32_t { return i < a_sz ? a.parameters[i] : 0; };
+    auto bp = [&](size_t i) -> int32_t { return i < b_sz ? b.parameters[i] : 0; };
+
+    bool cv_trim_ok = false;
+    if (a.code == 10220) {
+        // 7→6 圧縮: orig=7, now=6, src<=2, orig p[6]=0
+        if (a_sz == 7 && b_sz == 6 && ap(4) <= 2 && ap(6) == 0) cv_trim_ok = true;
+        // 6→7 の逆方向は起きないはずだが念のため対称に
+        if (b_sz == 7 && a_sz == 6 && bp(4) <= 2 && bp(6) == 0) cv_trim_ok = true;
+    }
+    if (!cv_trim_ok && a_sz != b_sz) return false;
+
     // ControlSwitches(10210)/ControlVars(10220) の単独指定(type=0)では id2 は未使用値
     // (エディタの残骸が残る)なので、意味のある差分としては扱わない
     const bool skip_id2 = (a.code == 10210 || a.code == 10220)
-                          && a.parameters.size() > 2 && a.parameters[0] == 0;
-    for (size_t i = 0; i < a.parameters.size(); ++i) {
+                          && a_sz > 2 && ap(0) == 0;
+    size_t cmp_sz = std::max(a_sz, b_sz);
+    if (cv_trim_ok) cmp_sz = std::min(a_sz, b_sz); // 共通部分のみ比較
+    for (size_t i = 0; i < cmp_sz; ++i) {
         if (skip_id2 && i == 2) continue;
-        if (a.parameters[i] != b.parameters[i]) return false;
+        if (ap(i) != bp(i)) return false;
     }
     return true;
 }

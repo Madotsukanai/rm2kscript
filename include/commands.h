@@ -1,5 +1,6 @@
 #pragma once
 #include "ast.h"
+#include "nametable.h"
 #include <lcf/rpg/eventcommand.h>
 #include <vector>
 #include <string>
@@ -18,6 +19,7 @@ using CmdVec  = std::vector<LcfCmd>;
 
 struct EncodeCtx {
     int32_t indent = 0;
+    const NameTable* names = nullptr;  // 変数/スイッチ名解決用（nullptr = 使用しない）
 };
 
 // LCFコマンド列 → テキスト行
@@ -113,5 +115,22 @@ inline int32_t param(const LcfCmd& c, size_t idx, int32_t def = 0) {
     if (idx < c.parameters.size()) return c.parameters[idx];
     return def;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// キャラクター/イベント指定 (RPG_RT / EasyRPG Editor の定数)
+//   10001=主人公, 10002=ボート, 10003=船, 10004=飛行船, 10005=このイベント, それ以外=イベントID
+// ──────────────────────────────────────────────────────────────────────────────
+
+constexpr int32_t kCharPlayer    = 10001;
+constexpr int32_t kCharBoat      = 10002;
+constexpr int32_t kCharShip      = 10003;
+constexpr int32_t kCharAirship   = 10004;
+constexpr int32_t kCharThisEvent = 10005;
+
+// 予約IDなら player/boat/ship/airship/this、そうでなければ空文字列
+std::string char_ref_name(int32_t id);
+
+// 引数 (整数 または player/boat/ship/airship/this) → ID。解釈できなければ std::runtime_error
+int32_t resolve_char_ref(const Arg& a, const char* what);
 
 } // namespace rm2k

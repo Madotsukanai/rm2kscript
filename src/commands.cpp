@@ -101,6 +101,32 @@ std::string arg_ident(const std::vector<Arg>& args, size_t pos, const std::strin
     return a->val.sval;
 }
 
+std::string char_ref_name(int32_t id) {
+    switch (id) {
+        case kCharPlayer:    return "player";
+        case kCharBoat:      return "boat";
+        case kCharShip:      return "ship";
+        case kCharAirship:   return "airship";
+        case kCharThisEvent: return "this";
+        default:             return "";
+    }
+}
+
+int32_t resolve_char_ref(const Arg& a, const char* what) {
+    if (a.val.kind == ArgVal::Int) return a.val.ival;
+    if (a.val.kind == ArgVal::Ident) {
+        const std::string& n = a.val.sval;
+        if (n == "player")  return kCharPlayer;
+        if (n == "boat")    return kCharBoat;
+        if (n == "ship")    return kCharShip;
+        if (n == "airship") return kCharAirship;
+        if (n == "this")    return kCharThisEvent;
+    }
+    // 未知の識別子を黙って ID 1 等にしない
+    throw std::runtime_error(std::string(what)
+        + ": target must be player/boat/ship/airship/this or an event ID");
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // エンコード用ヘルパー: party/actor の解析
 // ──────────────────────────────────────────────────────────────────────────────
@@ -433,10 +459,50 @@ void register_all_commands() {
             int32_t id1 = 1, val = 0, src = 0, op_i = 0;
             const Arg* va = find_arg(s.args, 0, "var");
             if (va) {
-                id1  = va->val.ival;
+                // 名前ラベルがある場合は NameTable で解決する
+                if (!va->val.sidx.empty()) {
+                    if (!ctx.names)
+                        throw std::runtime_error("var[\"" + va->val.sidx + "\"]: name table required");
+                    auto rid = ctx.names->find_var(va->val.sidx);
+                    if (!rid) throw std::runtime_error("unknown variable name \"" + va->val.sidx + "\"");
+                    id1 = *rid;
+                } else {
+                    id1 = va->val.ival;
+                }
                 int32_t type_v = arg_int(s.args, 0, "type", 0);
-                int32_t id2_v  = arg_int(s.args, 0, "id2", id1);
-                val  = arg_int(s.args, 0, "src_val", 0);
+                // id2: range の終端。キーが存在すればその値を使い、なければ type に応じてデフォルト
+                //   type=0(single): default=id1（エディタは id2=id1 で保存するが同一のため無視可）
+                //   type=1(range) : default=id1
+                //   type=2(indirect): default=0（EasyRPG は id2 を参照しない）
+                int32_t id2_default = (type_v == 2) ? 0 : id1;
+                int32_t id2_v = id2_default;
+                {
+                    const Arg* id2a = find_arg_by_key(s.args, "id2");
+                    if (id2a) {
+                        if (!id2a->val.sidx.empty()) {
+                            if (!ctx.names)
+                                throw std::runtime_error("var id2: name table required");
+                            auto rid2 = ctx.names->find_var(id2a->val.sidx);
+                            if (!rid2) throw std::runtime_error("unknown variable name \"" + id2a->val.sidx + "\"");
+                            id2_v = *rid2;
+                        } else {
+                            id2_v = id2a->val.ival;
+                        }
+                    }
+                }
+                {
+                    // src_val の名前指定 (var["名前"] / *var["名前"]) を NameTable で解決する
+                    const Arg* sva = find_arg_by_key(s.args, "src_val");
+                    if (sva && !sva->val.sidx.empty()) {
+                        if (!ctx.names)
+                            throw std::runtime_error("var[\"" + sva->val.sidx + "\"]: name table required");
+                        auto rid = ctx.names->find_var(sva->val.sidx);
+                        if (!rid) throw std::runtime_error("unknown variable name \"" + sva->val.sidx + "\"");
+                        val = *rid;
+                    } else {
+                        val = arg_int(s.args, 0, "src_val", 0);
+                    }
+                }
                 src  = arg_int(s.args, 0, "src", 0);
                 op_i = arg_int(s.args, 0, "op_code", 0);
                 std::string op_s = arg_ident(s.args, 0, "op", "");
@@ -1216,7 +1282,8 @@ void register_all_commands() {
     reg.register_cmd(CmdDef{ LcfCode::ShowBattleAnimation, "ShowBattleAnimation",
         [](const LcfCmd& c) -> std::string {
             int32_t who = param(c,1);
-            std::string w = (who == 10001) ? "this" : "event="+std::to_string(who);
+            std::string nm = char_ref_name(who);
+            std::string w = "event=" + (nm.empty() ? std::to_string(who) : nm);
             std::string r = "ShowBattleAnimation(anim=" + std::to_string(param(c,0))
                  + ", " + w + ", wait=" + std::to_string(param(c,2));
             if (c.parameters.size() >= 4)
@@ -1225,16 +1292,10 @@ void register_all_commands() {
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            int32_t who_i = 10001;
+            int32_t who_i = kCharThisEvent;
             const Arg* ea = find_arg_by_key(s.args, "event");
-            if (ea) {
-                who_i = ea->val.ival;
-            } else {
-                std::string who_s = arg_ident(s.args,1,"","this");
-                if (who_s != "this") {
-                    try { who_i = std::stoi(who_s); } catch (...) {}
-                }
-            }
+            if (!ea) ea = find_arg_impl(s.args, 0, "");  // 旧形式: 位置引数
+            if (ea) who_i = resolve_char_ref(*ea, "ShowBattleAnimation");
             std::vector<int32_t> params = {
                 arg_int(s.args,0,"anim",1), who_i, arg_int(s.args,2,"wait",1)
             };
@@ -1286,9 +1347,8 @@ void register_all_commands() {
             int32_t freq = param(c,1);
             int32_t rep  = param(c,2);
             int32_t skip = param(c,3);
-            std::string w = (who == -1)    ? "player"
-                          : (who == 10001) ? "this"
-                          :                  "event=" + std::to_string(who);
+            std::string nm = char_ref_name(who);
+            std::string w = nm.empty() ? "event=" + std::to_string(who) : nm;
             std::string r = "MoveEvent(" + w;
             // freq/rep/skip が全て0のとき省略（元ファイルで省略されているケース対応）
             if (freq != 0 || rep != 0 || skip != 0) {
@@ -1362,15 +1422,10 @@ void register_all_commands() {
             // 対象イベントを解決: player / this / 整数ID (event=... でも位置引数でも可)
             // (以前は位置引数の整数や未知の識別子が黙って this になり、event=this は 0 になっていた)
             auto who_from_arg = [](const Arg& a) -> int32_t {
-                if (a.val.kind == ArgVal::Int) return a.val.ival;
-                if (a.val.kind == ArgVal::Ident) {
-                    if (a.val.sval == "player") return -1;
-                    if (a.val.sval == "this")   return 10001;
-                }
-                throw std::runtime_error("target must be player, this, event=N or an integer");
+                return resolve_char_ref(a, "MoveEvent");
             };
             const Arg* ea = find_arg_by_key(s.args, "event");
-            int32_t who = 10001;
+            int32_t who = kCharThisEvent;
             if (ea) {
                 who = who_from_arg(*ea);
             } else if (const Arg* p0 = find_arg_impl(s.args, 0, "")) {
@@ -2132,7 +2187,8 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::FlashSprite, "FlashSprite",
         [](const LcfCmd& c) -> std::string {
-            std::string who = (param(c,0) == 10001) ? "this" : std::to_string(param(c,0));
+            std::string nm = char_ref_name(param(c,0));
+            std::string who = nm.empty() ? std::to_string(param(c,0)) : nm;
             return "FlashSprite(event=" + who
                  + ", r=" + std::to_string(param(c,1))
                  + ", g=" + std::to_string(param(c,2))
@@ -2142,8 +2198,8 @@ void register_all_commands() {
                  + ", wait=" + std::to_string(param(c,6)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::string ev_s = arg_ident(s.args, 0, "event");
-            int32_t ev_id = (ev_s == "this") ? 10001 : arg_int(s.args, 0, "event", 10001);
+            const Arg* ea = find_arg_impl(s.args, 0, "event");
+            int32_t ev_id = ea ? resolve_char_ref(*ea, "FlashSprite") : kCharThisEvent;
             out.push_back(make_cmd(LcfCode::FlashSprite, ctx.indent,
                 { ev_id,
                   arg_int(s.args,1,"r",31),
@@ -2168,7 +2224,7 @@ void register_all_commands() {
     // params: [event, mode(0=direct,1=variable), x, y, direction(RPG2k3, 1-8)]
     reg.register_cmd(CmdDef{ LcfCode::ChangeEventLocation, "ChangeEventLocation",
         [](const LcfCmd& c) -> std::string {
-            std::string r = "ChangeEventLocation(event=" + std::to_string(param(c,0))
+            std::string r = "ChangeEventLocation(event=" + (char_ref_name(param(c,0)).empty() ? std::to_string(param(c,0)) : char_ref_name(param(c,0)))
                 + ", mode=" + std::to_string(param(c,1))
                 + ", x=" + std::to_string(param(c,2))
                 + ", y=" + std::to_string(param(c,3));
@@ -2178,8 +2234,9 @@ void register_all_commands() {
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            const Arg* ea = find_arg_impl(s.args, 0, "event");
             std::vector<int32_t> params = {
-                arg_int(s.args, 0, "event", 1),
+                ea ? resolve_char_ref(*ea, "ChangeEventLocation") : 1,
                 arg_int(s.args, 1, "mode",  0),
                 arg_int(s.args, 2, "x",     0),
                 arg_int(s.args, 3, "y",     0)
@@ -2265,13 +2322,15 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::TradeEventLocations, "TradeEventLocations",
         [](const LcfCmd& c) -> std::string {
-            return "TradeEventLocations(event1=" + std::to_string(param(c,0))
-                + ", event2=" + std::to_string(param(c,1)) + ")";
+            return "TradeEventLocations(event1=" + (char_ref_name(param(c,0)).empty() ? std::to_string(param(c,0)) : char_ref_name(param(c,0)))
+                + ", event2=" + (char_ref_name(param(c,1)).empty() ? std::to_string(param(c,1)) : char_ref_name(param(c,1))) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            const Arg* e1 = find_arg_impl(s.args, 0, "event1");
+            const Arg* e2 = find_arg_impl(s.args, 1, "event2");
             out.push_back(make_cmd(LcfCode::TradeEventLocations, ctx.indent,
-                { arg_int(s.args, 0, "event1", 1),
-                  arg_int(s.args, 1, "event2", 1) }));
+                { e1 ? resolve_char_ref(*e1, "TradeEventLocations") : 1,
+                  e2 ? resolve_char_ref(*e2, "TradeEventLocations") : 1 }));
         }
     });
 

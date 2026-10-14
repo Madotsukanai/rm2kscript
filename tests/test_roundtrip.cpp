@@ -424,6 +424,21 @@ event(20, x=0, y=0) {
 )", "while roundtrip");
 }
 
+static bool test_while_true_roundtrip() {
+    return roundtrip(R"(
+event(22, x=0, y=0) {
+    page(1, trigger=action, layer=same) {
+        while(true) {
+            var[1] += 1;
+            if (var[1] >= 10) {
+                break;
+            }
+        }
+    }
+}
+)", "while(true) roundtrip");
+}
+
 static bool test_for_roundtrip() {
     return roundtrip(R"(
 event(21, x=0, y=0) {
@@ -499,6 +514,55 @@ event(2, name="heal") {
     }
 }
 )", "db roundtrip");
+}
+
+// ─── ControlVars C言語風記法のゴールデンテスト ──────────────────────────────
+
+static bool test_golden_control_vars_fn() {
+    bool ok = true;
+    // var[5] = rand(1, 100); → 7パラメータ
+    ok &= golden("var[5] = rand(1, 100);",
+        {{C(LcfCode::ControlVars), 0, {0, 5, 5, 0, 3, 1, 100}, ""}},
+        "golden var = rand");
+    // var[3] = event_stat(event=this, stat=screen_x); → src=6, val=10001, extra=4
+    ok &= golden("var[3] = event_stat(event=this, stat=screen_x);",
+        {{C(LcfCode::ControlVars), 0, {0, 3, 3, 0, 6, 10001, 4}, ""}},
+        "golden var = event_stat");
+    // var[2] += actor_stat(id=1, stat=hp); → src=5, val=1, extra=2
+    ok &= golden("var[2] += actor_stat(id=1, stat=hp);",
+        {{C(LcfCode::ControlVars), 0, {0, 2, 2, 1, 5, 1, 2}, ""}},
+        "golden var += actor_stat");
+    // var[1] = system_stat(gold); → src=7, val=0, extra=0
+    ok &= golden("var[1] = system_stat(gold);",
+        {{C(LcfCode::ControlVars), 0, {0, 1, 1, 0, 7, 0, 0}, ""}},
+        "golden var = system_stat");
+    // var[*var[15]] += var[10]; → type=2, id1=15, id2=0, op=1, src=1, val=10
+    ok &= golden("var[*var[15]] += var[10];",
+        {{C(LcfCode::ControlVars), 0, {2, 15, 0, 1, 1, 10}, ""}},
+        "golden var[*var[N]] += var[M]");
+    // var[*var[9]] = 0; → type=2, id1=9, id2=0, 末尾0省略 → {2, 9}
+    ok &= golden("var[*var[9]] = 0;",
+        {{C(LcfCode::ControlVars), 0, {2, 9}, ""}},
+        "golden var[*var[N]] = const");
+    return ok;
+}
+
+// ControlVars C言語風記法のラウンドトリップテスト
+static bool test_control_vars_fn_roundtrip() {
+    return roundtrip(R"(
+event(30, x=0, y=0) {
+    page(1, trigger=action, layer=same) {
+        var[5] = rand(1, 100);
+        var[3] = event_stat(event=this, stat=screen_x);
+        var[2] += actor_stat(id=1, stat=hp);
+        var[1] = system_stat(gold);
+        var[7] = item_count(id=3, op=count);
+        var[4] = enemy_stat(id=1, stat=hp);
+        var[*var[15]] += var[10];
+        var[*var[9]] = 0;
+    }
+}
+)", "ControlVars fn roundtrip");
 }
 
 // ─── int32_t 境界値テスト ────────────────────────────────────────────────────
@@ -580,8 +644,11 @@ int main() {
     run(test_golden_while);
     run(test_golden_for);
     run(test_while_roundtrip);
+    run(test_while_true_roundtrip);
     run(test_for_roundtrip);
     run(test_db_roundtrip);
+    run(test_golden_control_vars_fn);
+    run(test_control_vars_fn_roundtrip);
     run(test_int32_bounds);
     run(test_for_step_errors);
     run(test_errors);

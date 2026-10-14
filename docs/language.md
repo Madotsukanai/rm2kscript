@@ -164,7 +164,7 @@ has_item(id=N, mode=0)      // mode: 0=所持している / 1=所持していな
 hero_cond(actor=N, sub=S, val=V [, str="名前"])
                             // sub: 0=パーティにいる 1=名前 2=レベル 3=HP 4=スキル 5=装備 6=状態
 on_vehicle(id=ship)         // boat / ship / airship
-char_facing(who=N, dir=down) // who=this または イベントID。dir: up/right/down/left
+char_facing(who=this, dir=down) // who=player/boat/ship/airship/this またはイベントID。dir: up/right/down/left
 gold_cmp(amount=N, op=ge)   // op: ge (>=) / le (<=)
 key_decision()              // 決定キーが押されたとき
 bgm_looped()                // BGMが一巡したとき
@@ -338,7 +338,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `EnterExitVehicle()` | 乗り物乗降 |
 | `StoreTerrainID(src=0, x=X, y=Y, var=N)` | 地形IDを変数に格納 |
 | `StoreEventID(src=0, x=X, y=Y, var=N)` | イベントIDを変数に格納 |
-| `MoveEvent(event=N/player/this, p1=N, ...)` | イベント移動 |
+| `MoveEvent(player/boat/ship/airship/this, ...)` / `MoveEvent(event=N, ...)` | イベント移動（対象は 主人公/ボート/船/飛行船/このイベント/イベントID。省略時は `this`）|
 | `ProceedWithMovement()` | 移動完了まで待機 |
 | `HaltAllMovement()` | 全移動停止 |
 
@@ -356,7 +356,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `ShowPicture(file="名前", id=N, pos_mode=0, x=X, y=Y, fixed_to_map=0, magnify=100, top_trans=0, use_transparent_color=1, red=100, green=100, blue=100, saturation=100, effect_mode=0, effect_power=0)` | ピクチャ表示（詳細は下表）|
 | `MovePicture(id=N, pos_mode=0, x=X, y=Y, magnify=100, top_trans=0, red=100, green=100, blue=100, saturation=100, effect_mode=0, effect_power=0, duration=8, wait=0)` | ピクチャ移動（詳細は下表）|
 | `ErasePicture(id=N)` | ピクチャ消去 |
-| `ShowBattleAnimation(anim=N, event=10001, wait=1)` | バトルアニメ表示 |
+| `ShowBattleAnimation(anim=N, event=this, wait=1)` | バトルアニメ表示（`event=` は player/boat/ship/airship/this またはイベントID）|
 | `FlashSprite(event=this, r=31, g=31, b=31, chroma=31, duration=5, wait=1)` | スプライトフラッシュ |
 | `PlayerVisibility(visible=1)` | プレイヤー表示切替 |
 
@@ -555,4 +555,6 @@ Compile error at line 3 col 9: switch[99999] is out of range (1..5040)
 - 上書きされる `.lmu` / `.ldb` は、事前に `<元ファイル名>.bak` へ退避されます（既に `.bak` があれば上書きしません）。
 - UTF-8 BOM 付きのスクリプトも読み込めます。
 - 未知のコマンド名・条件・ページオプション・when のオプションはエラーになります。
+- **キャラクター指定**（`MoveEvent` / `ShowBattleAnimation` / `FlashSprite` / `ChangeEventLocation` / `TradeEventLocations` / `char_facing`）は、`player`=10001、`boat`=10002、`ship`=10003、`airship`=10004、`this`=10005、それ以外はイベントIDです（RPG_RT / EasyRPG Editor の定数）。未知の識別子はエラーになります。
+- ⚠ 以前のバージョンは `this` を 10001（実際は主人公）、`player` を -1 として扱っていました。**旧バージョンでデコードした `.rs2k` を再エンコードすると対象が変わります。** 必ず現在のバージョンで `decode` し直してください（旧 `player`=-1 は `event=-1` として出力されます）。
 - ただし**コマンド引数のキー名のタイプミスは検出されません**（例: `Wait(framez=30)` はエラーにならず既定値が使われます）。引数名は「5. コマンドリファレンス」と見比べて確認してください。

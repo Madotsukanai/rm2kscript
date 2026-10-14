@@ -280,11 +280,12 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
     // char_facing(who=N, dir=D)  type=6
     for (const auto& a : args) {
         if (a.key == "char_facing") {
-            int32_t who_i = 10001;
+            int32_t who_i = kCharThisEvent;
             std::string dir_s = "up";
             for (const auto& b : args) {
                 if (b.key == "who") {
-                    who_i = (b.val.sval == "this") ? 10001 : b.val.ival;
+                    try { who_i = resolve_char_ref(b, "char_facing"); }
+                    catch (const std::runtime_error& e) { throw CompileError(e.what(), loc); }
                 }
                 if (b.key == "dir") dir_s = b.val.sval;
             }
@@ -472,6 +473,7 @@ void Encoder::encode_stmt(const StmtPtr& stmt_v, int32_t indent,
             register_all_commands();
             EncodeCtx ctx;
             ctx.indent = indent;
+            ctx.names  = names_;
             const CmdDef* def = CommandRegistry::instance().find_by_name(stmt.name);
             if (def && def->encode) {
                 size_t before = out.size();
