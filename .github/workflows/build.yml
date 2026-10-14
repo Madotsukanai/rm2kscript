@@ -1,0 +1,141 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:     [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Linux (Ubuntu) ネイティブビルド + テスト
+  # ──────────────────────────────────────────────────────────────────────────────
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build \
+            liblcf-dev || true
+          # liblcf が apt にない場合はソースビルド
+          if ! dpkg -s liblcf-dev &>/dev/null 2>&1; then
+            sudo apt-get install -y \
+              libexpat1-dev libinih-dev libicu-dev
+            git clone --depth=1 https://github.com/EasyRPG/liblcf.git /tmp/liblcf
+            cmake -S /tmp/liblcf -B /tmp/liblcf/build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=OFF \
+              -G Ninja
+            cmake --build /tmp/liblcf/build -j$(nproc)
+            sudo cmake --install /tmp/liblcf/build
+          fi
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rm2kscript-linux
+          path: build/rm2kscript
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Windows (MinGW-w64 クロスコンパイル、Ubuntu上で実行)
+  # ──────────────────────────────────────────────────────────────────────────────
+  windows:
+    name: Windows (cross)
+    runs-on: ubuntu-latest
+    env:
+      MINGW:  x86_64-w64-mingw32
+      PREFIX: ${{ github.workspace }}/win-sysroot
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MinGW toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            cmake ninja-build \
+            gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
+            mingw-w64-tools
+
+      - name: Cache Windows sysroot
+        uses: actions/cache@v4
+        id: cache-sysroot
+        with:
+          path: win-sysroot
+          key: win-sysroot-${{ hashFiles('scripts/build-win64.sh') }}-v1
+
+      - name: Build Windows dependencies
+        if: steps.cache-sysroot.outputs.cache-hit != 'true'
+        run: bash scripts/build-win64.sh --deps-only
+
+      - name: Build rm2kscript.exe
+        run: |
+          cmake -B build-win \
+            -DCMAKE_SYSTEM_NAME=Windows \
+            -DCMAKE_CXX_COMPILER=${MINGW}-g++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${PREFIX}" \
+            -DCMAKE_FIND_ROOT_PATH="${PREFIX}" \
+            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+            -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \
+            -DICU_ROOT="${PREFIX}" \
+            -DICU_INCLUDE_DIR="${PREFIX}/include" \
+            -DICU_i18n_LIBRARY="${PREFIX}/lib/libicui18n.a" \
+            -DICU_uc_LIBRARY="${PREFIX}/lib/libicuuc.a" \
+            -DICU_data_LIBRARY="${PREFIX}/lib/libicudata.a" \
+            -G Ninja
+          cmake --build build-win -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rm2kscript-windows
+          path: build-win/rm2kscript.exe
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # リリース時に両バイナリを添付
+  # ──────────────────────────────────────────────────────────────────────────────
+  release:
+    name: Release
+    needs: [ linux, windows ]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: rm2kscript-linux
+          path: dist/linux
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rm2kscript-windows
+          path: dist/windows
+
+      - name: Prepare assets
+        run: |
+          chmod +x dist/linux/rm2kscript
+          mv dist/linux/rm2kscript  dist/rm2kscript-linux-x86_64
+          mv dist/windows/rm2kscript.exe dist/rm2kscript-windows-x86_64.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/rm2kscript-linux-x86_64
+            dist/rm2kscript-windows-x86_64.exe
