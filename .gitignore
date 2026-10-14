@@ -1,5 +1,9 @@
 build/
 build-*/
+dist/
+win-sysroot/
+build-deps/
+*.rs2k_new
 *.exe
 *.o
 *.a

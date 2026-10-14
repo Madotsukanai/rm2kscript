@@ -1,4 +1,7 @@
 #include "commands.h"
+#include "textutil.h"
+#include <cctype>
+#include <cstdlib>
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
@@ -130,18 +133,8 @@ static void append_extra_params(const CmdStmt& s, size_t known_count,
 // デコード用ユーティリティ
 // ──────────────────────────────────────────────────────────────────────────────
 
-static std::string quote(const std::string& s) {
-    std::string out = "\"";
-    for (char c : s) {
-        if      (c == '"')  out += "\\\"";
-        else if (c == '\\') out += "\\\\";
-        else if (c == '\n') out += "\\n";
-        else if (c == '\r') out += "\\r";
-        else                out += c;
-    }
-    out += '"';
-    return out;
-}
+// textutil.h の quote_string を共通利用する (以前はここに \t を落とす重複実装があった)
+static inline std::string quote(const std::string& s) { return quote_string(s); }
 
 static inline std::string str(const lcf::DBString& ds) {
     return std::string(ds.begin(), ds.end());
@@ -471,7 +464,10 @@ void register_all_commands() {
             int32_t p2 = arg_int(s.args, 0, "p2", 0);
             int32_t p3 = arg_int(s.args, 0, "p3", 0);
             int32_t p4 = arg_int(s.args, 0, "p4", 0);
-            out.push_back(make_cmd(LcfCode::TimerOperation, ctx.indent, {op_i, val, p2, p3, p4}));
+            std::vector<int32_t> params = {op_i, val, p2, p3, p4};
+            // RPGツクール2003 の p5 以降 (タイマー番号など) も保持する。デコーダは p2.. を全て出力するため
+            append_extra_params(s, 5, params);
+            out.push_back(make_cmd(LcfCode::TimerOperation, ctx.indent, params));
         }
     });
 
@@ -714,6 +710,9 @@ void register_all_commands() {
             if (da) {
                 if (da->val.kind == ArgVal::Indexed && da->val.sval == "var") {
                     src = 1; val = da->val.ival; op_i = 0;
+                } else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") {
+                    // デコーダは減算の変数参照を delta=-var[N] と出力する (以前はここで定数 N の加算にすり替わっていた)
+                    src = 1; val = da->val.ival; op_i = 1;
                 } else {
                     src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = std::abs(da->val.ival);
                 }
@@ -739,6 +738,8 @@ void register_all_commands() {
             if (da) {
                 if (da->val.kind == ArgVal::Indexed && da->val.sval == "var") {
                     src = 1; val = da->val.ival; op_i = 0;
+                } else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") {
+                    src = 1; val = da->val.ival; op_i = 1;
                 } else {
                     src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = std::abs(da->val.ival);
                 }
@@ -1071,22 +1072,66 @@ void register_all_commands() {
     });
 
     // ── ピクチャ ─────────────────────────────────────────────────────────────
+    // ShowPicture params[0..13] (RPG2k標準):
+    //   0=id, 1=pos_mode(0=const/1=var), 2=x, 3=y, 4=fixed_to_map,
+    //   5=magnify, 6=top_trans, 7=use_transparent_color,
+    //   8=red, 9=green, 10=blue, 11=saturation,
+    //   12=effect_mode(0=none/1=rotate/2=wave), 13=effect_power
+    //   14=bottom_trans (RPG2k3拡張)
+    static const char* show_pic_names[] = {
+        "id","pos_mode","x","y","fixed_to_map",
+        "magnify","top_trans","use_transparent_color",
+        "red","green","blue","saturation",
+        "effect_mode","effect_power","bottom_trans"
+    };
+    static const size_t show_pic_known = 15;
+
     reg.register_cmd(CmdDef{ LcfCode::ShowPicture, "ShowPicture",
         [](const LcfCmd& c) -> std::string {
             std::string r = "ShowPicture(file=" + quote(str(c.string));
-            for (size_t i = 0; i < c.parameters.size(); ++i)
-                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i < show_pic_known)
+                    r += ", " + std::string(show_pic_names[i]) + "=" + std::to_string(c.parameters[i]);
+                else
+                    r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
             r += ")";
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            // 名前付き引数と旧来の pN= 両方に対応
+            auto named = [&](size_t i, const char* key, int32_t def) -> int32_t {
+                // 名前付き引数を優先
+                const Arg* a = find_arg_by_key(s.args, key);
+                if (a) return a->val.ival;
+                // 旧形式 pN=
+                std::string pk = "p" + std::to_string(i);
+                a = find_arg_by_key(s.args, pk);
+                if (a) return a->val.ival;
+                return def;
+            };
+            // 引数の数を確定（名前付き or pN= が存在する最大インデックスまで）
+            // まず名前付きの最大インデックスを求める
+            size_t max_idx = 0;
+            for (const auto& a : s.args) {
+                if (a.key == "file") continue;
+                for (size_t i = 0; i < show_pic_known; ++i)
+                    if (a.key == show_pic_names[i]) { max_idx = std::max(max_idx, i + 1); break; }
+                if (a.key.size() > 1 && a.key[0] == 'p' && std::isdigit(a.key[1])) {
+                    size_t idx = static_cast<size_t>(std::stoul(a.key.substr(1)));
+                    max_idx = std::max(max_idx, idx + 1);
+                }
+            }
             std::vector<int32_t> params;
-            for (size_t i = 0; ; ++i) {
-                std::string key = "p" + std::to_string(i);
-                bool found = false;
-                for (const auto& arg : s.args)
-                    if (arg.key == key) { params.push_back(arg.val.ival); found = true; break; }
-                if (!found) break;
+            params.reserve(max_idx);
+            for (size_t i = 0; i < max_idx; ++i) {
+                if (i < show_pic_known)
+                    params.push_back(named(i, show_pic_names[i], 0));
+                else {
+                    std::string pk = "p" + std::to_string(i);
+                    const Arg* a = find_arg_by_key(s.args, pk);
+                    params.push_back(a ? a->val.ival : 0);
+                }
             }
             out.push_back(make_cmd(LcfCode::ShowPicture, ctx.indent,
                 arg_str(s.args, 0, "file"), params));
@@ -1116,7 +1161,7 @@ void register_all_commands() {
             std::string r = "ShowBattleAnimation(anim=" + std::to_string(param(c,0))
                  + ", " + w + ", wait=" + std::to_string(param(c,2));
             if (c.parameters.size() >= 4)
-                r += ", p3=" + std::to_string(param(c,3));
+                r += ", global=" + std::to_string(param(c,3));
             r += ")";
             return r;
         },
@@ -1134,8 +1179,9 @@ void register_all_commands() {
             std::vector<int32_t> params = {
                 arg_int(s.args,0,"anim",1), who_i, arg_int(s.args,2,"wait",1)
             };
-            const Arg* p3 = find_arg(s.args, 3, "p3");
-            if (p3) params.push_back(p3->val.ival);
+            const Arg* ga = find_arg_by_key(s.args, "global");
+            if (!ga) ga = find_arg(s.args, 3, "p3"); // 旧形式互換
+            if (ga) params.push_back(ga->val.ival);
             out.push_back(make_cmd(LcfCode::ShowBattleAnimation, ctx.indent, params));
         }
     });
@@ -1242,19 +1288,31 @@ void register_all_commands() {
             auto name_to_code = [&](const std::string& s) -> int32_t {
                 for (const auto& nc : move_name_codes)
                     if (s == nc.name) return nc.code;
-                try { return std::stoi(s); } catch (...) { return 0; }
+                // 未知の名前を黙って 0 (up) にしない (typo が別の移動コマンドになるのを防ぐ)
+                try {
+                    size_t used = 0;
+                    int32_t v = static_cast<int32_t>(std::stoi(s, &used));
+                    if (used == s.size()) return v;
+                } catch (...) {}
+                throw std::runtime_error("unknown move command '" + s + "'");
             };
 
-            // 対象イベントを解決
+            // 対象イベントを解決: player / this / 整数ID (event=... でも位置引数でも可)
+            // (以前は位置引数の整数や未知の識別子が黙って this になり、event=this は 0 になっていた)
+            auto who_from_arg = [](const Arg& a) -> int32_t {
+                if (a.val.kind == ArgVal::Int) return a.val.ival;
+                if (a.val.kind == ArgVal::Ident) {
+                    if (a.val.sval == "player") return -1;
+                    if (a.val.sval == "this")   return 10001;
+                }
+                throw std::runtime_error("target must be player, this, event=N or an integer");
+            };
             const Arg* ea = find_arg_by_key(s.args, "event");
-            int32_t who;
+            int32_t who = 10001;
             if (ea) {
-                who = ea->val.ival;
-            } else {
-                std::string who_s = arg_ident(s.args, 0, "", "this");
-                if      (who_s == "player") who = -1;
-                else if (who_s == "this")   who = 10001;
-                else who = 10001;
+                who = who_from_arg(*ea);
+            } else if (const Arg* p0 = find_arg_impl(s.args, 0, "")) {
+                who = who_from_arg(*p0);
             }
             int32_t freq = find_arg_by_key(s.args,"freq")   ? find_arg_by_key(s.args,"freq")->val.ival   : 8;
             int32_t rep  = find_arg_by_key(s.args,"repeat") ? find_arg_by_key(s.args,"repeat")->val.ival : 0;
@@ -1405,45 +1463,73 @@ void register_all_commands() {
         }
     });
 
+    // params: [pos_mode(0=direct,1=variable), x, y, w, h]
     reg.register_cmd(CmdDef{ LcfCode::PlayMovie, "PlayMovie",
         [](const LcfCmd& c) -> std::string {
-            std::string r = "PlayMovie(file=" + quote(str(c.string));
-            for (size_t i = 0; i < c.parameters.size(); ++i)
-                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
-            r += ")";
-            return r;
+            return "PlayMovie(file=" + quote(str(c.string))
+                 + ", pos_mode=" + std::to_string(param(c,0))
+                 + ", x=" + std::to_string(param(c,1))
+                 + ", y=" + std::to_string(param(c,2))
+                 + ", w=" + std::to_string(param(c,3))
+                 + ", h=" + std::to_string(param(c,4)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::vector<int32_t> params;
-            append_extra_params(s, 0, params);
             out.push_back(make_cmd(LcfCode::PlayMovie, ctx.indent,
-                arg_str(s.args,0,"file"), params));
+                arg_str(s.args,0,"file"),
+                { arg_int(s.args,0,"pos_mode",0), arg_int(s.args,1,"x",0),
+                  arg_int(s.args,2,"y",0), arg_int(s.args,3,"w",320),
+                  arg_int(s.args,4,"h",240) }));
         }
     });
 
     // ── キー入力 ─────────────────────────────────────────────────────────────
+    // params: [var, wait, dir(方向まとめ), act(決定), cancel, shift, key_down, key_left, key_right, key_up]
+    static const char* key_input_names[] = {
+        "var","wait","dir","act","cancel","shift",
+        "key_down","key_left","key_right","key_up"
+    };
+    static const size_t key_input_known = 10;
     reg.register_cmd(CmdDef{ LcfCode::KeyInputProc, "KeyInputProc",
         [](const LcfCmd& c) -> std::string {
-            std::string r = "KeyInputProc(var=" + std::to_string(param(c,0))
-                 + ", wait=" + std::to_string(param(c,1));
-            for (size_t i = 2; i < c.parameters.size(); ++i)
-                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            std::string r = "KeyInputProc(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                if (i < key_input_known)
+                    r += std::string(key_input_names[i]) + "=" + std::to_string(c.parameters[i]);
+                else
+                    r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
             r += ")";
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::vector<int32_t> params = { arg_int(s.args,0,"var",1), arg_int(s.args,1,"wait",1) };
-            size_t before = params.size();
-            append_extra_params(s, 2, params);
-            if (params.size() == before) {
-                bool legacy = false;
-                for (const auto& a : s.args)
-                    if (a.key == "dir" || a.key == "act" || a.key == "cancel") { legacy = true; break; }
-                if (legacy) {
-                    params.push_back(0);
-                    params.push_back(arg_int(s.args,2,"dir",1));
-                    params.push_back(arg_int(s.args,3,"act",1));
-                    params.push_back(arg_int(s.args,4,"cancel",1));
+            // 名前付きとpN=両方対応
+            auto named = [&](size_t i, const char* key, int32_t def) -> int32_t {
+                const Arg* a = find_arg_by_key(s.args, key);
+                if (a) return a->val.ival;
+                std::string pk = "p" + std::to_string(i);
+                a = find_arg_by_key(s.args, pk);
+                return a ? a->val.ival : def;
+            };
+            size_t max_idx = 0;
+            for (const auto& a : s.args) {
+                for (size_t i = 0; i < key_input_known; ++i)
+                    if (a.key == key_input_names[i]) { max_idx = std::max(max_idx, i + 1); break; }
+                if (a.key.size() > 1 && a.key[0] == 'p' && std::isdigit(a.key[1])) {
+                    size_t idx = static_cast<size_t>(std::stoul(a.key.substr(1)));
+                    max_idx = std::max(max_idx, idx + 1);
+                }
+            }
+            // 最低限 var と wait は出力
+            if (max_idx < 2) max_idx = 2;
+            std::vector<int32_t> params;
+            for (size_t i = 0; i < max_idx; ++i) {
+                if (i < key_input_known)
+                    params.push_back(named(i, key_input_names[i], 0));
+                else {
+                    std::string pk = "p" + std::to_string(i);
+                    const Arg* a = find_arg_by_key(s.args, pk);
+                    params.push_back(a ? a->val.ival : 0);
                 }
             }
             out.push_back(make_cmd(LcfCode::KeyInputProc, ctx.indent, params));
@@ -1453,16 +1539,33 @@ void register_all_commands() {
     // ── 戦闘 ─────────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::EnemyEncounter, "EnemyEncounter",
         [](const LcfCmd& c) -> std::string {
-            return "EnemyEncounter(troop=" + std::to_string(param(c,0))
+            std::string r = "EnemyEncounter(troop=" + std::to_string(param(c,0))
                  + ", type=" + std::to_string(param(c,1))
                  + ", can_escape=" + std::to_string(param(c,4))
-                 + ", can_lose=" + std::to_string(param(c,5)) + ")";
+                 + ", can_lose=" + std::to_string(param(c,5));
+            // 背景ファイル名 (文字列) と既知フィールド以外のパラメータは無損失に保持する
+            // (以前は文字列・p2・p3・p6以降がデコード/エンコードで失われていた)
+            std::string bg = str(c.string);
+            if (!bg.empty()) r += ", bg=" + quote(bg);
+            if (param(c,2) != 0) r += ", p2=" + std::to_string(param(c,2));
+            if (param(c,3) != 0) r += ", p3=" + std::to_string(param(c,3));
+            for (size_t i = 6; i < c.parameters.size(); ++i)
+                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            return r + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            out.push_back(make_cmd(LcfCode::EnemyEncounter, ctx.indent, {
-                arg_int(s.args,0,"troop",1), arg_int(s.args,1,"type",0), 0, 0,
+            auto opt = [&](const char* key) -> int32_t {
+                const Arg* a = find_arg_by_key(s.args, key);
+                return a ? a->val.ival : 0;
+            };
+            std::vector<int32_t> params = {
+                arg_int(s.args,0,"troop",1), arg_int(s.args,1,"type",0), opt("p2"), opt("p3"),
                 arg_int(s.args,2,"can_escape",1), arg_int(s.args,3,"can_lose",0)
-            }));
+            };
+            append_extra_params(s, 6, params);
+            const Arg* bg = find_arg_by_key(s.args, "bg");
+            out.push_back(make_cmd(LcfCode::EnemyEncounter, ctx.indent,
+                bg ? bg->val.sval : std::string(), params));
         }
     });
 
@@ -1496,11 +1599,16 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::ShowInn, "ShowInn",
         [](const LcfCmd& c) -> std::string {
-            return "ShowInn(type=" + std::to_string(param(c,0)) + ", cost=" + std::to_string(param(c,1)) + ")";
+            std::string r = "ShowInn(type=" + std::to_string(param(c,0)) + ", cost=" + std::to_string(param(c,1));
+            // 3番目以降 (宿屋イベントハンドラの有無など) は無損失に保持する
+            for (size_t i = 2; i < c.parameters.size(); ++i)
+                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            return r + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            out.push_back(make_cmd(LcfCode::ShowInn, ctx.indent,
-                {arg_int(s.args,0,"type",0), arg_int(s.args,1,"cost",100)}));
+            std::vector<int32_t> params = {arg_int(s.args,0,"type",0), arg_int(s.args,1,"cost",100)};
+            append_extra_params(s, 2, params);
+            out.push_back(make_cmd(LcfCode::ShowInn, ctx.indent, params));
         }
     });
 
@@ -1716,28 +1824,35 @@ void register_all_commands() {
     });
 
     // ── システム設定 ────────────────────────────────────────────────────────
+    // params: [event(context), fadein?, volume?, tempo?, balance?, var_flags?]
+    // var_flags is a bitfield: bit N means p(N+1) is a variable ID instead of direct value
     reg.register_cmd(CmdDef{ LcfCode::ChangeSystemBGM, "ChangeSystemBGM",
         [](const LcfCmd& c) -> std::string {
             std::string r = "ChangeSystemBGM(event=" + std::to_string(param(c,0))
                  + ", bgm=" + quote(str(c.string));
             if (c.parameters.size() > 1)
-                r += ", volume=" + std::to_string(param(c,1))
-                   + ", tempo=" + std::to_string(param(c,2))
-                   + ", balance=" + std::to_string(param(c,3));
-            if (c.parameters.size() > 4)
-                r += ", p4=" + std::to_string(param(c,4));
+                r += ", fadein=" + std::to_string(param(c,1))
+                   + ", volume=" + std::to_string(param(c,2))
+                   + ", tempo=" + std::to_string(param(c,3))
+                   + ", balance=" + std::to_string(param(c,4));
+            if (c.parameters.size() > 5)
+                r += ", var_flags=" + std::to_string(param(c,5));
             r += ")";
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             int32_t ev  = arg_int(s.args,0,"event",0);
             std::vector<int32_t> params = {ev};
-            const Arg* vol = find_arg_by_key(s.args, "volume");
-            if (vol) {
-                params.push_back(vol->val.ival);
+            const Arg* fadein = find_arg_by_key(s.args, "fadein");
+            if (fadein) {
+                params.push_back(fadein->val.ival);
+                params.push_back(arg_int(s.args,0,"volume",100));
                 params.push_back(arg_int(s.args,0,"tempo",100));
                 params.push_back(arg_int(s.args,0,"balance",50));
-                append_extra_params(s, 4, params);
+                // デコーダは 6 番目のパラメータを var_flags= として出力する (旧形式の p5= も受け付ける)
+                const Arg* vf = find_arg_by_key(s.args, "var_flags");
+                if (vf) params.push_back(vf->val.ival);
+                else    append_extra_params(s, 5, params);
             }
             out.push_back(make_cmd(LcfCode::ChangeSystemBGM, ctx.indent,
                 arg_str(s.args,0,"bgm"), params));
@@ -1746,18 +1861,32 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::ChangeSystemGraphics, "ChangeSystemGraphics",
         [](const LcfCmd& c) -> std::string {
-            std::string r = "ChangeSystemGraphics(system=" + quote(str(c.string));
-            for (size_t i = 0; i < c.parameters.size(); ++i)
+            std::string r = "ChangeSystemGraphics(system=" + quote(str(c.string))
+                + ", stretch=" + std::to_string(param(c,0))
+                + ", font=" + std::to_string(param(c,1));
+            for (size_t i = 2; i < c.parameters.size(); ++i)
                 r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             r += ")";
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::vector<int32_t> params;
-            append_extra_params(s, 0, params);
-            if (params.empty()) {
+            int32_t stretch = arg_int(s.args,0,"stretch",0);
+            int32_t font    = arg_int(s.args,0,"font",0);
+            // 旧形式 p0= / opacity= との互換
+            if (!find_arg_by_key(s.args,"stretch") && !find_arg_by_key(s.args,"font")) {
                 const Arg* op = find_arg_by_key(s.args, "opacity");
-                if (op) params.push_back(op->val.ival);
+                if (op) stretch = op->val.ival;
+                const Arg* p0 = find_arg_by_key(s.args, "p0");
+                if (p0) stretch = p0->val.ival;
+                const Arg* p1 = find_arg_by_key(s.args, "p1");
+                if (p1) font = p1->val.ival;
+            }
+            std::vector<int32_t> params = {stretch, font};
+            for (size_t i = 2; ; ++i) {
+                std::string pk = "p" + std::to_string(i);
+                const Arg* a = find_arg_by_key(s.args, pk);
+                if (!a) break;
+                params.push_back(a->val.ival);
             }
             out.push_back(make_cmd(LcfCode::ChangeSystemGraphics, ctx.indent,
                 arg_str(s.args,0,"system"), params));
@@ -1780,14 +1909,14 @@ void register_all_commands() {
             return "ChangeSpriteAssociation(actor=" + std::to_string(param(c,0))
                  + ", sprite=" + quote(str(c.string))
                  + ", sprite_index=" + std::to_string(param(c,1))
-                 + ", p2=" + std::to_string(param(c,2)) + ")";
+                 + ", transparent=" + std::to_string(param(c,2)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeSpriteAssociation, ctx.indent,
                 arg_str(s.args,0,"sprite"),
                 { arg_int(s.args,0,"actor",1),
                   arg_int(s.args,1,"sprite_index",0),
-                  arg_int(s.args,2,"p2",0) }));
+                  arg_int(s.args,2,"transparent",arg_int(s.args,2,"p2",0)) }));
         }
     });
 
@@ -1840,24 +1969,58 @@ void register_all_commands() {
         }
     });
 
+    // MovePicture params[0..15]:
+    //   ShowPicture と同じ 0-13 + 14=duration, 15=wait
+    //   (p4=fixed_to_map, p7=use_transparent_color はMovePictureでは無視されるが構造は同一)
+    static const char* move_pic_names[] = {
+        "id","pos_mode","x","y","fixed_to_map",
+        "magnify","top_trans","use_transparent_color",
+        "red","green","blue","saturation",
+        "effect_mode","effect_power","duration","wait"
+    };
+    static const size_t move_pic_known = 16;
+
     reg.register_cmd(CmdDef{ LcfCode::MovePicture, "MovePicture",
         [](const LcfCmd& c) -> std::string {
             std::string r = "MovePicture(";
             for (size_t i = 0; i < c.parameters.size(); ++i) {
                 if (i) r += ", ";
-                r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+                if (i < move_pic_known)
+                    r += std::string(move_pic_names[i]) + "=" + std::to_string(c.parameters[i]);
+                else
+                    r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             }
             r += ")";
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            auto named = [&](size_t i, const char* key, int32_t def) -> int32_t {
+                const Arg* a = find_arg_by_key(s.args, key);
+                if (a) return a->val.ival;
+                std::string pk = "p" + std::to_string(i);
+                a = find_arg_by_key(s.args, pk);
+                if (a) return a->val.ival;
+                return def;
+            };
+            size_t max_idx = 0;
+            for (const auto& a : s.args) {
+                for (size_t i = 0; i < move_pic_known; ++i)
+                    if (a.key == move_pic_names[i]) { max_idx = std::max(max_idx, i + 1); break; }
+                if (a.key.size() > 1 && a.key[0] == 'p' && std::isdigit(a.key[1])) {
+                    size_t idx = static_cast<size_t>(std::stoul(a.key.substr(1)));
+                    max_idx = std::max(max_idx, idx + 1);
+                }
+            }
             std::vector<int32_t> params;
-            for (size_t i = 0; ; ++i) {
-                std::string key = "p" + std::to_string(i);
-                bool found = false;
-                for (const auto& arg : s.args)
-                    if (arg.key == key) { params.push_back(arg.val.ival); found = true; break; }
-                if (!found) break;
+            params.reserve(max_idx);
+            for (size_t i = 0; i < max_idx; ++i) {
+                if (i < move_pic_known)
+                    params.push_back(named(i, move_pic_names[i], 0));
+                else {
+                    std::string pk = "p" + std::to_string(i);
+                    const Arg* a = find_arg_by_key(s.args, pk);
+                    params.push_back(a ? a->val.ival : 0);
+                }
             }
             out.push_back(make_cmd(LcfCode::MovePicture, ctx.indent, params));
         }
@@ -1898,6 +2061,7 @@ void register_all_commands() {
     // ゆめ2っき対応コマンド
     // ══════════════════════════════════════════════════════════════════════════
 
+    // params: [event, mode(0=direct,1=variable), x, y, direction(RPG2k3, 1-8)]
     reg.register_cmd(CmdDef{ LcfCode::ChangeEventLocation, "ChangeEventLocation",
         [](const LcfCmd& c) -> std::string {
             std::string r = "ChangeEventLocation(event=" + std::to_string(param(c,0))
@@ -1905,7 +2069,7 @@ void register_all_commands() {
                 + ", x=" + std::to_string(param(c,2))
                 + ", y=" + std::to_string(param(c,3));
             if (c.parameters.size() >= 5)
-                r += ", p4=" + std::to_string(param(c,4));
+                r += ", direction=" + std::to_string(param(c,4));
             r += ")";
             return r;
         },
@@ -1916,8 +2080,8 @@ void register_all_commands() {
                 arg_int(s.args, 2, "x",     0),
                 arg_int(s.args, 3, "y",     0)
             };
-            const Arg* p4 = find_arg(s.args, 4, "p4");
-            if (p4) params.push_back(p4->val.ival);
+            const Arg* dir = find_arg_by_key(s.args, "direction");
+            if (dir) params.push_back(dir->val.ival);
             out.push_back(make_cmd(LcfCode::ChangeEventLocation, ctx.indent, params));
         }
     });
@@ -1936,23 +2100,59 @@ void register_all_commands() {
         }
     });
 
+    // ChangePBG params:
+    //   0=scroll_horz, 1=scroll_vert, 2=scroll_horz_auto, 3=scroll_horz_speed,
+    //   4=scroll_vert_auto, 5=scroll_vert_speed
     reg.register_cmd(CmdDef{ LcfCode::ChangePBG, "ChangePBG",
         [](const LcfCmd& c) -> std::string {
+            static const char* pbg_names[] = {
+                "scroll_horz","scroll_vert","scroll_horz_auto","scroll_horz_speed",
+                "scroll_vert_auto","scroll_vert_speed"
+            };
             std::string r = "ChangePBG(name=" + quote(str(c.string));
-            for (size_t i = 0; i < c.parameters.size(); ++i)
-                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i < 6)
+                    r += ", " + std::string(pbg_names[i]) + "=" + std::to_string(c.parameters[i]);
+                else
+                    r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
             r += ")";
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::vector<int32_t> params;
-            for (size_t i = 0; ; ++i) {
-                std::string key = "p" + std::to_string(i);
-                bool found = false;
-                for (const auto& arg : s.args) {
-                    if (arg.key == key) { params.push_back(arg.val.ival); found = true; break; }
+            static const char* pbg_names[] = {
+                "scroll_horz","scroll_vert","scroll_horz_auto","scroll_horz_speed",
+                "scroll_vert_auto","scroll_vert_speed"
+            };
+            auto named = [&](size_t i, const char* key) -> int32_t {
+                const Arg* a = find_arg_by_key(s.args, key);
+                if (a) return a->val.ival;
+                std::string pk = "p" + std::to_string(i);
+                a = find_arg_by_key(s.args, pk);
+                return a ? a->val.ival : 0;
+            };
+            // 引数の有無にかかわらず 6 個出力（デフォルトは 0）
+            // ただし全部 0 かつ名前指定なしなら省略してもよい…が、
+            // ラウンドトリップのため元のパラメータ数を維持する
+            size_t max_idx = 0;
+            for (const auto& a : s.args) {
+                if (a.key == "name") continue;
+                for (size_t i = 0; i < 6; ++i)
+                    if (a.key == pbg_names[i]) { max_idx = std::max(max_idx, i + 1); break; }
+                if (a.key.size() > 1 && a.key[0] == 'p' && std::isdigit(a.key[1])) {
+                    size_t idx = static_cast<size_t>(std::stoul(a.key.substr(1)));
+                    max_idx = std::max(max_idx, idx + 1);
                 }
-                if (!found) break;
+            }
+            std::vector<int32_t> params;
+            for (size_t i = 0; i < max_idx; ++i) {
+                if (i < 6)
+                    params.push_back(named(i, pbg_names[i]));
+                else {
+                    std::string pk = "p" + std::to_string(i);
+                    const Arg* a = find_arg_by_key(s.args, pk);
+                    params.push_back(a ? a->val.ival : 0);
+                }
             }
             out.push_back(make_cmd(LcfCode::ChangePBG, ctx.indent,
                 arg_str(s.args, 0, "name"), params));
@@ -2023,41 +2223,43 @@ void register_all_commands() {
         }
     });
 
+    // params: [action(0=add,1=remove), map, x, y, switch_on, switch_id]
     reg.register_cmd(CmdDef{ LcfCode::TeleportTargets, "TeleportTargets",
         [](const LcfCmd& c) -> std::string {
             return "TeleportTargets(action=" + std::to_string(param(c,0))
                 + ", map=" + std::to_string(param(c,1))
                 + ", x=" + std::to_string(param(c,2))
                 + ", y=" + std::to_string(param(c,3))
-                + ", p4=" + std::to_string(param(c,4))
-                + ", p5=" + std::to_string(param(c,5)) + ")";
+                + ", switch_on=" + std::to_string(param(c,4))
+                + ", switch_id=" + std::to_string(param(c,5)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::TeleportTargets, ctx.indent,
-                { arg_int(s.args, 0, "action", 0),
-                  arg_int(s.args, 1, "map",    1),
-                  arg_int(s.args, 2, "x",      0),
-                  arg_int(s.args, 3, "y",      0),
-                  arg_int(s.args, 4, "p4",     0),
-                  arg_int(s.args, 5, "p5",     1) }));
+                { arg_int(s.args, 0, "action",    0),
+                  arg_int(s.args, 1, "map",       1),
+                  arg_int(s.args, 2, "x",         0),
+                  arg_int(s.args, 3, "y",         0),
+                  arg_int(s.args, 4, "switch_on", 0),
+                  arg_int(s.args, 5, "switch_id", 1) }));
         }
     });
 
+    // params: [map, x, y, switch_on, switch_id]
     reg.register_cmd(CmdDef{ LcfCode::EscapeTarget, "EscapeTarget",
         [](const LcfCmd& c) -> std::string {
             return "EscapeTarget(map=" + std::to_string(param(c,0))
                 + ", x=" + std::to_string(param(c,1))
                 + ", y=" + std::to_string(param(c,2))
-                + ", p3=" + std::to_string(param(c,3))
-                + ", p4=" + std::to_string(param(c,4)) + ")";
+                + ", switch_on=" + std::to_string(param(c,3))
+                + ", switch_id=" + std::to_string(param(c,4)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::EscapeTarget, ctx.indent,
-                { arg_int(s.args, 0, "map", 1),
-                  arg_int(s.args, 1, "x",   0),
-                  arg_int(s.args, 2, "y",   0),
-                  arg_int(s.args, 3, "p3",  0),
-                  arg_int(s.args, 4, "p4",  1) }));
+                { arg_int(s.args, 0, "map",       1),
+                  arg_int(s.args, 1, "x",         0),
+                  arg_int(s.args, 2, "y",         0),
+                  arg_int(s.args, 3, "switch_on", 0),
+                  arg_int(s.args, 4, "switch_id", 1) }));
         }
     });
 }

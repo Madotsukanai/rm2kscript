@@ -256,6 +256,113 @@ event(13, x=12, y=12) {
 
 // ─── main ────────────────────────────────────────────────────────────────────
 
+// ─── ゴールデンテスト (期待する LCF コマンド列との直接比較) ───
+// 往復一致 (冪等性) だけでは「誤変換」を検出できないため、エンコード結果を直接検証する。
+
+struct ExpCmd {
+    int code;
+    int indent;
+    std::vector<int32_t> params;
+    std::string str;
+};
+
+static int C(LcfCode c) { return static_cast<int>(c); }
+
+static std::vector<lcf::rpg::EventCommand> encode_cmds(const std::string& body) {
+    auto map = make_empty_map();
+    Encoder enc;
+    std::string script = "event(1, x=0, y=0) {\n    page(1, trigger=action) {\n"
+                         + body + "\n    }\n}\n";
+    enc.encode_to_map(script, map);
+    return map.events.at(0).pages.at(0).event_commands;
+}
+
+static bool golden(const std::string& body, const std::vector<ExpCmd>& exp,
+                   const std::string& label) {
+    std::vector<lcf::rpg::EventCommand> got;
+    try {
+        got = encode_cmds(body);
+    } catch (const std::exception& e) {
+        std::cerr << "[FAIL] " << label << " — encode error: " << e.what() << "\n";
+        return false;
+    }
+    if (got.size() != exp.size()) {
+        std::cerr << "[FAIL] " << label << " — command count: got " << got.size()
+                  << ", expected " << exp.size() << "\n";
+        return false;
+    }
+    for (size_t i = 0; i < exp.size(); ++i) {
+        const auto& g = got[i];
+        std::string gs(g.string.begin(), g.string.end());
+        bool ok = g.code == exp[i].code && g.indent == exp[i].indent
+                  && gs == exp[i].str && g.parameters.size() == exp[i].params.size();
+        for (size_t k = 0; ok && k < exp[i].params.size(); ++k)
+            ok = (g.parameters[k] == exp[i].params[k]);
+        if (!ok) {
+            std::cerr << "[FAIL] " << label << " — mismatch at command " << i
+                      << " (code=" << g.code << " indent=" << g.indent << ")\n";
+            return false;
+        }
+    }
+    std::cerr << "[PASS] " << label << "\n";
+    return true;
+}
+
+// 不正な入力は必ずエラーになる (黙って別物にならない) ことを確認
+static bool must_fail_page(const std::string& body, const std::string& page_opts,
+                           const std::string& label) {
+    auto map = make_empty_map();
+    Encoder enc;
+    std::string script = "event(1, x=0, y=0) {\n    page(1" + page_opts + ") {\n"
+                         + body + "\n    }\n}\n";
+    try {
+        enc.encode_to_map(script, map);
+    } catch (const std::exception&) {
+        std::cerr << "[PASS] " << label << "\n";
+        return true;
+    }
+    std::cerr << "[FAIL] " << label << " — expected an error but encoding succeeded\n";
+    return false;
+}
+
+static bool test_golden_switch_var() {
+    bool a = golden("switch[3] = ON;",
+        {{C(LcfCode::ControlSwitches), 0, {0, 3, 3, 1}, ""}}, "golden switch");
+    bool b = golden("var[2] += 10;",
+        {{C(LcfCode::ControlVars), 0, {0, 2, 2, 1, 0, 10, 0}, ""}}, "golden var");
+    return a && b;
+}
+
+static bool test_golden_if_else() {
+    return golden(
+        "if (switch[1] == ON) { switch[2] = OFF; } else { switch[2] = ON; }",
+        {
+            {C(LcfCode::ConditionalBranch), 0, {0, 1, 0, 0, 0, 0}, ""},
+            {C(LcfCode::ControlSwitches),   1, {0, 2, 2, 0}, ""},
+            {C(LcfCode::END),               1, {}, ""},
+            {C(LcfCode::ElseBranch),        0, {}, ""},
+            {C(LcfCode::ControlSwitches),   1, {0, 2, 2, 1}, ""},
+            {C(LcfCode::END),               1, {}, ""},
+            {C(LcfCode::EndBranch),         0, {}, ""},
+        }, "golden if-else");
+}
+
+static bool test_golden_raw_command() {
+    return golden("RawCommand(code=99999, str=\"x\", p0=1, p1=2);",
+        {{99999, 0, {1, 2}, "x"}}, "golden RawCommand");
+}
+
+static bool test_errors() {
+    bool ok = true;
+    ok &= must_fail_page("NoSuchCommand();", "", "error: unknown command");
+    ok &= must_fail_page("if (bogus) { Wait(frames=1); }", "", "error: unknown condition");
+    ok &= must_fail_page("Wait(frames=1);", ", trigger=actoin", "error: invalid trigger");
+    ok &= must_fail_page("Wait(frames=1);", ", no_such_option=1", "error: unknown page option");
+    ok &= must_fail_page("switch[\"名前\"] = ON;", "", "error: name without name table");
+    ok &= must_fail_page("message(\"unterminated);", "", "error: unterminated string");
+    return ok;
+}
+
 int main() {
     register_all_commands();
 
@@ -275,6 +382,10 @@ int main() {
     run(test_skills_equipment);
     run(test_loop);
     run(test_page_conditions);
+    run(test_golden_switch_var);
+    run(test_golden_if_else);
+    run(test_golden_raw_command);
+    run(test_errors);
 
     if (failures == 0) {
         std::cerr << "\nAll tests passed.\n";

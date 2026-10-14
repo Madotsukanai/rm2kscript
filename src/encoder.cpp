@@ -4,7 +4,11 @@
 #include <lcf/rpg/event.h>
 #include <lcf/rpg/eventpage.h>
 #include <lcf/rpg/commonevent.h>
+#include <lcf/rpg/database.h>
 #include <stdexcept>
+#include <set>
+#include <map>
+#include <algorithm>
 #include <variant>
 #include <string>
 
@@ -22,6 +26,28 @@ namespace rm2k {
 //   has_item(N)
 //   gold >= N
 // cond_args から "op" キーの演算子を取得するヘルパー
+// 名前 (または数値) → ID。名前指定で名前テーブルが無い/見つからない場合は CompileError
+// (以前は ID 0 や var[1] に黙ってフォールバックしていた)
+static int32_t resolve_sw_id(const std::string& label, int32_t ival,
+                             const NameTable* names, SourceLoc loc) {
+    if (label.empty()) return ival;
+    if (!names)
+        throw CompileError("switch[\"" + label + "\"]: a name table (RPG_RT.ldb) is required to use switch names", loc);
+    auto id = names->find_sw(label);
+    if (!id) throw CompileError("unknown switch name \"" + label + "\"", loc);
+    return *id;
+}
+
+static int32_t resolve_var_id(const std::string& label, int32_t ival,
+                              const NameTable* names, SourceLoc loc) {
+    if (label.empty()) return ival;
+    if (!names)
+        throw CompileError("var[\"" + label + "\"]: a name table (RPG_RT.ldb) is required to use variable names", loc);
+    auto id = names->find_var(label);
+    if (!id) throw CompileError("unknown variable name \"" + label + "\"", loc);
+    return *id;
+}
+
 static std::string get_cond_op(const std::vector<Arg>& args) {
     // "op" キーを優先
     for (const auto& a : args) {
@@ -59,14 +85,16 @@ static void append_cond_extra(const std::vector<Arg>& args, size_t known_idx,
 
 static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
                                          std::string* str_out = nullptr,
-                                         const NameTable* names = nullptr) {
+                                         const NameTable* names = nullptr,
+                                         const lcf::rpg::Database* db = nullptr,
+                                         SourceLoc loc = {}) {
     // ConditionalBranch は常に6個のパラメータ (EasyRPG CmdSetup<...,6>)
     // デコード時に末尾の 0 を省略したため、ここで resize(6,0) して補完する
     auto pad6 = [](std::vector<int32_t> p) -> std::vector<int32_t> {
         p.resize(6, 0); return p;
     };
 
-    if (args.empty()) return pad6({0, 1, 0}); // default: switch[1]==ON
+    if (args.empty()) throw CompileError("empty condition", loc);
 
     // switch[N] == ON/OFF
     const Arg* sw = nullptr;
@@ -79,7 +107,13 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
     }
 
     if (sw) {
-        int32_t id  = (!sw->val.sidx.empty() && names) ? names->sw_id(sw->val.sidx) : sw->val.ival;
+        int32_t id = resolve_sw_id(sw->val.sidx, sw->val.ival, names, loc);
+        // バリデーション
+        if (db) {
+            int32_t sw_count = static_cast<int32_t>(db->switches.size());
+            if (sw_count > 0 && (id < 1 || id > sw_count))
+                throw CompileError("switch[" + std::to_string(id) + "] is out of range (1.." + std::to_string(sw_count) + ")", loc);
+        }
         // "op" キーの次の引数 = ON/OFF/toggle
         std::string val_s;
         bool after_op = false;
@@ -88,6 +122,8 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             if (after_op && a.key.empty()) { val_s = a.val.sval; break; }
         }
         if (val_s.empty()) val_s = arg_ident(args, 1, "");
+        if (val_s != "ON" && val_s != "OFF")
+            throw CompileError("switch condition must be '== ON' or '== OFF'", loc);
         int32_t val = (val_s == "OFF") ? 1 : 0;
         std::vector<int32_t> p = {0, id, val};
         append_cond_extra(args, 3, p);
@@ -104,7 +140,13 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
     }
 
     if (va) {
-        int32_t id = (!va->val.sidx.empty() && names) ? names->var_id(va->val.sidx) : va->val.ival;
+        int32_t id = resolve_var_id(va->val.sidx, va->val.ival, names, loc);
+        // バリデーション
+        if (db) {
+            int32_t var_count = static_cast<int32_t>(db->variables.size());
+            if (var_count > 0 && (id < 1 || id > var_count))
+                throw CompileError("var[" + std::to_string(id) + "] is out of range (1.." + std::to_string(var_count) + ")", loc);
+        }
         std::string op_s = get_cond_op(args);
         int32_t op_i = 0;
         if      (op_s == ">=") op_i = 1;
@@ -112,13 +154,17 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
         else if (op_s == ">")  op_i = 3;
         else if (op_s == "<")  op_i = 4;
         else if (op_s == "!=") op_i = 5;
+        else if (op_s != "==")
+            throw CompileError("unknown comparison operator '" + op_s + "' (use == != >= <= > <)", loc);
         int32_t src = 0, val = 0;
         const Arg* rhs = get_cond_rhs(args);
         if (rhs) {
             if (rhs->val.kind == ArgVal::Indexed && rhs->val.sval == "var") {
                 src = 1;
-                val = (!rhs->val.sidx.empty() && names) ? names->var_id(rhs->val.sidx) : rhs->val.ival;
+                val = resolve_var_id(rhs->val.sidx, rhs->val.ival, names, loc);
             } else {
+                if (rhs->val.kind != ArgVal::Int)
+                    throw CompileError("right-hand side of a variable comparison must be an integer or var[N]", loc);
                 src = 0; val = rhs->val.ival;
             }
         }
@@ -127,7 +173,25 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
         return pad6(p);
     }
 
-    // hero_cond(actor=N, sub=S, val=V [, str="名前"])  (ConditionalBranch type 5)
+    // cond_raw(p0=T, p1=.., [str=".."])  — デコーダが高水準表現できなかった条件を無損失で戻す
+    for (const auto& a : args) {
+        if (a.key == "cond_raw") {
+            std::vector<int32_t> p;
+            for (size_t i = 0; ; ++i) {
+                std::string key = "p" + std::to_string(i);
+                bool found = false;
+                for (const auto& b : args)
+                    if (b.key == key) { p.push_back(b.val.ival); found = true; break; }
+                if (!found) break;
+            }
+            if (p.empty()) throw CompileError("cond_raw requires p0=...", loc);
+            for (const auto& b : args)
+                if (b.key == "str" && str_out) *str_out = b.val.sval;
+            return p;
+        }
+    }
+
+    // hero_cond(actor=N, sub=S, val=V [, str="名前"])  type=5
     for (const auto& a : args) {
         if (a.key == "hero_cond") {
             int32_t actor = 1, sub = 0, val = 0;
@@ -143,122 +207,108 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
         }
     }
 
-    // has_item(id=N)
+    // has_item(id=N, mode=0/1)  type=4  (0=has, 1=not)
     for (const auto& a : args) {
         if (a.key == "has_item" || (a.key.empty() && a.val.sval == "has_item")) {
-            int32_t item_id = 1;
+            int32_t item_id = 1, mode = 0;
             for (const auto& b : args) {
-                if (b.key == "id") { item_id = b.val.ival; break; }
+                if (b.key == "id")   item_id = b.val.ival;
+                if (b.key == "mode") mode    = b.val.ival;
             }
             if (a.key.empty()) item_id = arg_int(args, 0, "", 1);
-            std::vector<int32_t> p = {6, item_id};
-            append_cond_extra(args, 2, p);
+            std::vector<int32_t> p = {4, item_id, mode};
+            append_cond_extra(args, 3, p);
             return pad6(p);
         }
     }
 
-    // on_vehicle(type=N)
+    // on_vehicle(id=boat/ship/airship)  type=7
     for (const auto& a : args) {
         if (a.key == "on_vehicle") {
-            std::string t_s;
+            std::string id_s;
             for (const auto& b : args) {
-                if (b.key == "type") { t_s = b.val.sval; break; }
+                if (b.key == "id") {
+                    id_s = (b.val.kind == ArgVal::Int) ? std::to_string(b.val.ival) : b.val.sval;
+                    break;
+                }
             }
-            int32_t t_i = 0;
-            if      (t_s == "skiff")   t_i = 1;
-            else if (t_s == "ship")    t_i = 0;
-            else if (t_s == "airship") t_i = 2;
-            else if (t_s == "any")     t_i = 3;
-            std::vector<int32_t> p = {5, t_i};
+            int32_t id_i = 0;
+            if      (id_s == "boat")    id_i = 0;
+            else if (id_s == "ship")    id_i = 1;
+            else if (id_s == "airship") id_i = 2;
+            else {
+                try { id_i = std::stoi(id_s); }
+                catch (...) { throw CompileError("on_vehicle: id must be boat/ship/airship", loc); }
+            }
+            std::vector<int32_t> p = {7, id_i};
             append_cond_extra(args, 2, p);
             return pad6(p);
         }
     }
 
-    // char_facing(who=N, dir=D)
+    // char_facing(who=N, dir=D)  type=6
     for (const auto& a : args) {
         if (a.key == "char_facing") {
             int32_t who_i = 10001;
             std::string dir_s = "up";
             for (const auto& b : args) {
-                if (b.key == "who") who_i = b.val.ival;
+                if (b.key == "who") {
+                    who_i = (b.val.sval == "this") ? 10001 : b.val.ival;
+                }
                 if (b.key == "dir") dir_s = b.val.sval;
             }
             int32_t dir_i = 0;
             if      (dir_s == "right") dir_i = 1;
             else if (dir_s == "down")  dir_i = 2;
             else if (dir_s == "left")  dir_i = 3;
-            std::vector<int32_t> p = {4, who_i, dir_i};
+            else if (dir_s != "up")
+                throw CompileError("char_facing: dir must be up/right/down/left", loc);
+            std::vector<int32_t> p = {6, who_i, dir_i};
             append_cond_extra(args, 3, p);
             return pad6(p);
         }
     }
 
-    // actor_cond(actor=N, cond=C, val=V)
-    for (const auto& a : args) {
-        if (a.key == "actor_cond") {
-            int32_t actor = 1, cond = 0, val = 0;
-            for (const auto& b : args) {
-                if (b.key == "actor") actor = b.val.ival;
-                if (b.key == "cond")  cond  = b.val.ival;
-                if (b.key == "val")   val   = b.val.ival;
-            }
-            std::vector<int32_t> p = {3, actor, cond, val};
-            append_cond_extra(args, 4, p);
-            return pad6(p);
-        }
-    }
-
-    // gold_cmp(gold=N, op=ge/le)
+    // gold_cmp(amount=N, op=ge/le)  type=3
     for (const auto& a : args) {
         if (a.key == "gold_cmp") {
             int32_t gold_v = 0;
             std::string op_s = "ge";
             for (const auto& b : args) {
-                if (b.key == "gold") gold_v = b.val.ival;
+                if (b.key == "amount" || b.key == "gold") gold_v = b.val.ival;
                 if (b.key == "op")   op_s   = b.val.sval;
             }
             int32_t op_i = (op_s == "le") ? 1 : 0;
-            std::vector<int32_t> p = {9, gold_v, op_i};
+            std::vector<int32_t> p = {3, gold_v, op_i};
             append_cond_extra(args, 3, p);
             return pad6(p);
         }
     }
 
-    // event_state(event=N, val=V)
+    // key_decision()  type=8
     for (const auto& a : args) {
-        if (a.key == "event_state") {
-            int32_t event_id = 0, val = 0;
-            for (const auto& b : args) {
-                if (b.key == "event") event_id = b.val.ival;
-                if (b.key == "val")   val      = b.val.ival;
-            }
-            std::vector<int32_t> p = {8, event_id, val};
-            append_cond_extra(args, 3, p);
+        if (a.key == "key_decision") {
+            std::vector<int32_t> p = {8};
+            append_cond_extra(args, 1, p);
             return pad6(p);
         }
     }
 
-    // has_equip(actor=N, item=M)
+    // bgm_looped()  type=9
     for (const auto& a : args) {
-        if (a.key == "has_equip") {
-            int32_t actor = 1, item = 1;
-            for (const auto& b : args) {
-                if (b.key == "actor") actor = b.val.ival;
-                if (b.key == "item")  item  = b.val.ival;
-            }
-            std::vector<int32_t> p = {7, actor, item};
-            append_cond_extra(args, 3, p);
+        if (a.key == "bgm_looped") {
+            std::vector<int32_t> p = {9};
+            append_cond_extra(args, 1, p);
             return pad6(p);
         }
     }
 
-    // timer op val
+    // timer op val  type=2
     for (const auto& a : args) {
         if (a.key.empty() && a.val.sval == "timer") {
             std::string op_s = get_cond_op(args);
             int32_t op_i = (op_s == "<=") ? 1 : 0;
-            int32_t val = arg_int(args, 1, "", 0); // rhs
+            int32_t val = arg_int(args, 1, "", 0);
             const Arg* rhs = get_cond_rhs(args);
             if (rhs) val = rhs->val.ival;
             std::vector<int32_t> p = {2, val, op_i};
@@ -267,16 +317,31 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
         }
     }
 
-    // gold op N (旧形式)
+    // timer2 op val  type=10 (RPG2k3)
+    for (const auto& a : args) {
+        if (a.key.empty() && a.val.sval == "timer2") {
+            std::string op_s = get_cond_op(args);
+            int32_t op_i = (op_s == "<=") ? 1 : 0;
+            int32_t val = arg_int(args, 1, "", 0);
+            const Arg* rhs = get_cond_rhs(args);
+            if (rhs) val = rhs->val.ival;
+            std::vector<int32_t> p = {10, val, op_i};
+            append_cond_extra(args, 3, p);
+            return pad6(p);
+        }
+    }
+
+    // gold op N (旧形式フォールバック)
     std::string key0 = arg_ident(args, 0, "");
     if (key0 == "gold") {
         std::string op_s = get_cond_op(args);
         int32_t op_i = (op_s == "<=") ? 1 : 0;
         int32_t val  = arg_int(args, 2, "");
-        return pad6({9, val, op_i});
+        return pad6({3, val, op_i});
     }
 
-    // fallback: switch[1]==ON
+    // 未知/不正な条件はエラー (以前は switch[1]==ON に黙ってフォールバックしていた)
+    throw CompileError("unsupported or malformed condition (see docs/language.md for supported conditions)", loc);
     return pad6({0, 1, 0});
 }
 
@@ -299,20 +364,106 @@ void Encoder::encode_stmt(const StmtPtr& stmt_v, int32_t indent,
             encode_switch_assign(stmt, indent, out);
         } else if constexpr (std::is_same_v<T, VarAssign>) {
             encode_var_assign(stmt, indent, out);
+        } else if constexpr (std::is_same_v<T, WhileStmt>) {
+            encode_while(stmt, indent, out);
+        } else if constexpr (std::is_same_v<T, ForStmt>) {
+            encode_for(stmt, indent, out);
         } else if constexpr (std::is_same_v<T, CmdStmt>) {
+            // RawCommand(code=N, str="..", p0=.., p1=.., ...): デコーダが高水準表現できなかったコマンドをそのまま復元する
+            if (stmt.name == "RawCommand") {
+                bool has_code = false;
+                LcfCmd raw;
+                raw.indent = indent;
+                std::string raw_str;
+                for (const auto& a : stmt.args) {
+                    if (a.key == "code") {
+                        if (a.val.kind != ArgVal::Int)
+                            throw CompileError("RawCommand: code must be an integer", stmt.loc);
+                        raw.code = a.val.ival;
+                        has_code = true;
+                    } else if (a.key == "str") {
+                        if (a.val.kind != ArgVal::Str)
+                            throw CompileError("RawCommand: str must be a string", stmt.loc);
+                        raw_str = a.val.sval;
+                    } else if (a.key.size() >= 2 && a.key[0] == 'p'
+                               && a.key.find_first_not_of("0123456789", 1) == std::string::npos) {
+                        // pN は連続している必要がある (下で検証)
+                    } else {
+                        throw CompileError("RawCommand: unknown argument '" + a.key + "'", stmt.loc);
+                    }
+                }
+                if (!has_code)
+                    throw CompileError("RawCommand requires code=N", stmt.loc);
+                std::vector<int32_t> rp;
+                for (size_t i = 0; ; ++i) {
+                    const std::string key = "p" + std::to_string(i);
+                    const Arg* f = nullptr;
+                    for (const auto& a : stmt.args)
+                        if (a.key == key) { f = &a; break; }
+                    if (!f) break;
+                    if (f->val.kind != ArgVal::Int)
+                        throw CompileError("RawCommand: " + key + " must be an integer", stmt.loc);
+                    rp.push_back(f->val.ival);
+                }
+                size_t pn = 0;
+                for (const auto& a : stmt.args)
+                    if (a.key.size() >= 2 && a.key[0] == 'p') ++pn;
+                if (pn != rp.size())
+                    throw CompileError("RawCommand: parameters must be p0, p1, ... without gaps", stmt.loc);
+                raw.string = lcf::DBString(raw_str);
+                raw.parameters = lcf::DBArray<int32_t>(rp.begin(), rp.end());
+                out.push_back(raw);
+                return;
+            }
             register_all_commands();
             EncodeCtx ctx;
             ctx.indent = indent;
             const CmdDef* def = CommandRegistry::instance().find_by_name(stmt.name);
             if (def && def->encode) {
-                def->encode(stmt, ctx, out);
+                size_t before = out.size();
+                try {
+                    def->encode(stmt, ctx, out);
+                } catch (const CompileError&) {
+                    throw;
+                } catch (const std::exception& e) {
+                    throw CompileError(stmt.name + ": " + e.what(), stmt.loc);
+                }
+                // バリデーション: 生成されたコマンドの switch/var ID をチェック
+                if (db_) {
+                    int32_t sw_count  = static_cast<int32_t>(db_->switches.size());
+                    int32_t var_count = static_cast<int32_t>(db_->variables.size());
+                    for (size_t ci = before; ci < out.size(); ++ci) {
+                        const auto& cmd = out[ci];
+                        int32_t code = cmd.code;
+                        auto p = [&](size_t i) -> int32_t {
+                            return i < cmd.parameters.size() ? cmd.parameters[i] : 0;
+                        };
+                        if (code == static_cast<int32_t>(LcfCode::ControlSwitches)) {
+                            // params: [type, id1, id2, op]
+                            // type=2 は var[N] 間接指定なので switch ID チェック不要
+                            int32_t type = p(0), id1 = p(1), id2 = p(2);
+                            if (sw_count > 0 && type != 2) {
+                                if (id1 < 1 || id1 > sw_count)
+                                    throw CompileError("switch[" + std::to_string(id1) + "] is out of range (1.." + std::to_string(sw_count) + ")", stmt.loc);
+                                if (type == 1 && (id2 < 1 || id2 > sw_count))
+                                    throw CompileError("switch[" + std::to_string(id2) + "] is out of range (1.." + std::to_string(sw_count) + ")", stmt.loc);
+                            }
+                        } else if (code == static_cast<int32_t>(LcfCode::ControlVars)) {
+                            // params: [type, id1, id2, op, src, val, src_extra]
+                            // type=2 は var[var[N]] 間接指定なので id チェック不要
+                            int32_t type = p(0), id1 = p(1), id2 = p(2);
+                            if (var_count > 0 && type != 2) {
+                                if (id1 < 1 || id1 > var_count)
+                                    throw CompileError("var[" + std::to_string(id1) + "] is out of range (1.." + std::to_string(var_count) + ")", stmt.loc);
+                                if (type == 1 && (id2 < 1 || id2 > var_count))
+                                    throw CompileError("var[" + std::to_string(id2) + "] is out of range (1.." + std::to_string(var_count) + ")", stmt.loc);
+                            }
+                        }
+                    }
+                }
             } else {
-                // 未知コマンド: コメントとして記録
-                LcfCmd c;
-                c.code   = static_cast<int32_t>(LcfCode::Comment);
-                c.indent = indent;
-                c.string = lcf::DBString("unknown: " + stmt.name);
-                out.push_back(c);
+                // 未知コマンドはエラー (以前は「unknown: X」コメントに黙って変換していた)
+                throw CompileError("unknown command '" + stmt.name + "'", stmt.loc);
             }
             // Loop() { ... } などのボディがある場合: indent+1 でエンコード
             if (stmt.body) {
@@ -389,16 +540,18 @@ void Encoder::encode_switch_assign(const SwitchAssign& s, int32_t indent,
     // ControlSwitches: params = [type, id1, id2, op]
     // type: 0=single, 1=range, 2=var_index
     // op: 0=OFF, 1=ON, 2=toggle
-    int32_t id1 = (!s.id_label.empty() && names_) ? names_->sw_id(s.id_label) : s.id;
+    int32_t id1 = resolve_sw_id(s.id_label, s.id, names_, s.loc);
     int32_t type = s.is_var ? 2 : (s.is_range ? 1 : 0);
     int32_t id2_v;
     if (s.is_range) {
-        id2_v = (!s.id2_label.empty() && names_) ? names_->sw_id(s.id2_label) : s.id2;
+        id2_v = resolve_sw_id(s.id2_label, s.id2, names_, s.loc);
     } else if (s.is_var) {
         id2_v = 0;
     } else {
         id2_v = id1;
     }
+    if (s.value != "ON" && s.value != "OFF" && s.value != "toggle")
+        throw CompileError("switch assignment must be ON, OFF or toggle (got '" + s.value + "')", s.loc);
     int32_t op   = (s.value == "ON") ? 1 : (s.value == "toggle") ? 2 : 0;
 
     // バリデーション: switch ID がデータベースの範囲内か
@@ -425,11 +578,11 @@ void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
     // type: 0=single, 1=range
     // op: 0==, 1+=, 2-=, 3*=, 4/=, 5%=
     // src: 0=const, 1=var
-    int32_t id1   = (!s.id_label.empty() && names_) ? names_->var_id(s.id_label) : s.id;
+    int32_t id1   = resolve_var_id(s.id_label, s.id, names_, s.loc);
     int32_t type  = s.is_range ? 1 : 0;
     int32_t id2_v;
     if (s.is_range) {
-        id2_v = (!s.id2_label.empty() && names_) ? names_->var_id(s.id2_label) : s.id2;
+        id2_v = resolve_var_id(s.id2_label, s.id2, names_, s.loc);
     } else {
         id2_v = id1;
     }
@@ -454,9 +607,11 @@ void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
     int32_t src = 0, val = 0;
     if (s.rhs.kind == ArgVal::Indexed && s.rhs.sval == "var") {
         src = 1;
-        val = (!s.rhs.sidx.empty() && names_) ? names_->var_id(s.rhs.sidx) : s.rhs.ival;
+        val = resolve_var_id(s.rhs.sidx, s.rhs.ival, names_, s.loc);
     } else {
         src = 0;
+        if (s.rhs.kind != ArgVal::Int)
+            throw CompileError("right-hand side of a variable assignment must be an integer or var[N]", s.loc);
         val = s.rhs.ival;
     }
 
@@ -468,11 +623,134 @@ void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
     out.push_back(c);
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// while (cond) { body }
+//   展開: Loop { if (!cond) { BreakLoop; } body } EndLoop
+// ──────────────────────────────────────────────────────────────────────────────
+
+void Encoder::encode_while(const WhileStmt& s, int32_t indent,
+                             std::vector<lcf::rpg::EventCommand>& out) {
+    // Loop
+    out.push_back(make_cmd(LcfCode::Loop, indent));
+
+    // if (!cond) { BreakLoop }
+    // cond を反転させる: switch == ON → OFF, var == N → !=N, etc.
+    // 最も単純な実装: 条件を encode_cond して ConditionalBranch を生成し、
+    // then 節に BreakLoop を入れる（条件が偽の時ループを抜ける = 正の if に BreakLoop）
+    // → cond が「真の間継続」なので「偽の時 break」= if (cond が偽) BreakLoop
+    // encode_cond はそのまま「真の時 then」なので、cond_args を反転させる必要がある
+    // ここでは「if (cond) { // body } else { BreakLoop }」パターンではなく、
+    // ツクール標準的な「if (!cond) { BreakLoop }」に相当するコードを生成するため、
+    // cond_args を「真のとき break」用に反転して encode_cond に渡す。
+    // 簡単のため: cond_args を if-then に使い、then = 空、else = BreakLoop としてもよい。
+    // → ここでは IfStmt と同じ構造で cond_args をそのまま渡し、
+    //    then = 空（continueに相当）、else = BreakLoop と生成する
+    // ただしそれだと逆になる。正しくは:
+    //    ConditionalBranch(cond反転) { BreakLoop } EndBranch で1命令
+    // → encode_cond_inverted を作るのは複雑なので、
+    //    if (cond) {} else { BreakLoop } の形で生成する（等価）
+    {
+        std::string cond_str;
+        auto params = encode_cond(s.cond_args, &cond_str, names_, db_, s.loc);
+        // ConditionalBranch: cond が真の時 then（空）、偽の時 else（BreakLoop）
+        LcfCmd cond_cmd;
+        cond_cmd.code   = static_cast<int32_t>(LcfCode::ConditionalBranch);
+        cond_cmd.indent = indent + 1;
+        cond_cmd.string = lcf::DBString(cond_str);
+        cond_cmd.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+        out.push_back(cond_cmd);
+        // then 節: 空 → END のみ
+        push_branch_end(out, indent + 2);
+        // else 節: BreakLoop
+        LcfCmd else_cmd;
+        else_cmd.code   = static_cast<int32_t>(LcfCode::ElseBranch);
+        else_cmd.indent = indent + 1;
+        out.push_back(else_cmd);
+        out.push_back(make_cmd(LcfCode::BreakLoop, indent + 2));
+        push_branch_end(out, indent + 2);
+        // EndBranch
+        out.push_back(make_cmd(LcfCode::EndBranch, indent + 1));
+    }
+
+    // body
+    if (s.body) {
+        for (const auto& st : s.body->stmts)
+            encode_stmt(st, indent + 1, out);
+    }
+    // END(indent+1) + EndLoop(indent)
+    push_branch_end(out, indent + 1);
+    out.push_back(make_cmd(LcfCode::EndLoop, indent));
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// for (var[N] = init; cond; var[N] op= step) { body }
+//   展開: var[N] = init; Loop { if (!cond) { BreakLoop } body var[N] op= step } EndLoop
+// ──────────────────────────────────────────────────────────────────────────────
+
+void Encoder::encode_for(const ForStmt& s, int32_t indent,
+                          std::vector<lcf::rpg::EventCommand>& out) {
+    // init: var[N] = init_val
+    int32_t var_id = resolve_var_id(s.var_label, s.var_id, names_, s.loc);
+    int32_t src = 0, val = 0;
+    if (s.init_val.kind == ArgVal::Indexed && s.init_val.sval == "var") {
+        src = 1;
+        val = resolve_var_id(s.init_val.sidx, s.init_val.ival, names_, s.loc);
+    } else {
+        src = 0; val = s.init_val.ival;
+    }
+    // ControlVars: type=0(single), id1=id, id2=id, op=0(=), src, val, src_extra=0
+    out.push_back(make_cmd(LcfCode::ControlVars, indent,
+        {0, var_id, var_id, 0, src, val, 0}));
+
+    // Loop
+    out.push_back(make_cmd(LcfCode::Loop, indent));
+
+    // if (cond) {} else { BreakLoop }
+    {
+        std::string cond_str;
+        auto params = encode_cond(s.cond_args, &cond_str, names_, db_, s.loc);
+        LcfCmd cond_cmd;
+        cond_cmd.code   = static_cast<int32_t>(LcfCode::ConditionalBranch);
+        cond_cmd.indent = indent + 1;
+        cond_cmd.string = lcf::DBString(cond_str);
+        cond_cmd.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+        out.push_back(cond_cmd);
+        push_branch_end(out, indent + 2);
+        LcfCmd else_cmd;
+        else_cmd.code   = static_cast<int32_t>(LcfCode::ElseBranch);
+        else_cmd.indent = indent + 1;
+        out.push_back(else_cmd);
+        out.push_back(make_cmd(LcfCode::BreakLoop, indent + 2));
+        push_branch_end(out, indent + 2);
+        out.push_back(make_cmd(LcfCode::EndBranch, indent + 1));
+    }
+
+    // body
+    if (s.body) {
+        for (const auto& st : s.body->stmts)
+            encode_stmt(st, indent + 1, out);
+    }
+
+    // step: var[N] op= step_val
+    {
+        VarAssign step_va;
+        step_va.loc = s.loc;
+        step_va.id  = var_id;
+        step_va.op  = s.step_op;
+        step_va.rhs = s.step_val;
+        encode_var_assign(step_va, indent + 1, out);
+    }
+
+    // END(indent+1) + EndLoop(indent)
+    push_branch_end(out, indent + 1);
+    out.push_back(make_cmd(LcfCode::EndLoop, indent));
+}
+
 void Encoder::encode_if(const IfStmt& s, int32_t indent,
                          std::vector<lcf::rpg::EventCommand>& out) {
     // ConditionalBranch
     std::string cond_str;
-    auto params = encode_cond(s.cond_args, &cond_str, names_);
+    auto params = encode_cond(s.cond_args, &cond_str, names_, db_, s.loc);
     LcfCmd cond_cmd;
     cond_cmd.code   = static_cast<int32_t>(LcfCode::ConditionalBranch);
     cond_cmd.indent = indent;
@@ -529,6 +807,17 @@ Encoder::encode_stmtblock(const StmtBlock& block, int32_t base_indent, bool appe
 // encode_to_map: テキストをパースして LMU マップに適用
 // ──────────────────────────────────────────────────────────────────────────────
 
+// 列挙値文字列 → 整数。v が空なら何もしない。未知の値は CompileError (以前は黙って無視していた)
+template <size_t N, typename T>
+static void set_enum(const std::string (&tbl)[N], const std::string& v, size_t first,
+                     T& dst, const char* what, SourceLoc loc) {
+    if (v.empty()) return;
+    for (size_t i = first; i < N; ++i) {
+        if (v == tbl[i]) { dst = static_cast<T>(i); return; }
+    }
+    throw CompileError(std::string("unknown ") + what + " '" + v + "'", loc);
+}
+
 void Encoder::encode_to_map(const std::string& source,
                              lcf::rpg::Map& target_map,
                              const std::string& /*encoding*/) {
@@ -548,7 +837,14 @@ void Encoder::encode_to_map(const std::string& source,
     static const std::string dirs[]       = {"up","right","down","left"};
     static const std::string cmp_ops[]    = {"eq","ge","le","gt","lt","ne"};
 
+    std::set<std::pair<int, int>> seen_pages;        // (event, page) の重複定義を検出
+    std::map<int, SourceLoc> events_with_new_pages;  // 新規ページを作ったイベント -> 位置 (ページ番号の連番検証用)
+
     for (const auto& entry : doc.pages) {
+        // 同じ event/page を 2 回書くと後者が黙って前者を上書きするのでエラーにする
+        if (!seen_pages.insert({entry.event_id, entry.page_id}).second)
+            throw CompileError("duplicate definition of event " + std::to_string(entry.event_id)
+                               + " page " + std::to_string(entry.page_id), entry.loc);
         // イベントを探す or 作成
         lcf::rpg::Event* ev = nullptr;
         for (auto& e : target_map.events) {
@@ -556,14 +852,19 @@ void Encoder::encode_to_map(const std::string& source,
         }
         if (!ev) {
             lcf::rpg::Event new_ev;
+            if (entry.event_meta.x < 0 || entry.event_meta.y < 0)
+                throw CompileError("new event " + std::to_string(entry.event_id)
+                                   + " requires x= and y=", entry.loc);
             new_ev.ID = entry.event_id;
             target_map.events.push_back(std::move(new_ev));
             ev = &target_map.events.back();
         }
 
         // イベント座標
-        ev->x = entry.event_meta.x;
-        ev->y = entry.event_meta.y;
+        // イベント座標 / 名前 (省略時は既存の値を維持)
+        if (entry.event_meta.x >= 0) ev->x = entry.event_meta.x;
+        if (entry.event_meta.y >= 0) ev->y = entry.event_meta.y;
+        if (entry.event_meta.has_name) ev->name = lcf::DBString(entry.event_meta.name);
 
         // ページを探す or 作成
         lcf::rpg::EventPage* pg = nullptr;
@@ -575,42 +876,50 @@ void Encoder::encode_to_map(const std::string& source,
             new_pg.ID = entry.page_id;
             ev->pages.push_back(std::move(new_pg));
             pg = &ev->pages.back();
+            events_with_new_pages.emplace(ev->ID, entry.loc);
         }
 
         const auto& m = entry.meta;
+        // cond_switch= はコモンイベント専用。マップページでは黙って無視され、発生条件のないページになっていた
+        if (m.cond_switch != 0)
+            throw CompileError("cond_switch= is only valid for common events; "
+                               "use cond_switch_a= / cond_switch_b= for map pages", entry.loc);
 
         // ── 基本 ────────────────────────────────────────────────────────
-        for (int i = 0; i < 5; ++i)
-            if (m.trigger == triggers[i]) { pg->trigger = i; break; }
-        for (int i = 0; i < 3; ++i)
-            if (m.layer == layers[i]) { pg->layer = i; break; }
+        set_enum(triggers, m.trigger, 0, pg->trigger, "trigger", entry.loc);
+        set_enum(layers,   m.layer,   0, pg->layer,   "layer",   entry.loc);
 
         // ── グラフィック ──────────────────────────────────────────────
-        if (!m.sprite.empty())
-            pg->character_name = lcf::DBString(m.sprite);
+        // sprite= 省略時は「グラフィックなし」(デコーダも空のとき sprite を出力しない)。sprite="" で明示的に消去もできる
+        pg->character_name = lcf::DBString(m.has_sprite ? m.sprite : std::string());
         if (m.sprite_index >= 0)
             pg->character_index = m.sprite_index;
-        for (int i = 0; i < 4; ++i)
-            if (m.dir == dirs[i]) { pg->character_direction = i; break; }
+        set_enum(dirs, m.dir, 0, pg->character_direction, "dir", entry.loc);
 
         // ── 移動 ──────────────────────────────────────────────────────
-        for (int i = 0; i < 7; ++i)
-            if (m.move_type == move_types[i]) { pg->move_type = i; break; }
-        for (int i = 1; i <= 6; ++i)
-            if (m.move_speed == move_speeds[i]) { pg->move_speed = i; break; }
+        set_enum(move_types, m.move_type, 0, pg->move_type, "move_type", entry.loc);
+        set_enum(move_speeds, m.move_speed, 1, pg->move_speed, "move_speed", entry.loc);
         if (m.move_freq >= 0)
             pg->move_frequency = m.move_freq;
 
         // ── アニメ ────────────────────────────────────────────────────
-        for (int i = 0; i < 7; ++i)
-            if (m.anim_type == anim_types[i]) { pg->animation_type = i; break; }
+        set_enum(anim_types, m.anim_type, 0, pg->animation_type, "anim_type", entry.loc);
 
         // ── フラグ ────────────────────────────────────────────────────
-        if (m.translucent >= 0)       pg->translucent       = (m.translucent != 0);
-        if (m.overlap_forbidden >= 0) pg->overlap_forbidden = (m.overlap_forbidden != 0);
+        // 省略時は false (デコーダは true のときだけ出力するので、テキストから消すと解除される)
+        pg->translucent       = (m.translucent > 0);
+        pg->overlap_forbidden = (m.overlap_forbidden > 0);
 
         // ── 発生条件 ──────────────────────────────────────────────────
         auto& cond = pg->condition;
+        // いったん全フラグを解除してからテキストの指定を適用する (テキストから条件を消したときに反映されるように)
+        cond.flags.switch_a = false;
+        cond.flags.switch_b = false;
+        cond.flags.variable = false;
+        cond.flags.item     = false;
+        cond.flags.actor    = false;
+        cond.flags.timer    = false;
+        cond.flags.timer2   = false;
         if (m.cond_switch_a) {
             cond.flags.switch_a = true;
             cond.switch_a_id    = m.cond_switch_a;
@@ -623,8 +932,8 @@ void Encoder::encode_to_map(const std::string& source,
             cond.flags.variable  = true;
             cond.variable_id     = m.cond_var;
             cond.variable_value  = m.cond_var_val;
-            for (int i = 0; i < 6; ++i)
-                if (m.cond_var_op == cmp_ops[i]) { cond.compare_operator = i; break; }
+            if (!m.cond_var_op.empty())
+                set_enum(cmp_ops, m.cond_var_op, 0, cond.compare_operator, "cond_var_op", entry.loc);
         }
         if (m.cond_item) {
             cond.flags.item = true;
@@ -649,6 +958,67 @@ void Encoder::encode_to_map(const std::string& source,
         bool want_end = (entry.meta.has_end == 1);
         pg->event_commands = encode_stmtblock(entry.body, 0, want_end);
     }
+
+    // --prune: スクリプトに現れないイベント/ページを削除する
+    if (prune_) {
+        std::set<int> keep_events;
+        std::set<std::pair<int, int>> keep_pages;
+        for (const auto& entry : doc.pages) {
+            keep_events.insert(entry.event_id);
+            keep_pages.insert({entry.event_id, entry.page_id});
+        }
+        auto& evs = target_map.events;
+        evs.erase(std::remove_if(evs.begin(), evs.end(),
+                      [&](const lcf::rpg::Event& e) { return keep_events.count(e.ID) == 0; }),
+                  evs.end());
+        for (auto& e : evs) {
+            auto& pgs = e.pages;
+            const int eid = e.ID;
+            pgs.erase(std::remove_if(pgs.begin(), pgs.end(),
+                          [&](const lcf::rpg::EventPage& p) { return keep_pages.count({eid, p.ID}) == 0; }),
+                      pgs.end());
+        }
+    }
+
+    // 新規にページを作ったイベントは、ページ番号が 1..N の連番でなければならない。
+    // (エンジンは page= をページ配列のインデックスとして扱うため、飛び番・順序違いは別ページを指してしまう)
+    // 記述順が page(2) -> page(1) のように逆でも、ここで ID 順に並べ替える。
+    for (auto& e : target_map.events) {
+        auto it = events_with_new_pages.find(e.ID);
+        if (it == events_with_new_pages.end()) continue;
+        std::stable_sort(e.pages.begin(), e.pages.end(),
+                         [](const lcf::rpg::EventPage& a, const lcf::rpg::EventPage& b) { return a.ID < b.ID; });
+        for (size_t i = 0; i < e.pages.size(); ++i) {
+            if (e.pages[i].ID != static_cast<int32_t>(i) + 1)
+                throw CompileError("event " + std::to_string(e.ID)
+                                   + ": page numbers must be consecutive starting from 1 (found page "
+                                   + std::to_string(e.pages[i].ID) + " at position "
+                                   + std::to_string(i + 1) + ")", it->second);
+        }
+    }
+}
+
+// マップイベント専用のページオプションが指定されていればそのキー名を返す (なければ nullptr)
+// コモンイベントにこれらを書いても黙って無視されていた。
+static const char* first_map_only_option(const PageMeta& m) {
+    if (!m.layer.empty())                          return "layer";
+    if (m.has_sprite || !m.sprite.empty())         return "sprite";
+    if (m.sprite_index >= 0)                       return "sprite_index";
+    if (!m.dir.empty())                            return "dir";
+    if (!m.move_type.empty())                      return "move_type";
+    if (!m.move_speed.empty())                     return "move_speed";
+    if (m.move_freq >= 0)                          return "move_freq";
+    if (!m.anim_type.empty())                      return "anim_type";
+    if (m.translucent >= 0)                        return "translucent";
+    if (m.overlap_forbidden >= 0)                  return "overlap_forbidden";
+    if (m.cond_switch_a != 0)                      return "cond_switch_a";
+    if (m.cond_switch_b != 0)                      return "cond_switch_b";
+    if (m.cond_var != 0 || !m.cond_var_op.empty() || m.cond_var_val != 0) return "cond_var";
+    if (m.cond_item != 0)                          return "cond_item";
+    if (m.cond_actor != 0)                         return "cond_actor";
+    if (m.cond_timer >= 0)                         return "cond_timer";
+    if (m.cond_timer2 >= 0)                        return "cond_timer2";
+    return nullptr;
 }
 
 void Encoder::encode_to_database(const std::string& source,
@@ -660,7 +1030,19 @@ void Encoder::encode_to_database(const std::string& source,
     Parser par(std::move(tokens));
     auto   doc = par.parse();
 
+    std::set<int> seen_events;  // コモンイベントの重複定義を検出
+
     for (const auto& entry : doc.pages) {
+        // コモンイベントは 1 ページのみ。page(2) 以降や重複定義が黙って上書きされないようにする
+        if (entry.page_id != 1)
+            throw CompileError("common events have exactly one page: use page(1) (got page "
+                               + std::to_string(entry.page_id) + ")", entry.loc);
+        if (!seen_events.insert(entry.event_id).second)
+            throw CompileError("duplicate definition of common event "
+                               + std::to_string(entry.event_id), entry.loc);
+        if (const char* bad = first_map_only_option(entry.meta))
+            throw CompileError(std::string("page option '") + bad
+                               + "' is only valid for map events, not common events", entry.loc);
         // コモンイベントを探す (event_id が ID に相当)
         lcf::rpg::CommonEvent* ce = nullptr;
         for (auto& c : db.commonevents) {
@@ -671,6 +1053,18 @@ void Encoder::encode_to_database(const std::string& source,
             new_ce.ID = entry.event_id;
             db.commonevents.push_back(std::move(new_ce));
             ce = &db.commonevents.back();
+        }
+        // トリガー / トリガースイッチ / 名前を適用 (以前はコマンド列しか反映されなかった)
+        {
+            static const std::string ce_trigs[] = {"none", "auto_start", "parallel"};
+            set_enum(ce_trigs, entry.meta.trigger, 0, ce->trigger, "common event trigger", entry.loc);
+            if (entry.meta.cond_switch > 0) {
+                ce->switch_flag = true;
+                ce->switch_id   = entry.meta.cond_switch;
+            } else {
+                ce->switch_flag = false;
+            }
+            if (entry.event_meta.has_name) ce->name = lcf::DBString(entry.event_meta.name);
         }
         // LDBコモンイベントは末尾 END 不要
         ce->event_commands = encode_stmtblock(entry.body, 0, false);

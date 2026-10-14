@@ -117,12 +117,21 @@ static void compare_map_commands(const lcf::rpg::Map& orig, const lcf::rpg::Map&
         const lcf::rpg::Event* ne = nullptr;
         for (const auto& e : now.events)
             if (e.ID == oe.ID) { ne = &e; break; }
-        if (!ne) continue;
+        if (!ne) {
+            std::cerr << "[FAIL-CMD] " << path << " event=" << oe.ID << " missing after re-encode\n";
+            ++bad_pages;
+            continue;
+        }
         for (const auto& op : oe.pages) {
             const lcf::rpg::EventPage* np = nullptr;
             for (const auto& p : ne->pages)
                 if (p.ID == op.ID) { np = &p; break; }
-            if (!np) continue;
+            if (!np) {
+                std::cerr << "[FAIL-CMD] " << path << " event=" << oe.ID
+                          << " page=" << op.ID << " missing after re-encode\n";
+                ++bad_pages;
+                continue;
+            }
             std::string label = path + " event=" + std::to_string(oe.ID)
                               + " page=" + std::to_string(op.ID);
             if (!compare_cmds(op.event_commands, np->event_commands, label)) {
@@ -144,7 +153,11 @@ static void compare_db_commands(const lcf::rpg::Database& orig, const lcf::rpg::
         const lcf::rpg::CommonEvent* nc = nullptr;
         for (const auto& c : now.commonevents)
             if (c.ID == oc.ID) { nc = &c; break; }
-        if (!nc) continue;
+        if (!nc) {
+            std::cerr << "[FAIL-CMD] " << path << " common_event=" << oc.ID << " missing after re-encode\n";
+            ++bad;
+            continue;
+        }
         std::string label = path + " common_event=" + std::to_string(oc.ID);
         if (!compare_cmds(oc.event_commands, nc->event_commands, label)) {
             if (++bad >= 10) break; // 表示は10件まで
@@ -240,28 +253,7 @@ int main(int argc, char* argv[]) {
     if (!names_ldb_path.empty()) {
         auto db = lcf::LDB_Reader::Load(names_ldb_path, "932");
         if (db) {
-            // 重複名はID逆引きテーブルに登録しない (ラウンドトリップ保証のため)
-            std::unordered_map<std::string, int> sw_cnt, var_cnt;
-            for (const auto& sw : db->switches) {
-                std::string n(sw.name.begin(), sw.name.end());
-                if (!n.empty()) sw_cnt[n]++;
-            }
-            for (const auto& vr : db->variables) {
-                std::string n(vr.name.begin(), vr.name.end());
-                if (!n.empty()) var_cnt[n]++;
-            }
-            for (const auto& sw : db->switches) {
-                std::string n(sw.name.begin(), sw.name.end());
-                if (n.empty()) continue;
-                nt.sw_names[sw.ID] = n;
-                if (sw_cnt[n] == 1) nt.sw_ids[n] = sw.ID;
-            }
-            for (const auto& vr : db->variables) {
-                std::string n(vr.name.begin(), vr.name.end());
-                if (n.empty()) continue;
-                nt.var_names[vr.ID] = n;
-                if (var_cnt[n] == 1) nt.var_ids[n] = vr.ID;
-            }
+            nt = NameTable::from_database(*db);
             names_ptr = &nt;
             std::cerr << "Name table loaded from " << names_ldb_path << "\n";
         }

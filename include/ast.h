@@ -26,6 +26,7 @@ enum class TokenKind {
     Plus, Minus,        // 単項/二項演算子
     At, Hash,
     Kw_if, Kw_else,
+    Kw_while, Kw_for,
     Eof,
 };
 
@@ -115,7 +116,30 @@ struct VarAssign {
     SourceLoc   loc;
 };
 
-using StmtPtr = std::variant<CmdStmt, IfStmt, ChoiceStmt, SwitchAssign, VarAssign>;
+// while (cond) { body }
+struct WhileStmt {
+    std::vector<Arg>           cond_args;
+    std::unique_ptr<StmtBlock> body;
+    SourceLoc                  loc;
+};
+
+// for (var[N] = init; cond_args; var[N] op= step) { body }
+struct ForStmt {
+    // init: var[id] = init_val
+    int32_t     var_id    = 1;
+    std::string var_label;   // 名前テーブル使用時
+    ArgVal      init_val;
+    // cond: 既存の cond_args 形式
+    std::vector<Arg> cond_args;
+    // step: var[id] op= step_val
+    std::string step_op;   // = += -= *= /= %=
+    ArgVal      step_val;
+    std::unique_ptr<StmtBlock> body;
+    SourceLoc   loc;
+};
+
+using StmtPtr = std::variant<CmdStmt, IfStmt, ChoiceStmt, SwitchAssign, VarAssign,
+                              WhileStmt, ForStmt>;
 
 struct StmtBlock {
     std::vector<StmtPtr> stmts;
@@ -130,6 +154,7 @@ struct PageMeta {
     std::string layer;
 
     std::string sprite;
+    bool has_sprite = false;   // sprite= が明示されたか (sprite="" で消去を表現するため)
     int sprite_index = -1;
     std::string dir;
 
@@ -141,7 +166,7 @@ struct PageMeta {
 
     int translucent       = -1;
     int overlap_forbidden = -1;
-    int has_end           = -1;  // -1=未指定(デフォルト=true), 0=なし, 1=あり
+    int has_end           = -1;  // -1=未指定(エンコード時は「なし」扱い), 0=なし, 1=あり
 
     int cond_switch_a = 0;
     int cond_switch_b = 0;
@@ -154,12 +179,14 @@ struct PageMeta {
     int cond_timer2   = -1;
     int cond_switch   = 0;   // コモンイベント用
 
-    std::vector<std::pair<std::string, std::string>> extra;
+    std::vector<std::pair<std::string, std::string>> extra; // (未使用: 未知キーは ParseError)
 };
 
 struct EventMeta {
-    int x = 0;
-    int y = 0;
+    int  x = -1;               // -1 = 未指定 (既存イベントなら座標を変更しない)
+    int  y = -1;
+    std::string name;
+    bool has_name = false;
 };
 
 // ─── ドキュメント ─────────────────────────────────────────────────────────────
@@ -168,6 +195,7 @@ struct MapDoc {
     struct PageEntry {
         int         event_id = 0;
         int         page_id  = 1;
+        SourceLoc   loc;
         EventMeta   event_meta;
         PageMeta    meta;
         StmtBlock   body;

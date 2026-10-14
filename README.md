@@ -13,7 +13,11 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 
 ## ダウンロード
 
-[Releases](../../releases) から最新の `rm2kscript.exe`（Windows）または `rm2kscript`（Linux）をダウンロードしてください。
+[Releases](../../releases) から最新のバイナリをダウンロードしてください。
+
+- Linux: `rm2kscript-linux-x86_64`
+- Windows (MinGW ビルド): `rm2kscript-windows-x86_64.exe`
+- Windows (MSVC ビルド): `rm2kscript-windows-msvc-x86_64.exe`
 
 ## 使い方
 
@@ -40,6 +44,11 @@ rm2kscript decode-project /path/to/Game -o /path/to/scripts -n /path/to/Game/RPG
 > [!NOTE]
 > ゲームディレクトリ内に `RPG_RT.ldb` があれば、`-n` を省略してもスイッチ・変数名が自動的に使われます。
 > エンコーディングは日本語版（Shift-JIS / コードページ932）がデフォルトです。別のエンコーディングには `-e` オプションを使用してください（例: `-e 1252` で西欧）。
+
+> [!IMPORTANT]
+> `encode-project` は、全ファイルのエンコードが成功した場合のみゲームに書き込みます。上書きされるファイルは事前に `.bak` として退避されます。
+> マップの保存エンジンは `--engine 2003` で RPGツクール2003 形式に切り替えられます（既定は2000）。
+> 未知のコマンド・条件・オプションは黙って無視されず、エラーになります。
 
 ## スクリプト言語の概要
 

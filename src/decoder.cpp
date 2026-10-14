@@ -1,5 +1,6 @@
 #include "codec.h"
 #include "commands.h"
+#include "textutil.h"
 #include <lcf/rpg/event.h>
 #include <lcf/rpg/eventpage.h>
 #include <lcf/rpg/commonevent.h>
@@ -10,17 +11,47 @@
 namespace rm2k {
 
 // ──────────────────────────────────────────────────────────────────────────────
+// ユーティリティ
+// ──────────────────────────────────────────────────────────────────────────────
+
+static inline std::string quote_str(const std::string& s) { return quote_string(s); }
+
+static std::string indent_str(int n) {
+    return std::string(static_cast<size_t>(std::max(0, n * 4)), ' ');
+}
+
+static inline std::string lcf_str(const lcf::DBString& ds) {
+    return std::string(ds.begin(), ds.end());
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// RawCommand: レジストリに無い (または高水準表現できない) コマンドを無損失で保持する形式
+//   RawCommand(code=N, str="...", p0=.., p1=.., ...)
+// エンコーダ側 (commands.cpp の "RawCommand") が同じ形式を読み戻す。
+// 以前は「// [unknown cmd=...]」というコメントで出力しており、エンコード時に失われていた。
+// ──────────────────────────────────────────────────────────────────────────────
+
+static std::string raw_command_text(const lcf::rpg::EventCommand& cmd) {
+    std::string r = "RawCommand(code=" + std::to_string(cmd.code);
+    std::string s = lcf_str(cmd.string);
+    if (!s.empty()) r += ", str=" + quote_str(s);
+    for (size_t j = 0; j < cmd.parameters.size(); ++j)
+        r += ", p" + std::to_string(j) + "=" + std::to_string(cmd.parameters[j]);
+    r += ")";
+    return r;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // ConditionalBranch のデコード
 // ──────────────────────────────────────────────────────────────────────────────
 
 // param[0]: condition type
-//   0 = switch, 1 = var compare, 2 = timer, 3 = actor, 4 = character,
-//   5 = vehicle, 6 = item, 7 = equipment, 8 = event_state, 9 = gold_compare
+//   0 = switch, 1 = var compare, 2 = timer, 3 = gold, 4 = item, 5 = hero,
+//   6 = char facing, 7 = vehicle, 8 = key decision, 9 = bgm looped, 10 = timer2
 
 // extra_cond_params: type の「既知パラメータ数（type含む）」以降を cond_pN として追加
 // 末尾の連続する 0 は省略する（エンコーダ側で resize(6,0) により復元される）
 static std::string extra_cond_params(const lcf::rpg::EventCommand& c, size_t known_total) {
-    // 末尾から 0 をトリムした有効な末尾インデックスを求める
     size_t last = c.parameters.size();
     while (last > known_total && c.parameters[last - 1] == 0)
         --last;
@@ -30,7 +61,18 @@ static std::string extra_cond_params(const lcf::rpg::EventCommand& c, size_t kno
     return r;
 }
 
-static std::string quote_str(const std::string& s); // (下のユーティリティで定義)
+// 高水準表現できない条件 (未知の type や範囲外の値) は cond_raw(p0=.., p1=.., [str=".."]) で無損失に保持する
+static std::string raw_cond_text(const lcf::rpg::EventCommand& c) {
+    std::string r = "cond_raw(";
+    for (size_t j = 0; j < c.parameters.size(); ++j) {
+        if (j) r += ", ";
+        r += "p" + std::to_string(j) + "=" + std::to_string(c.parameters[j]);
+    }
+    std::string s = lcf_str(c.string);
+    if (!s.empty()) r += std::string(c.parameters.empty() ? "" : ", ") + "str=" + quote_str(s);
+    r += ")";
+    return r;
+}
 
 static std::string decode_cond(const lcf::rpg::EventCommand& c,
                                 const NameTable* names = nullptr) {
@@ -40,6 +82,7 @@ static std::string decode_cond(const lcf::rpg::EventCommand& c,
         case 0: { // switch [type,id,val,p3,p4,p5]
             int32_t id  = p(1);
             int32_t val = p(2); // 0=ON, 1=OFF
+            if (val != 0 && val != 1) return raw_cond_text(c);
             std::string sw_s = names ? names->sw_label(id) : std::to_string(id);
             std::string r = "switch[" + sw_s + "] == " + (val ? "OFF" : "ON");
             r += extra_cond_params(c, 3);
@@ -51,111 +94,89 @@ static std::string decode_cond(const lcf::rpg::EventCommand& c,
             int32_t val = p(3);
             static const char* ops[] = {"==",">=","<=",">","<","!="};
             int32_t op  = p(4);
+            if (op < 0 || op > 5 || (src != 0 && src != 1)) return raw_cond_text(c);
             std::string v_s   = names ? names->var_label(id)  : std::to_string(id);
             std::string rhs_s = names ? names->var_label(val) : std::to_string(val);
             std::string rhs   = src ? "var[" + rhs_s + "]" : std::to_string(val);
-            std::string r     = "var[" + v_s + "] " + ops[op < 6 ? op : 0] + " " + rhs;
+            std::string r     = "var[" + v_s + "] " + ops[op] + " " + rhs;
             r += extra_cond_params(c, 5);
             return r;
         }
         case 2: { // timer [type,val,op,p3,p4,p5]
             int32_t val = p(1);
             int32_t op  = p(2); // 0=>=, 1=<=
+            if (op != 0 && op != 1) return raw_cond_text(c);
             std::string r = "timer " + std::string(op ? "<=" : ">=") + " " + std::to_string(val);
             r += extra_cond_params(c, 3);
             return r;
         }
-        case 3: { // actor condition [type,actor,cond,val,p4,p5]
-            int32_t actor = p(1);
-            int32_t cond  = p(2);
-            int32_t val   = p(3);
-            std::string r = "actor_cond(actor=" + std::to_string(actor)
-                 + ", cond=" + std::to_string(cond) + ", val=" + std::to_string(val) + ")";
-            r += extra_cond_params(c, 4);
-            return r;
-        }
-        case 4: { // character facing [type,who,dir,p3,p4,p5]
-            int32_t who = p(1);
-            int32_t dir = p(2);
-            static const char* dirs[] = {"up","right","down","left"};
-            std::string who_s = (who == 10001) ? "this" : std::to_string(who);
-            std::string r = "char_facing(who=" + who_s + ", dir=" + dirs[dir < 4 ? dir : 0] + ")";
+        case 3: { // gold [type,amount,op(0=>=,1=<=)]
+            int32_t val = p(1);
+            int32_t op  = p(2);
+            if (op != 0 && op != 1) return raw_cond_text(c);
+            std::string r = "gold_cmp(amount=" + std::to_string(val) + ", op=" + std::string(op?"le":"ge") + ")";
             r += extra_cond_params(c, 3);
             return r;
         }
-        case 5: { // hero [type,actor,sub,val,p4,p5] + string(名前比較など)
-            // sub: 0=パーティにいる, 1=名前, 2=レベル, 3=HP, 4=スキル, 5=アイテム, 6=状態
-            // (実データで [5,actor,1,...] に比較用の文字列が付くことを確認。以前は「乗り物」と誤解していた)
+        case 4: { // item [type,item_id,mode(0=has,1=not)]
+            int32_t item = p(1);
+            int32_t mode = p(2);
+            std::string r = "has_item(id=" + std::to_string(item) + ", mode=" + std::to_string(mode) + ")";
+            r += extra_cond_params(c, 3);
+            return r;
+        }
+        case 5: { // hero/actor [type,actor,sub,val] + string(名前比較)
+            // sub: 0=in_party, 1=name, 2=level, 3=hp, 4=skill, 5=equip, 6=state
             std::string r = "hero_cond(actor=" + std::to_string(p(1))
                  + ", sub=" + std::to_string(p(2)) + ", val=" + std::to_string(p(3));
             if (c.string.begin() != c.string.end())
-                r += ", str=" + quote_str(std::string(c.string.begin(), c.string.end()));
+                r += ", str=" + quote_str(lcf_str(c.string));
             r += ")";
             r += extra_cond_params(c, 4);
             return r;
         }
-        case 6: { // item [type,item_id,p2,p3,p4,p5]
-            int32_t item = p(1);
-            std::string r = "has_item(id=" + std::to_string(item) + ")";
+        case 6: { // char facing [type,event_id,dir(0=up,1=right,2=down,3=left)]
+            int32_t who = p(1);
+            int32_t dir = p(2);
+            if (dir < 0 || dir > 3) return raw_cond_text(c);
+            static const char* dirs[] = {"up","right","down","left"};
+            std::string who_s = (who == 10001) ? "this" : std::to_string(who);
+            std::string r = "char_facing(who=" + who_s + ", dir=" + dirs[dir] + ")";
+            r += extra_cond_params(c, 3);
+            return r;
+        }
+        case 7: { // vehicle [type,vehicle_id(0=boat,1=ship,2=airship)]
+            static const char* vehicles[] = {"boat","ship","airship"};
+            int32_t id = p(1);
+            std::string r = "on_vehicle(id=" + std::string((id >= 0 && id < 3) ? vehicles[id] : std::to_string(id)) + ")";
             r += extra_cond_params(c, 2);
             return r;
         }
-        case 7: { // equipment [type,actor,item,p3,p4,p5]
-            int32_t actor = p(1);
-            int32_t item  = p(2);
-            std::string r = "has_equip(actor=" + std::to_string(actor) + ", item=" + std::to_string(item) + ")";
-            r += extra_cond_params(c, 3);
+        case 8: { // key decision triggered this event
+            std::string r = "key_decision()";
+            r += extra_cond_params(c, 1);
             return r;
         }
-        case 8: { // event state [type,event,val,p3,p4,p5]
-            std::string r = "event_state(event=" + std::to_string(p(1)) + ", val=" + std::to_string(p(2)) + ")";
-            r += extra_cond_params(c, 3);
+        case 9: { // BGM looped at least once
+            std::string r = "bgm_looped()";
+            r += extra_cond_params(c, 1);
             return r;
         }
-        case 9: { // gold compare [type,val,op,p3,p4,p5]
+        case 10: { // timer2 [type,val,op(0=>=,1=<=)] (RPG2k3)
             int32_t val = p(1);
             int32_t op  = p(2);
-            std::string r = "gold_cmp(gold=" + std::to_string(val) + ", op=" + std::string(op?"le":"ge") + ")";
+            if (op != 0 && op != 1) return raw_cond_text(c);
+            std::string r = "timer2 " + std::string(op ? "<=" : ">=") + " " + std::to_string(val);
             r += extra_cond_params(c, 3);
             return r;
         }
         default:
-            return "cond(" + std::to_string(type) + ")";
+            return raw_cond_text(c);
     }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// ユーティリティ
-// ──────────────────────────────────────────────────────────────────────────────
-
-static std::string quote_str(const std::string& s) {
-    std::string r = "\"";
-    for (char c : s) {
-        if      (c == '"')  r += "\\\"";
-        else if (c == '\\') r += "\\\\";
-        else if (c == '\n') r += "\\n";
-        else                r += c;
-    }
-    r += '"';
-    return r;
-}
-
-static std::string indent_str(int n) {
-    return std::string(static_cast<size_t>(std::max(0, n * 4)), ' ');
-}
-
-static std::string escape_for_comment(const std::string& s) {
-    std::string r;
-    for (char c : s) r += (c == '\n' ? ' ' : c);
-    return r;
-}
-
-static inline std::string lcf_str(const lcf::DBString& ds) {
-    return std::string(ds.begin(), ds.end());
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// decode_event_commands: ストリームをインデント付きで文字列化（新形式）
+// decode_event_commands: ストリームをインデント付きで文字列化
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ShowMessage + ShowMessage_2 を統合して message("...") に
@@ -170,8 +191,8 @@ static std::string decode_control_switches(const lcf::rpg::EventCommand& c, int 
     int32_t id1  = p(1);
     int32_t id2  = p(2);
     int32_t val  = p(3);
-    // op が標準外 (0=OFF, 1=ON, 2=toggle 以外) の場合は ControlSwitches キー形式で保持
-    if (val < 0 || val > 2) {
+    // op / type が標準外の場合は ControlSwitches キー形式で保持
+    if (val < 0 || val > 2 || type < 0 || type > 2) {
         std::string r = "ControlSwitches(type=" + std::to_string(type)
             + ", id=" + std::to_string(id1)
             + ", id2=" + std::to_string(id2)
@@ -201,21 +222,14 @@ static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
     int32_t src  = p(4);
     int32_t val  = p(5);
     static const char* ops[] = {"=","+=","-=","*=","/=","%="};
-    std::string op_s = (op >= 0 && op < 6) ? ops[op] : "=";
 
-    std::string v1 = names ? names->var_label(id1) : std::to_string(id1);
-    std::string v2 = names ? names->var_label(id2) : std::to_string(id2);
-    std::string lhs;
-    if (type == 0)
-        lhs = "var[" + v1 + "]";
-    else
-        lhs = "var[" + v1 + ".." + v2 + "]";
-
-    // src<=1 かつ src_extra(p[6])=0 かつ type<=1（single/range）の場合のみシンプル形式
-    // type=2(indirect) や type=3(indirect_range) はキー形式を維持する
+    // src<=1 かつ src_extra(p[6])=0 かつ type<=1（single/range）かつ op が標準の場合のみシンプル形式。
+    // それ以外 (type=2 の間接指定、src>=2、範囲外の op など) はキー形式で無損失に保持する。
     int32_t src_extra = (c.parameters.size() > 6) ? p(6) : 0;
-    if (src <= 1 && src_extra == 0 && type <= 1) {
-        // シンプル形式: var[N] op= val;
+    if (src >= 0 && src <= 1 && src_extra == 0 && type >= 0 && type <= 1 && op >= 0 && op < 6) {
+        std::string v1 = names ? names->var_label(id1) : std::to_string(id1);
+        std::string v2 = names ? names->var_label(id2) : std::to_string(id2);
+        std::string lhs = (type == 0) ? "var[" + v1 + "]" : "var[" + v1 + ".." + v2 + "]";
         std::string rhs;
         if (src == 0) {
             rhs = std::to_string(val);
@@ -223,10 +237,9 @@ static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
             std::string rv = names ? names->var_label(val) : std::to_string(val);
             rhs = "var[" + rv + "]";
         }
-        return indent_str(ind) + lhs + " " + op_s + " " + rhs + ";";
+        return indent_str(ind) + lhs + " " + ops[op] + " " + rhs + ";";
     }
     // キー形式: ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=val [,src_extra=p6])
-    // src>=2 や src_extra!=0 の場合
     std::string r = indent_str(ind) + "ControlVars(var=" + std::to_string(id1)
          + ", type=" + std::to_string(type)
          + ", id2=" + std::to_string(id2)
@@ -371,12 +384,11 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── ShowChoiceOption/End が単独で来た場合 ────────────────────────
-        if (code == LcfCode::ShowChoiceOption) {
-            out << indent_str(vis) << "// choice_option: " << lcf_str(cmd.string) << "\n";
-            ++i; continue;
-        }
-        if (code == LcfCode::ShowChoiceEnd) {
+        // ── 構造外で現れた ShowChoiceOption/End/ShowMessage_2 ────────────
+        // 以前はコメント出力 (エンコード時に消える) だったが、RawCommand で無損失に保持する
+        if (code == LcfCode::ShowChoiceOption || code == LcfCode::ShowChoiceEnd
+            || code == LcfCode::ShowMessage_2) {
+            out << indent_str(vis) << raw_command_text(cmd) << ";\n";
             ++i; continue;
         }
 
@@ -397,15 +409,8 @@ static void decode_cmds_impl(
             if (def && def->decode) {
                 out << indent_str(vis) << def->decode(cmd) << ";\n";
             } else {
-                // 未知コマンド
-                std::string r = "// [unknown cmd=" + std::to_string(cmd.code) + " str=\""
-                    + escape_for_comment(lcf_str(cmd.string)) + "\" params=[";
-                for (size_t j = 0; j < cmd.parameters.size(); ++j) {
-                    if (j) r += ',';
-                    r += std::to_string(cmd.parameters[j]);
-                }
-                r += "]]";
-                out << indent_str(vis) << r << "\n";
+                // 未登録コマンド: RawCommand で無損失に保持 (エンコード時に元のコマンドへ戻る)
+                out << indent_str(vis) << raw_command_text(cmd) << ";\n";
             }
         }
         ++i;
@@ -423,81 +428,8 @@ std::string Decoder::decode_event_commands(
     return out.str();
 }
 
-// decode_one_cmd は ChoiceOption/End 等が内部で呼ばれた場合の fallback として残す
-std::string Decoder::decode_one_cmd(const lcf::rpg::EventCommand& cmd,
-                                    int /*visual_indent*/) {
-    register_all_commands();
-    auto code = static_cast<LcfCode>(cmd.code);
-
-    if (code == LcfCode::ConditionalBranch)
-        return "if (" + decode_cond(cmd) + ") {";
-    if (code == LcfCode::ElseBranch || code == LcfCode::ElseBranch_B)
-        return "} else {";
-    if (code == LcfCode::EndBranch || code == LcfCode::EndBranch_B)
-        return "}";
-
-    if (code == LcfCode::Loop)    return "Loop() {";
-    if (code == LcfCode::EndLoop) return "}  // end loop";
-    if (code == LcfCode::BreakLoop) return "BreakLoop();";
-
-    if (code == LcfCode::ControlSwitches) {
-        // decode_event_commands で処理済みのはずだが fallback
-        auto p = [&](size_t i) -> int32_t { return i < cmd.parameters.size() ? cmd.parameters[i] : 0; };
-        int32_t id1 = p(1);
-        int32_t val = p(3);
-        const char* op = (val == 0) ? "OFF" : (val == 1) ? "ON" : "toggle";
-        return "switch[" + std::to_string(id1) + "] = " + op + ";";
-    }
-    if (code == LcfCode::ControlVars) {
-        auto p = [&](size_t i) -> int32_t { return i < cmd.parameters.size() ? cmd.parameters[i] : 0; };
-        int32_t id1 = p(1);
-        int32_t op  = p(3);
-        int32_t src = p(4);
-        int32_t val = p(5);
-        static const char* ops[] = {"=","+=","-=","*=","/=","%="};
-        std::string op_s = (op < 6) ? ops[op] : "=";
-        if (src <= 1) {
-            std::string rhs = (src == 0) ? std::to_string(val) : "var[" + std::to_string(val) + "]";
-            return "var[" + std::to_string(id1) + "] " + op_s + " " + rhs + ";";
-        }
-        return "ControlVars(var=" + std::to_string(id1) + ", op_code=" + std::to_string(op)
-             + ", src=" + std::to_string(src) + ", src_val=" + std::to_string(val) + ");";
-    }
-
-    if (code == LcfCode::ShowMessage) {
-        return "message(" + quote_str(lcf_str(cmd.string)) + ");";
-    }
-    if (code == LcfCode::ShowMessage_2) {
-        return "// msg_continue: " + quote_str(lcf_str(cmd.string));
-    }
-    if (code == LcfCode::ShowChoiceOption) {
-        return "// choice_option: " + lcf_str(cmd.string);
-    }
-    if (code == LcfCode::ShowChoiceEnd) return "// choice_end";
-    if (code == LcfCode::END) return "";
-
-    if (code == LcfCode::Comment || code == LcfCode::Comment_2) {
-        return "// " + lcf_str(cmd.string);
-    }
-
-    const CmdDef* def = CommandRegistry::instance().find_by_code(code);
-    if (def && def->decode) {
-        return def->decode(cmd) + ";";
-    }
-
-    // 未知コマンド
-    std::string r = "// [unknown cmd=" + std::to_string(cmd.code) + " str=\""
-        + escape_for_comment(lcf_str(cmd.string)) + "\" params=[";
-    for (size_t j = 0; j < cmd.parameters.size(); ++j) {
-        if (j) r += ',';
-        r += std::to_string(cmd.parameters[j]);
-    }
-    r += "]]";
-    return r;
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
-// decode_map: 新形式 event(N, x=.., y=..) { page(N, ...) { ... } }
+// decode_map: event(N, x=.., y=.., name="..") { page(N, ...) { ... } }
 // ──────────────────────────────────────────────────────────────────────────────
 
 std::string Decoder::decode_map(const lcf::rpg::Map& map,
@@ -519,10 +451,9 @@ std::string Decoder::decode_map(const lcf::rpg::Map& map,
 
         out << "event(" << ev.ID
             << ", x=" << ev.x
-            << ", y=" << ev.y
-            << ") {";
-        if (!ev_name.empty()) out << "  // " << ev_name;
-        out << "\n";
+            << ", y=" << ev.y;
+        if (!ev_name.empty()) out << ", name=" << quote_str(ev_name);
+        out << ") {\n";
 
         for (const auto& page : ev.pages) {
             out << "    page(" << page.ID;
@@ -596,9 +527,9 @@ std::string Decoder::decode_common_events(const lcf::rpg::Database& db,
     std::ostringstream out;
     for (const auto& ce : db.commonevents) {
         std::string ce_name = lcf_str(ce.name);
-        out << "event(" << ce.ID << ") {";
-        if (!ce_name.empty()) out << "  // " << ce_name;
-        out << "\n";
+        out << "event(" << ce.ID;
+        if (!ce_name.empty()) out << ", name=" << quote_str(ce_name);
+        out << ") {\n";
 
         out << "    page(1";
         static const char* trigs[] = {"none","auto_start","parallel"};

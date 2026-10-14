@@ -28,9 +28,6 @@ private:
     std::string decode_event_commands(
         const std::vector<lcf::rpg::EventCommand>& cmds,
         int base_indent = 0);
-
-    std::string decode_one_cmd(const lcf::rpg::EventCommand& cmd,
-                               int visual_indent);
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -55,6 +52,9 @@ public:
     // データベースを設定 (バリデーション用 — オプション)
     void set_database(const lcf::rpg::Database* db) { db_ = db; }
 
+    // true のとき、スクリプトに現れないイベント/ページをマップから削除する (encode_to_map のみ)
+    void set_prune(bool v) { prune_ = v; }
+
     // テキストをパースしてLMUファイルに適用
     // target_map はすでに読み込まれたマップ; テキストで上書きする
     void encode_to_map(const std::string& source,
@@ -69,6 +69,7 @@ public:
 private:
     const NameTable*          names_ = nullptr;
     const lcf::rpg::Database* db_    = nullptr;
+    bool                      prune_ = false;
 
     std::vector<lcf::rpg::EventCommand> encode_stmtblock(
         const StmtBlock& block,
@@ -78,6 +79,14 @@ private:
     void encode_stmt(const StmtPtr& stmt,
                      int32_t indent,
                      std::vector<lcf::rpg::EventCommand>& out);
+
+    void encode_while(const WhileStmt& s,
+                      int32_t indent,
+                      std::vector<lcf::rpg::EventCommand>& out);
+
+    void encode_for(const ForStmt& s,
+                    int32_t indent,
+                    std::vector<lcf::rpg::EventCommand>& out);
 
     void encode_if(const IfStmt& s,
                    int32_t indent,

@@ -12,6 +12,11 @@ namespace rm2k {
 
 Lexer::Lexer(std::string_view src) : src_(src) {}
 
+// <cctype> の isdigit/isalpha は char の負値 (UTF-8 の上位バイト) で UB になるため、ASCII 限定の自前実装を使う
+static inline bool is_digit_c(char c) { return c >= '0' && c <= '9'; }
+static inline bool is_alpha_c(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+static inline bool is_alnum_c(char c) { return is_alpha_c(c) || is_digit_c(c); }
+
 char Lexer::peek(int offset) const {
     size_t idx = pos_ + offset;
     return (idx < src_.size()) ? src_[idx] : '\0';
@@ -38,21 +43,25 @@ Token Lexer::read_string() {
     SourceLoc loc = here();
     advance(); // "
     std::string s;
+    bool closed = false;
     while (pos_ < src_.size()) {
         char c = peek();
-        if (c == '"') { advance(); break; }
+        if (c == '"') { advance(); closed = true; break; }
         if (c == '\\') {
             advance();
+            if (pos_ >= src_.size()) break;   // 末尾の '\' (範囲外読み出し防止)
             char e = advance();
             switch (e) {
                 case 'n':  s += '\n'; break;
                 case 't':  s += '\t'; break;
+                case 'r':  s += '\r'; break;
                 case '\\': s += '\\'; break;
                 case '"':  s += '"';  break;
                 default:   s += '\\'; s += e; break;
             }
         } else { s += advance(); }
     }
+    if (!closed) throw LexError("unterminated string literal", loc);
     Token t; t.kind = TokenKind::String; t.text = s; t.ival = 0; t.loc = loc;
     return t;
 }
@@ -61,14 +70,19 @@ Token Lexer::read_number(bool negative) {
     SourceLoc loc = here();
     std::string s;
     if (negative) { advance(); s += '-'; } // consume '-'
-    while (pos_ < src_.size() && std::isdigit(peek())) s += advance();
-    Token t; t.kind = TokenKind::Int; t.text = s; t.ival = std::stoi(s); t.loc = loc;
+    while (pos_ < src_.size() && is_digit_c(peek())) s += advance();
+    int32_t v = 0;
+    try { v = static_cast<int32_t>(std::stoi(s)); }
+    catch (const std::exception&) { throw LexError("integer literal out of range: " + s, loc); }
+    Token t; t.kind = TokenKind::Int; t.text = s; t.ival = v; t.loc = loc;
     return t;
 }
 
 static const std::unordered_map<std::string, TokenKind> kKeywords = {
-    {"if",   TokenKind::Kw_if},
-    {"else", TokenKind::Kw_else},
+    {"if",    TokenKind::Kw_if},
+    {"else",  TokenKind::Kw_else},
+    {"while", TokenKind::Kw_while},
+    {"for",   TokenKind::Kw_for},
 };
 
 Token Lexer::read_ident_or_kw() {
@@ -76,7 +90,7 @@ Token Lexer::read_ident_or_kw() {
     std::string s;
     while (pos_ < src_.size()) {
         char c = peek();
-        if (std::isalnum(c) || c == '_') s += advance();
+        if (is_alnum_c(c) || c == '_') s += advance();
         else break;
     }
     Token t;
@@ -88,6 +102,12 @@ Token Lexer::read_ident_or_kw() {
 
 std::vector<Token> Lexer::tokenize() {
     std::vector<Token> out;
+    // UTF-8 BOM を読み飛ばす (Windows のエディタが付けることがある)
+    if (src_.size() >= 3
+        && static_cast<unsigned char>(src_[0]) == 0xEF
+        && static_cast<unsigned char>(src_[1]) == 0xBB
+        && static_cast<unsigned char>(src_[2]) == 0xBF)
+        pos_ = 3;
     while (true) {
         skip_ws_and_comments();
         if (pos_ >= src_.size()) break;
@@ -107,9 +127,9 @@ std::vector<Token> Lexer::tokenize() {
         };
 
         if (c == '"') { out.push_back(read_string()); }
-        else if (std::isdigit(c)) { out.push_back(read_number(false)); }
-        else if (c == '-' && std::isdigit(peek(1))) { out.push_back(read_number(true)); }
-        else if (std::isalpha(c) || c == '_') { out.push_back(read_ident_or_kw()); }
+        else if (is_digit_c(c)) { out.push_back(read_number(false)); }
+        else if (c == '-' && is_digit_c(peek(1))) { out.push_back(read_number(true)); }
+        else if (is_alpha_c(c) || c == '_') { out.push_back(read_ident_or_kw()); }
         else if (c == '(') { advance(); sym(TokenKind::LParen); }
         else if (c == ')') { advance(); sym(TokenKind::RParen); }
         else if (c == '{') { advance(); sym(TokenKind::LBrace); }
@@ -136,6 +156,9 @@ std::vector<Token> Lexer::tokenize() {
         else if (c == '+') { advance(); sym(TokenKind::Plus,   "+"); }
         else if (c == '-') { advance(); sym(TokenKind::Minus,  "-"); }
         else {
+            if (static_cast<unsigned char>(c) >= 0x80)
+                throw LexError("unexpected non-ASCII character outside of a string/comment "
+                               "(full-width space or Japanese text must be inside \"...\" or after //)", loc);
             throw LexError(std::string("unexpected character: '") + c + "'", loc);
         }
     }
@@ -195,10 +218,22 @@ static std::string compound_op(TokenKind k) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 void Parser::apply_meta_kv(PageMeta& m, const std::string& key,
-                            const std::string& val_s, int val_i) {
+                            const std::string& val_s, int val_i, SourceLoc loc,
+                            bool val_is_int) {
+    // 整数を取るキーに整数以外 (識別子・文字列) を渡したとき、黙って 0 にならないようエラーにする
+    static const char* const kIntKeys[] = {
+        "sprite_index", "move_freq", "translucent", "overlap_forbidden",
+        "cond_switch_a", "cond_switch_b", "cond_var", "cond_var_val", "cond_item",
+        "cond_actor", "cond_timer", "cond_timer2", "cond_switch", "has_end",
+    };
+    if (!val_is_int) {
+        for (const char* ik : kIntKeys)
+            if (key == ik)
+                throw ParseError("option '" + key + "' requires an integer value", loc);
+    }
     if      (key == "trigger")          m.trigger = val_s;
     else if (key == "layer")             m.layer   = val_s;
-    else if (key == "sprite")            m.sprite  = val_s;
+    else if (key == "sprite")          { m.sprite = val_s; m.has_sprite = true; }
     else if (key == "sprite_index")      m.sprite_index = val_i;
     else if (key == "dir")               m.dir     = val_s;
     else if (key == "move_type")         m.move_type  = val_s;
@@ -218,7 +253,7 @@ void Parser::apply_meta_kv(PageMeta& m, const std::string& key,
     else if (key == "cond_timer2")       m.cond_timer2 = val_i;
     else if (key == "cond_switch")       m.cond_switch = val_i;
     else if (key == "has_end")           m.has_end = val_i;
-    else { m.extra.push_back({key, val_s}); }
+    else { throw ParseError("unknown page option '" + key + "'", loc); }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -243,7 +278,8 @@ MapDoc Parser::parse() {
                 expect(TokenKind::Equals, "=");
                 if (k.text == "x") em.x = expect(TokenKind::Int, "x").ival;
                 else if (k.text == "y") em.y = expect(TokenKind::Int, "y").ival;
-                else { consume(); } // 未知のキーはスキップ
+                else if (k.text == "name") { em.name = expect(TokenKind::String, "event name").text; em.has_name = true; }
+                else throw ParseError("unknown event option '" + k.text + "'", k.loc);
             }
             expect(TokenKind::RParen, ")");
             expect(TokenKind::LBrace, "{");
@@ -251,6 +287,7 @@ MapDoc Parser::parse() {
             // { } 内に page(...) { } が並ぶ
             while (!check(TokenKind::RBrace) && !at_end()) {
                 if (check(TokenKind::Ident) && peek().text == "page") {
+                    SourceLoc page_loc = peek().loc;
                     consume(); // page
                     expect(TokenKind::LParen, "(");
                     int page_id = expect(TokenKind::Int, "page id").ival;
@@ -261,24 +298,25 @@ MapDoc Parser::parse() {
                         if (!check(TokenKind::Ident)) break;
                         Token k = consume();
                         expect(TokenKind::Equals, "=");
-                        std::string val_s; int val_i = 0;
+                        std::string val_s; int val_i = 0; bool val_is_int = false;
                         if (check(TokenKind::String)) { val_s = consume().text; }
-                        else if (check(TokenKind::Int)) { Token t = consume(); val_i = t.ival; val_s = t.text; }
+                        else if (check(TokenKind::Int)) { Token t = consume(); val_i = t.ival; val_s = t.text; val_is_int = true; }
                         else if (check(TokenKind::Ident)) { val_s = consume().text; }
-                        apply_meta_kv(pm, k.text, val_s, val_i);
+                        else throw ParseError("expected a value after '=' for option '" + k.text + "'", peek().loc);
+                        apply_meta_kv(pm, k.text, val_s, val_i, k.loc, val_is_int);
                     }
                     expect(TokenKind::RParen, ")");
 
                     MapDoc::PageEntry entry;
                     entry.event_id  = event_id;
                     entry.page_id   = page_id;
+                    entry.loc       = page_loc;
                     entry.event_meta = em;
                     entry.meta      = pm;
                     entry.body      = parse_block();
                     doc.pages.push_back(std::move(entry));
                 } else {
-                    // 予期しないトークンはスキップ（コメント等）
-                    consume();
+                    throw ParseError("expected page(...) inside event, got '" + peek().text + "'", peek().loc);
                 }
             }
             expect(TokenKind::RBrace, "}");
@@ -324,12 +362,12 @@ MapDoc::PageEntry Parser::parse_page_entry_legacy() {
         if (!check(TokenKind::Ident)) break;
         Token key = consume();
         expect(TokenKind::Equals, "=");
-        std::string val_s; int val_i = 0;
+        std::string val_s; int val_i = 0; bool val_is_int = false;
         if (check(TokenKind::String))      { val_s = consume().text; }
-        else if (check(TokenKind::Int))    { Token t = consume(); val_i = t.ival; val_s = t.text; }
+        else if (check(TokenKind::Int))    { Token t = consume(); val_i = t.ival; val_s = t.text; val_is_int = true; }
         else if (check(TokenKind::Ident))  { val_s = consume().text; }
         else break;
-        apply_meta_kv(entry.meta, key.text, val_s, val_i);
+        apply_meta_kv(entry.meta, key.text, val_s, val_i, key.loc, val_is_int);
     }
 
     entry.body = parse_block();
@@ -369,14 +407,18 @@ StmtBlock Parser::parse_block() {
            && !at_end())
         block.stmts.push_back(parse_stmt());
     if (check(TokenKind::RBrace)) {
-        expect(TokenKind::RBrace, "}");
+        consume();
+    } else if (at_end()) {
+        throw ParseError("unexpected end of file: missing '}'", peek().loc);
     }
     // EndBranch(p0=N) は parse_if で消費するのでここでは触れない
     return block;
 }
 
 StmtPtr Parser::parse_stmt() {
-    if (check(TokenKind::Kw_if)) return parse_if();
+    if (check(TokenKind::Kw_if))    return parse_if();
+    if (check(TokenKind::Kw_while)) return parse_while();
+    if (check(TokenKind::Kw_for))   return parse_for();
 
     // switch[N] = ON/OFF/toggle  (直接代入)
     // switch["name"] = ON/OFF/toggle  (名前テーブル使用)
@@ -436,8 +478,17 @@ StmtPtr Parser::parse_stmt() {
         consume(); // var
         consume(); // [
         if (check(TokenKind::String)) {
-            // var["名前"] 形式
+            // var["名前"] 形式 (範囲 var["a".."b"] / var["a"..N] も可)
             va.id_label = consume().text;
+            if (check(TokenKind::Dot) && peek(1).kind == TokenKind::Dot) {
+                consume(); consume();
+                if (check(TokenKind::String)) {
+                    va.id2_label = consume().text;
+                } else {
+                    va.id2 = expect(TokenKind::Int, "var id2").ival;
+                }
+                va.is_range = true;
+            }
         } else {
             va.id = expect(TokenKind::Int, "var id").ival;
             if (check(TokenKind::Dot) && peek(1).kind == TokenKind::Dot) {
@@ -486,6 +537,74 @@ IfStmt Parser::parse_if() {
     return s;
 }
 
+WhileStmt Parser::parse_while() {
+    WhileStmt s;
+    s.loc = peek().loc;
+    consume(); // while
+    expect(TokenKind::LParen, "(");
+    s.cond_args = parse_cond_args();
+    expect(TokenKind::RParen, ")");
+    s.body = std::make_unique<StmtBlock>(parse_block());
+    return s;
+}
+
+// for (var[N] = init; cond; var[N] op= step) { body }
+// または for (var["name"] = init; cond; var["name"] op= step) { body }
+ForStmt Parser::parse_for() {
+    ForStmt s;
+    s.loc = peek().loc;
+    consume(); // for
+    expect(TokenKind::LParen, "(");
+
+    // init: var[N] = val または var["name"] = val
+    if (!(check(TokenKind::Ident) && peek().text == "var"
+          && peek(1).kind == TokenKind::LBracket))
+        throw ParseError("for: expected var[N] in init", peek().loc);
+    consume(); // var
+    consume(); // [
+    if (check(TokenKind::String)) {
+        s.var_label = consume().text;
+    } else {
+        s.var_id = expect(TokenKind::Int, "var id").ival;
+    }
+    expect(TokenKind::RBracket, "]");
+    if (!check(TokenKind::Equals))
+        throw ParseError("for: expected = after var[N]", peek().loc);
+    consume(); // =
+    s.init_val = parse_arg_val();
+    expect(TokenKind::Semi, ";");
+
+    // cond
+    s.cond_args = parse_cond_args();
+    expect(TokenKind::Semi, ";");
+
+    // step: var[N] op= val （同じ変数）
+    if (!(check(TokenKind::Ident) && peek().text == "var"
+          && peek(1).kind == TokenKind::LBracket))
+        throw ParseError("for: expected var[N] in step", peek().loc);
+    consume(); // var
+    consume(); // [
+    if (check(TokenKind::String)) {
+        if (consume().text != s.var_label)
+            throw ParseError("for: step must use the same variable as init", peek().loc);
+    } else {
+        Token step_id = expect(TokenKind::Int, "var id");
+        if (!s.var_label.empty() || step_id.ival != s.var_id)
+            throw ParseError("for: step must use the same variable as init", step_id.loc);
+    }
+    expect(TokenKind::RBracket, "]");
+    // op=
+    s.step_op = compound_op(peek().kind);
+    if (s.step_op.empty())
+        throw ParseError("for: expected op= in step", peek().loc);
+    consume();
+    s.step_val = parse_arg_val();
+    expect(TokenKind::RParen, ")");
+
+    s.body = std::make_unique<StmtBlock>(parse_block());
+    return s;
+}
+
 // choice("A", "B", cancel=2) { when("A"){...} when("B"){...} }
 ChoiceStmt Parser::parse_choice(Token name_tok) {
     ChoiceStmt cs;
@@ -499,7 +618,9 @@ ChoiceStmt Parser::parse_choice(Token name_tok) {
             cs.cancel = expect(TokenKind::Int, "cancel value").ival;
         } else if (check(TokenKind::String)) {
             cs.options.push_back(consume().text);
-        } else { consume(); }
+        } else {
+            throw ParseError("unexpected '" + peek().text + "' in choice(...)", peek().loc);
+        }
     }
     expect(TokenKind::RParen, ")");
 
@@ -520,15 +641,18 @@ ChoiceStmt Parser::parse_choice(Token name_tok) {
                     if (check(TokenKind::Ident) && peek().text == "index"
                         && peek(1).kind == TokenKind::Equals) {
                         consume(); consume();
-                        if (check(TokenKind::Int)) wc.index = consume().ival;
+                        wc.index = expect(TokenKind::Int, "index value").ival;
                     } else if (!check(TokenKind::RParen)) {
-                        consume(); // 未知のオプションをスキップ
+                        // 未知のオプションを黙って捨てない (docs の「未知の引数はエラー」と一致させる)
+                        throw ParseError("unknown option '" + peek().text + "' in when(...) (only index=N is allowed)", peek().loc);
                     }
                 }
                 expect(TokenKind::RParen, ")");
                 wc.body = std::make_unique<StmtBlock>(parse_block());
                 cs.whens.push_back(std::move(wc));
-            } else { consume(); }
+            } else {
+                throw ParseError("expected when(...) inside choice, got '" + peek().text + "'", peek().loc);
+            }
         }
         expect(TokenKind::RBrace, "}");
     }
@@ -586,7 +710,7 @@ std::vector<Arg> Parser::parse_arglist() {
 
 std::vector<Arg> Parser::parse_cond_args() {
     std::vector<Arg> args;
-    while (!check(TokenKind::RParen) && !at_end()) {
+    while (!check(TokenKind::RParen) && !check(TokenKind::Semi) && !at_end()) {
         // 比較演算子トークンをすべて op= として処理
         {
             std::string cmp_op;
@@ -674,6 +798,8 @@ ArgVal Parser::parse_arg_val() {
                     elem += "(" + std::to_string(id.ival) + ")";
                 }
                 v.list.push_back(elem);
+            } else {
+                throw ParseError("unexpected '" + t.text + "' in list", t.loc);
             }
             if (check(TokenKind::Comma)) consume();
         }

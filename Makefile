@@ -29,28 +29,25 @@ endif
 
 all: release
 
-release: $(BUILD_DIR)/Makefile
-	cmake --build $(BUILD_DIR) -j$(JOBS)
-
-$(BUILD_DIR)/Makefile:
+# 毎回 configure し直す (make test GAME_DIR=... など CMAKE_FLAGS の変更が既存の build/ にも反映されるように)
+release:
 	cmake -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release $(CMAKE_FLAGS)
+	cmake --build $(BUILD_DIR) -j$(JOBS)
 
 # ────────────────────────────────────────────────────────────────────────────
 # Debug ビルド
 # ────────────────────────────────────────────────────────────────────────────
 
-debug: $(DEBUG_DIR)/Makefile
-	cmake --build $(DEBUG_DIR) -j$(JOBS)
-
-$(DEBUG_DIR)/Makefile:
+debug:
 	cmake -B $(DEBUG_DIR) -DCMAKE_BUILD_TYPE=Debug $(CMAKE_FLAGS)
+	cmake --build $(DEBUG_DIR) -j$(JOBS)
 
 # ────────────────────────────────────────────────────────────────────────────
 # テスト
 # ────────────────────────────────────────────────────────────────────────────
 
 test: release
-	ctest --test-dir $(BUILD_DIR) --output-on-failure -j$(JOBS)
+	cd $(BUILD_DIR) && ctest --output-on-failure -j$(JOBS)
 
 # ────────────────────────────────────────────────────────────────────────────
 # インストール

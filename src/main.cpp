@@ -14,8 +14,21 @@
 #include <filesystem>
 #include <algorithm>
 #include <vector>
+#include <memory>
+#include <utility>
 
 using namespace rm2k;
+
+// LMU 保存時のエンジンバージョン (--engine 2000|2003 で変更。デフォルトは 2000)
+static lcf::EngineVersion g_engine = lcf::EngineVersion::e2k;
+// --prune: スクリプトに現れないイベント/ページをマップから削除する
+static bool g_prune = false;
+
+static bool parse_engine(const std::string& s, lcf::EngineVersion& out) {
+    if (s == "2000" || s == "2k" || s == "e2k")   { out = lcf::EngineVersion::e2k;  return true; }
+    if (s == "2003" || s == "2k3" || s == "e2k3") { out = lcf::EngineVersion::e2k3; return true; }
+    return false;
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ヘルプ
@@ -45,19 +58,27 @@ R"(rm2kscript — RPGツクール2000/2003 イベントスクリプトツール
   -o <file|dir>  出力先ファイルまたはディレクトリ
   -e <enc>       文字エンコーディング (デフォルト: 932 / Shift-JIS)
   -n <ldb>       RPG_RT.ldb からスイッチ/変数名テーブルを読み込み、名前で表記する
+                 (省略時は入力の隣/ゲームディレクトリの RPG_RT.ldb を自動使用)
+  --engine <ver> マップ保存時のエンジン: 2000 (デフォルト) または 2003
+  --prune        encode / encode-project: スクリプトに現れないイベント/ページをマップから削除
+  -h, --help     このヘルプを表示
 
-独自言語仕様:
-  @event N  @page M trigger=action layer=same
-  {
-      ShowMessage("こんにちは！");
-      if (switch[1] == ON) {
-          ControlVars(var[1] = 100);
-          Teleport(map=2, x=5, y=3);
-      } else {
-          ShowMessage("フラグが立っていません");
+encode-project は、全ファイルのエンコードが成功した場合のみゲームに書き込みます。
+上書きする .lmu / .ldb は事前に <name>.bak として退避されます(既にあれば上書きしません)。
+
+独自言語仕様 (詳細は docs/language.md):
+  event(1, x=3, y=4) {
+      page(1, trigger=action, layer=same) {
+          message("こんにちは！");
+          if (switch[1] == ON) {
+              var[1] = 100;
+              Teleport(map=2, x=5, y=3);
+          } else {
+              message("フラグが立っていません");
+          }
+          Wait(frames=30);
+          PlayBGM("battle", volume=80, tempo=100, balance=50);
       }
-      Wait(frames=30);
-      PlayBGM("battle", volume=80, tempo=100, balance=50);
   }
 )" << std::endl;
 }
@@ -78,43 +99,16 @@ static void write_text_file(const std::string& path, const std::string& content)
     std::ofstream f(path, std::ios::binary);
     if (!f) throw std::runtime_error("cannot write: " + path);
     f << content;
+    f.flush();
+    // ディスクフル等の書き込み失敗を成功として扱わない
+    if (!f) throw std::runtime_error("write failed: " + path);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // NameTable を LDB から構築
 // ──────────────────────────────────────────────────────────────────────────────
 
-static NameTable build_name_table(const std::string& ldb_path, const std::string& encoding) {
-    auto db = lcf::LDB_Reader::Load(ldb_path, encoding);
-    if (!db) throw std::runtime_error("cannot load nametable ldb: " + ldb_path);
-    NameTable nt;
-    // 重複名チェック: 同じ名前を持つエントリが複数ある場合、名前→IDの逆引きは登録しない
-    // (登録すると最初のIDが返り、ラウンドトリップが壊れる)
-    std::unordered_map<std::string, int> sw_name_count, var_name_count;
-    for (const auto& sw : db->switches) {
-        std::string name(sw.name.begin(), sw.name.end());
-        if (!name.empty()) sw_name_count[name]++;
-    }
-    for (const auto& vr : db->variables) {
-        std::string name(vr.name.begin(), vr.name.end());
-        if (!name.empty()) var_name_count[name]++;
-    }
-    for (const auto& sw : db->switches) {
-        std::string name(sw.name.begin(), sw.name.end());
-        if (name.empty()) continue;
-        nt.sw_names[sw.ID] = name;
-        if (sw_name_count[name] == 1)   // 一意の名前のみ逆引き登録
-            nt.sw_ids[name] = sw.ID;
-    }
-    for (const auto& vr : db->variables) {
-        std::string name(vr.name.begin(), vr.name.end());
-        if (name.empty()) continue;
-        nt.var_names[vr.ID] = name;
-        if (var_name_count[name] == 1)  // 一意の名前のみ逆引き登録
-            nt.var_ids[name] = vr.ID;
-    }
-    return nt;
-}
+// (NameTable は main() で LDB を 1 回だけロードして構築する: バリデーション用 DB と共用)
 
 // ──────────────────────────────────────────────────────────────────────────────
 // サブコマンド
@@ -146,7 +140,8 @@ static int cmd_encode(const std::string& script_path,
                       const std::string& lmu_path,
                       const std::string& out_path,
                       const std::string& encoding,
-                      const NameTable* names) {
+                      const NameTable* names,
+                      const lcf::rpg::Database* db = nullptr) {
     // 元のLMUを読み込む
     auto map = lcf::LMU_Reader::Load(lmu_path, encoding);
     if (!map) {
@@ -156,8 +151,14 @@ static int cmd_encode(const std::string& script_path,
     std::string source = read_text_file(script_path);
     Encoder enc;
     enc.set_name_table(names);
+    enc.set_prune(g_prune);
+    if (db) enc.set_database(db);
     try {
         enc.encode_to_map(source, *map, encoding);
+    } catch (const CompileError& e) {
+        std::cerr << "Compile error at line " << e.loc().line
+                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        return 1;
     } catch (const ParseError& e) {
         std::cerr << "Parse error at line " << e.loc().line
                   << " col " << e.loc().col << ": " << e.what() << std::endl;
@@ -169,8 +170,7 @@ static int cmd_encode(const std::string& script_path,
     }
 
     std::string dest = out_path.empty() ? lmu_path : out_path;
-    // エンジンバージョン自動判定 (2000形式)
-    bool ok = lcf::LMU_Reader::Save(dest, *map, lcf::EngineVersion::e2k, encoding);
+    bool ok = lcf::LMU_Reader::Save(dest, *map, g_engine, encoding);
     if (!ok) {
         std::cerr << "Error: failed to save " << dest << std::endl;
         return 1;
@@ -205,7 +205,8 @@ static int cmd_encode_db(const std::string& script_path,
                           const std::string& ldb_path,
                           const std::string& out_path,
                           const std::string& encoding,
-                          const NameTable* names) {
+                          const NameTable* names,
+                          const lcf::rpg::Database* db_for_validation = nullptr) {
     auto db = lcf::LDB_Reader::Load(ldb_path, encoding);
     if (!db) {
         std::cerr << "Error: failed to load " << ldb_path << std::endl;
@@ -214,8 +215,13 @@ static int cmd_encode_db(const std::string& script_path,
     std::string source = read_text_file(script_path);
     Encoder enc;
     enc.set_name_table(names);
+    enc.set_database(db_for_validation ? db_for_validation : db.get());
     try {
         enc.encode_to_database(source, *db, encoding);
+    } catch (const CompileError& e) {
+        std::cerr << "Compile error at line " << e.loc().line
+                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        return 1;
     } catch (const ParseError& e) {
         std::cerr << "Parse error at line " << e.loc().line
                   << " col " << e.loc().col << ": " << e.what() << std::endl;
@@ -337,9 +343,21 @@ static int cmd_encode_project(const std::string& script_dir,
     }
     std::sort(rs2k_files.begin(), rs2k_files.end());
 
+    // バリデーション用に DB を事前ロード
+    std::unique_ptr<lcf::rpg::Database> val_db;
+    fs::path ldb_path = gdir / "RPG_RT.ldb";
+    if (fs::exists(ldb_path)) {
+        val_db = lcf::LDB_Reader::Load(ldb_path.string(), encoding);
+    }
+
     int errors = 0;
     Encoder enc;
     enc.set_name_table(names);
+    enc.set_prune(g_prune);
+    if (val_db) enc.set_database(val_db.get());
+
+    // 書き込みは一時ファイル (<dest>.rs2k_new) に対して行い、全ファイル成功後にまとめて差し替える
+    std::vector<std::pair<fs::path, fs::path>> pending; // (tmp, dest)
 
     for (const auto& rs2k_path : rs2k_files) {
         std::string stem = rs2k_path.stem().string(); // e.g. "Map0001" or "CommonEvents"
@@ -354,7 +372,6 @@ static int cmd_encode_project(const std::string& script_dir,
 
         if (stem == "CommonEvents") {
             // LDB へエンコード
-            fs::path ldb_path = gdir / "RPG_RT.ldb";
             if (!fs::exists(ldb_path)) {
                 std::cerr << "Error: " << ldb_path << " not found\n";
                 ++errors; continue;
@@ -366,15 +383,34 @@ static int cmd_encode_project(const std::string& script_dir,
             }
             try {
                 enc.encode_to_database(source, *db, encoding);
+            } catch (const LexError& e) {
+                std::cerr << "Lex error in " << rs2k_path.filename().string()
+                          << " at line " << e.loc().line << " col " << e.loc().col
+                          << ": " << e.what() << "\n";
+                ++errors; continue;
+            } catch (const ParseError& e) {
+                std::cerr << "Parse error in " << rs2k_path.filename().string()
+                          << " at line " << e.loc().line << " col " << e.loc().col
+                          << ": " << e.what() << "\n";
+                ++errors; continue;
+            } catch (const CompileError& e) {
+                std::cerr << "Compile error in " << rs2k_path.filename().string()
+                          << " at line " << e.loc().line << " col " << e.loc().col
+                          << ": " << e.what() << "\n";
+                ++errors; continue;
             } catch (const std::exception& e) {
                 std::cerr << "Error encoding " << rs2k_path.filename() << ": " << e.what() << "\n";
                 ++errors; continue;
             }
-            if (!lcf::LDB_Reader::Save(ldb_path.string(), *db, encoding)) {
-                std::cerr << "Error: failed to save " << ldb_path << "\n";
+            fs::path tmp = ldb_path;
+            tmp += ".rs2k_new";
+            if (!lcf::LDB_Reader::Save(tmp.string(), *db, encoding)) {
+                std::cerr << "Error: failed to save " << tmp << "\n";
+                std::error_code ec; fs::remove(tmp, ec);
                 ++errors; continue;
             }
-            std::cerr << rs2k_path.filename().string() << " -> RPG_RT.ldb\n";
+            pending.emplace_back(tmp, ldb_path);
+            std::cerr << rs2k_path.filename().string() << " -> RPG_RT.ldb (staged)\n";
 
         } else {
             // MapNNNN.rs2k → MapNNNN.lmu
@@ -390,23 +426,74 @@ static int cmd_encode_project(const std::string& script_dir,
             }
             try {
                 enc.encode_to_map(source, *map, encoding);
+            } catch (const LexError& e) {
+                std::cerr << "Lex error in " << rs2k_path.filename().string()
+                          << " at line " << e.loc().line << " col " << e.loc().col
+                          << ": " << e.what() << "\n";
+                ++errors; continue;
+            } catch (const ParseError& e) {
+                std::cerr << "Parse error in " << rs2k_path.filename().string()
+                          << " at line " << e.loc().line << " col " << e.loc().col
+                          << ": " << e.what() << "\n";
+                ++errors; continue;
+            } catch (const CompileError& e) {
+                std::cerr << "Compile error in " << rs2k_path.filename().string()
+                          << " at line " << e.loc().line << " col " << e.loc().col
+                          << ": " << e.what() << "\n";
+                ++errors; continue;
             } catch (const std::exception& e) {
                 std::cerr << "Error encoding " << rs2k_path.filename() << ": " << e.what() << "\n";
                 ++errors; continue;
             }
-            if (!lcf::LMU_Reader::Save(lmu_path.string(), *map, lcf::EngineVersion::e2k, encoding)) {
-                std::cerr << "Error: failed to save " << lmu_path << "\n";
+            fs::path tmp = lmu_path;
+            tmp += ".rs2k_new";
+            if (!lcf::LMU_Reader::Save(tmp.string(), *map, g_engine, encoding)) {
+                std::cerr << "Error: failed to save " << tmp << "\n";
+                std::error_code ec; fs::remove(tmp, ec);
                 ++errors; continue;
             }
-            std::cerr << rs2k_path.filename().string() << " -> " << (stem + ".lmu") << "\n";
+            pending.emplace_back(tmp, lmu_path);
+            std::cerr << rs2k_path.filename().string() << " -> " << (stem + ".lmu") << " (staged)\n";
         }
     }
 
-    if (errors == 0)
-        std::cerr << "encode-project: " << rs2k_files.size() << " files -> " << game_dir << "\n";
-    else
-        std::cerr << "encode-project: " << errors << " error(s)\n";
-    return errors ? 1 : 0;
+    std::error_code ec;
+    if (errors != 0) {
+        for (const auto& pr : pending) fs::remove(pr.first, ec);
+        std::cerr << "encode-project: " << errors << " error(s); no files were modified\n";
+        return 1;
+    }
+
+    // 全て成功: まず全ファイルを .bak に退避する (この段階で失敗しても元ファイルは未変更)
+    for (const auto& pr : pending) {
+        fs::path bak = pr.second;
+        bak += ".bak";
+        ec.clear();
+        if (!fs::exists(bak))
+            fs::copy_file(pr.second, bak, ec);
+        if (ec) {
+            std::cerr << "Error: cannot back up " << pr.second << ": " << ec.message() << "\n"
+                      << "encode-project: no files were modified\n";
+            for (const auto& q : pending) { std::error_code ec2; fs::remove(q.first, ec2); }
+            return 1;
+        }
+    }
+    // 退避が済んでから差し替える。失敗時は残りの一時ファイルを片付け、状況を報告する
+    size_t replaced = 0;
+    for (const auto& pr : pending) {
+        ec.clear();
+        fs::rename(pr.first, pr.second, ec);
+        if (ec) {
+            std::cerr << "Error: cannot replace " << pr.second << ": " << ec.message() << "\n"
+                      << "encode-project: " << replaced << " of " << pending.size()
+                      << " files were already replaced (originals are saved as *.bak)\n";
+            for (const auto& q : pending) { std::error_code ec2; fs::remove(q.first, ec2); }
+            return 1;
+        }
+        ++replaced;
+    }
+    std::cerr << "encode-project: " << pending.size() << " files -> " << game_dir << "\n";
+    return 0;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -417,6 +504,7 @@ int main(int argc, char* argv[]) {
     if (argc < 2) { print_usage(argv[0]); return 1; }
 
     std::string cmd    = argv[1];
+    if (cmd == "-h" || cmd == "--help") { print_usage(argv[0]); return 0; }
     std::string out_path;
     std::string encoding  = "932"; // デフォルト: Shift-JIS（日本語版ツクール2000/2003）
     std::string names_ldb;         // -n <ldb> で指定する NameTable 用 LDB パス
@@ -425,50 +513,80 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> positional;
     for (int i = 2; i < argc; ++i) {
         std::string a = argv[i];
-        if (a == "-o" && i + 1 < argc) {
-            out_path = argv[++i];
-        } else if (a == "-e" && i + 1 < argc) {
-            encoding = argv[++i];
-        } else if (a == "-n" && i + 1 < argc) {
-            names_ldb = argv[++i];
+        if (a == "-h" || a == "--help") {
+            print_usage(argv[0]);
+            return 0;
+        } else if (a == "--prune") {
+            g_prune = true;
+        } else if (a == "-o" || a == "-e" || a == "-n" || a == "--engine") {
+            if (i + 1 >= argc) {
+                std::cerr << "Error: option " << a << " requires a value" << std::endl;
+                return 1;
+            }
+            std::string v = argv[++i];
+            if (a == "-o") out_path = v;
+            else if (a == "-e") encoding = v;
+            else if (a == "-n") names_ldb = v;
+            else if (!parse_engine(v, g_engine)) {
+                std::cerr << "Error: unknown engine '" << v << "' (use 2000 or 2003)" << std::endl;
+                return 1;
+            }
         } else {
             positional.push_back(a);
         }
     }
 
+    // -n を明示指定したか (自動検出と区別: 明示指定のロード失敗はエラーにする)
+    const bool names_explicit = !names_ldb.empty();
+
     // -n が省略された場合、入力ファイルの隣にある RPG_RT.ldb を自動使用する
     if (names_ldb.empty()) {
         fs::path auto_ldb;
-        if ((cmd == "decode" || cmd == "encode") && !positional.empty()) {
-            // lmu ファイルと同じディレクトリの RPG_RT.ldb
+        if (cmd == "decode" && !positional.empty()) {
+            // decode: positional[0] = LMU
             auto_ldb = fs::path(positional[0]).parent_path() / "RPG_RT.ldb";
+        } else if (cmd == "encode" && positional.size() >= 2) {
+            // encode: positional[0] = script, positional[1] = LMU
+            auto_ldb = fs::path(positional[1]).parent_path() / "RPG_RT.ldb";
         } else if (cmd == "decode-db" && !positional.empty()) {
             // ldb 自身
             auto_ldb = positional[0];
         } else if (cmd == "encode-db" && positional.size() >= 2) {
             // 第2引数が ldb
             auto_ldb = positional[1];
-        } else if ((cmd == "decode-project" || cmd == "encode-project") && !positional.empty()) {
-            // game_dir の RPG_RT.ldb
+        } else if (cmd == "decode-project" && !positional.empty()) {
+            // decode-project: positional[0] = game_dir
             auto_ldb = fs::path(positional[0]) / "RPG_RT.ldb";
         } else if (cmd == "encode-project" && positional.size() >= 2) {
+            // encode-project: positional[0] = script_dir, positional[1] = game_dir
             auto_ldb = fs::path(positional[1]) / "RPG_RT.ldb";
         }
         if (!auto_ldb.empty() && fs::exists(auto_ldb))
             names_ldb = auto_ldb.string();
     }
 
-    // NameTable を構築
+    // NameTable と DB を構築
     NameTable nt;
     const NameTable* names = nullptr;
+    std::unique_ptr<lcf::rpg::Database> val_db;
     if (!names_ldb.empty()) {
         try {
-            nt = build_name_table(names_ldb, encoding);
+            // 1 回だけロードして、名前テーブルとバリデーション用 DB の両方に使う
+            val_db = lcf::LDB_Reader::Load(names_ldb, encoding);
+            if (!val_db) throw std::runtime_error("cannot load nametable ldb: " + names_ldb);
+            nt = NameTable::from_database(*val_db);
             names = &nt;
         } catch (const std::exception& ex) {
+            if (names_explicit) {
+                std::cerr << "Error: failed to load name table (-n " << names_ldb << "): "
+                          << ex.what() << std::endl;
+                return 1;
+            }
+            val_db.reset();
             std::cerr << "Warning: failed to load name table: " << ex.what() << std::endl;
         }
     }
+    const lcf::rpg::Database* val_db_ptr = val_db.get();
 
     try {
         if (cmd == "decode") {
@@ -476,13 +594,13 @@ int main(int argc, char* argv[]) {
             return cmd_decode(positional[0], out_path, encoding, names);
         } else if (cmd == "encode") {
             if (positional.size() < 2) { print_usage(argv[0]); return 1; }
-            return cmd_encode(positional[0], positional[1], out_path, encoding, names);
+            return cmd_encode(positional[0], positional[1], out_path, encoding, names, val_db_ptr);
         } else if (cmd == "decode-db") {
             if (positional.empty()) { print_usage(argv[0]); return 1; }
             return cmd_decode_db(positional[0], out_path, encoding, names);
         } else if (cmd == "encode-db") {
             if (positional.size() < 2) { print_usage(argv[0]); return 1; }
-            return cmd_encode_db(positional[0], positional[1], out_path, encoding, names);
+            return cmd_encode_db(positional[0], positional[1], out_path, encoding, names, val_db_ptr);
         } else if (cmd == "decode-project") {
             if (positional.empty()) { print_usage(argv[0]); return 1; }
             return cmd_decode_project(positional[0], out_path, encoding, names);

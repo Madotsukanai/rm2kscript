@@ -1,6 +1,7 @@
 #pragma once
 #include "ast.h"
 #include <string>
+#include <string_view>
 #include <vector>
 #include <stdexcept>
 
@@ -72,13 +73,16 @@ private:
     MapDoc::PageEntry parse_page_entry_legacy(); // 旧 @event/@page 形式
 
     // ページメタデータ
-    void apply_meta_kv(PageMeta& m, const std::string& key, const std::string& val_s, int val_i);
+    void apply_meta_kv(PageMeta& m, const std::string& key, const std::string& val_s, int val_i,
+                       SourceLoc loc, bool val_is_int = true);
 
     // ブロック・文
     StmtBlock              parse_block();
     std::vector<int32_t>   consume_end_branch_if_present();
     StmtPtr                parse_stmt();
     IfStmt                 parse_if();
+    WhileStmt              parse_while();
+    ForStmt                parse_for();
     ChoiceStmt       parse_choice(Token name_tok);
     CmdStmt          parse_cmd(Token name_tok);
 

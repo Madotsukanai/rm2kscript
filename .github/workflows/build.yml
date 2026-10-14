@@ -44,6 +44,12 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+      - name: Sanitizer build and test (ASan/UBSan)
+        run: |
+          cmake -B build-san -DCMAKE_BUILD_TYPE=Debug -DRM2K_SANITIZE=ON -G Ninja
+          cmake --build build-san -j$(nproc)
+          ctest --test-dir build-san --output-on-failure
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -62,7 +68,6 @@ jobs:
       - name: Install liblcf (vcpkg)
         run: |
           vcpkg install expat inih icu --triplet x64-windows-static
-          vcpkg install --overlay-ports=. || true
           git clone --depth=1 https://github.com/EasyRPG/liblcf.git C:/liblcf
           cmake -S C:/liblcf -B C:/liblcf/build `
             -DCMAKE_BUILD_TYPE=Release `

@@ -4,8 +4,21 @@ project(rm2kscript VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# MSVC: ソースは BOM なし UTF-8 (日本語のコメント・文字列を含む)。指定しないと既定のコードページで
+# 解釈され、C4819 警告や文字化け (日本語ロケールではコメント末尾の 0x5C による次行の巡き込み) の原因になる
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 # liblcf
 find_package(liblcf REQUIRED)
+
+# ASan/UBSan ビルド (GCC/Clang のみ): cmake -DRM2K_SANITIZE=ON
+option(RM2K_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if(RM2K_SANITIZE AND NOT MSVC)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined)
+    add_link_options(-fsanitize=address,undefined)
+endif()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 共有ライブラリ (main を除いたコア): テストから再利用するため分離
@@ -41,6 +54,11 @@ endif()
 
 add_executable(rm2kscript src/main.cpp)
 target_link_libraries(rm2kscript PRIVATE rm2kscript_core)
+if(MSVC)
+    target_compile_options(rm2kscript PRIVATE /W3)
+else()
+    target_compile_options(rm2kscript PRIVATE -Wall -Wextra)
+endif()
 
 # Windows スタティックリンク設定
 if(MSVC)
@@ -73,4 +91,9 @@ add_test(NAME roundtrip COMMAND test_roundtrip)
 # ゲームファイルが指定されていれば全マップテストを追加
 if(DEFINED GAME_DIR AND EXISTS "${GAME_DIR}")
     add_test(NAME game_roundtrip COMMAND test_game_roundtrip "${GAME_DIR}")
+    # 名前テーブルあり (switch["名前"] 形式) の経路も検証する
+    if(EXISTS "${GAME_DIR}/RPG_RT.ldb")
+        add_test(NAME game_roundtrip_names
+                 COMMAND test_game_roundtrip "${GAME_DIR}" -n "${GAME_DIR}/RPG_RT.ldb")
+    endif()
 endif()
