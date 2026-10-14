@@ -51,10 +51,55 @@ jobs:
           path: build/rm2kscript
 
   # ──────────────────────────────────────────────────────────────────────────────
+  # Windows ネイティブビルド (MSVC, windows-latest runner)
+  # ──────────────────────────────────────────────────────────────────────────────
+  windows-msvc:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install liblcf (vcpkg)
+        run: |
+          vcpkg install expat inih icu --triplet x64-windows-static
+          vcpkg install --overlay-ports=. || true
+          git clone --depth=1 https://github.com/EasyRPG/liblcf.git C:/liblcf
+          cmake -S C:/liblcf -B C:/liblcf/build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DLIBLCF_WITH_ICU=ON `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DVCPKG_TARGET_TRIPLET=x64-windows-static" `
+            -G "Visual Studio 17 2022" -A x64
+          cmake --build C:/liblcf/build --config Release -j4
+          cmake --install C:/liblcf/build --prefix C:/liblcf-install
+
+      - name: Configure
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_PREFIX_PATH=C:/liblcf-install" `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DVCPKG_TARGET_TRIPLET=x64-windows-static" `
+            -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rm2kscript-windows-msvc
+          path: build/Release/rm2kscript.exe
+
+  # ──────────────────────────────────────────────────────────────────────────────
   # Windows (MinGW-w64 クロスコンパイル、Ubuntu上で実行)
   # ──────────────────────────────────────────────────────────────────────────────
   windows:
-    name: Windows (cross)
+    name: Windows (MinGW cross)
     runs-on: ubuntu-latest
     env:
       MINGW:  x86_64-w64-mingw32
@@ -111,7 +156,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────────
   release:
     name: Release
-    needs: [ linux, windows ]
+    needs: [ linux, windows, windows-msvc ]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -125,13 +170,19 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: rm2kscript-windows
-          path: dist/windows
+          path: dist/windows-mingw
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rm2kscript-windows-msvc
+          path: dist/windows-msvc
 
       - name: Prepare assets
         run: |
           chmod +x dist/linux/rm2kscript
-          mv dist/linux/rm2kscript  dist/rm2kscript-linux-x86_64
-          mv dist/windows/rm2kscript.exe dist/rm2kscript-windows-x86_64.exe
+          mv dist/linux/rm2kscript            dist/rm2kscript-linux-x86_64
+          mv dist/windows-mingw/rm2kscript.exe dist/rm2kscript-windows-x86_64.exe
+          mv dist/windows-msvc/rm2kscript.exe  dist/rm2kscript-windows-msvc-x86_64.exe
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -139,3 +190,4 @@ jobs:
           files: |
             dist/rm2kscript-linux-x86_64
             dist/rm2kscript-windows-x86_64.exe
+            dist/rm2kscript-windows-msvc-x86_64.exe

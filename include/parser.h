@@ -75,9 +75,10 @@ private:
     void apply_meta_kv(PageMeta& m, const std::string& key, const std::string& val_s, int val_i);
 
     // ブロック・文
-    StmtBlock        parse_block();
-    StmtPtr          parse_stmt();
-    IfStmt           parse_if();
+    StmtBlock              parse_block();
+    std::vector<int32_t>   consume_end_branch_if_present();
+    StmtPtr                parse_stmt();
+    IfStmt                 parse_if();
     ChoiceStmt       parse_choice(Token name_tok);
     CmdStmt          parse_cmd(Token name_tok);
 

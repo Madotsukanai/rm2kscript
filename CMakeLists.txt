@@ -42,8 +42,15 @@ endif()
 add_executable(rm2kscript src/main.cpp)
 target_link_libraries(rm2kscript PRIVATE rm2kscript_core)
 
-# Windows (MinGW) 向けスタティックリンク設定
-if(WIN32 AND NOT MSVC)
+# Windows スタティックリンク設定
+if(MSVC)
+    # MSVC: /MT でランタイムをスタティックリンク
+    set_property(TARGET rm2kscript PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    set_property(TARGET rm2kscript_core PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+elseif(WIN32)
+    # MinGW: gcc/stdc++/winpthread をスタティックリンク
     target_link_options(rm2kscript PRIVATE -static-libgcc -static-libstdc++ -static)
 endif()
 

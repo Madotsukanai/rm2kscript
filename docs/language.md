@@ -12,6 +12,7 @@ rm2kscript が使うスクリプト言語（`.rs2k` ファイル）の完全な�
 4. [文の種類](#4-文の種類)
 5. [コマンドリファレンス](#5-コマンドリファレンス)
 6. [コモンイベント](#6-コモンイベント)
+7. [スイッチ・変数の名前テーブル](#7-スイッチ変数の名前テーブル)
 
 ---
 
@@ -112,6 +113,7 @@ switch[N] = OFF;
 switch[N] = toggle;
 switch[N..M] = ON;          // N〜M の範囲を一括
 switch[var[N]] = ON;        // 変数Nの値をIDとして使用
+switch["スイッチ名"] = ON;  // 名前テーブルがある場合
 ```
 
 ### 4.3 変数代入
@@ -125,6 +127,7 @@ var[N] /= 値;
 var[N] %= 値;
 var[N] = var[M];            // 変数Mの値を代入
 var[N..M] = 値;             // N〜M の範囲を一括
+var["変数名"] = 値;         // 名前テーブルがある場合
 ```
 
 ### 4.4 if 文
@@ -148,13 +151,13 @@ var[N] <= 値
 var[N] > 値
 var[N] < 値
 var[N] != 値
-var[N] == var[M]       // 変数同士の比較
-timer >= N             // タイマーがN以上
+var[N] == var[M]            // 変数同士の比較
+timer >= N                  // タイマーがN以上
 timer <= N
-has_item(id=N)         // アイテムN所持
+has_item(id=N)              // アイテムN所持
 has_equip(actor=N, item=M)  // アクターNがアイテムM装備
 actor_cond(actor=N, cond=C, val=V)
-on_vehicle(type=ship)  // ship / skiff / airship / any
+on_vehicle(type=ship)       // ship / skiff / airship / any
 char_facing(who=N, dir=down)
 event_state(event=N, val=V)
 gold_cmp(gold=N, op=ge)     // op: ge (>=) / le (<=)
@@ -204,7 +207,7 @@ comment("複数行\n2行目");
 |---|---|
 | `switch[N] = ON/OFF/toggle` | スイッチ操作 |
 | `var[N] op= 値` | 変数操作（単純形式）|
-| `ControlVars(var=N, type=0, id2=N, op_code=0, src=0, src_val=V)` | 変数操作（詳細形式） |
+| `ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=V)` | 変数操作（間接参照など特殊形式）|
 | `TimerOperation(set=N, p1=0, p2=0, p3=0, p4=0)` | タイマーセット |
 | `TimerOperation(start, p1=0, p2=0, p3=0, p4=0)` | タイマー開始 |
 | `TimerOperation(stop, p1=0, p2=0, p3=0, p4=0)` | タイマー停止 |
@@ -213,22 +216,25 @@ comment("複数行\n2行目");
 
 | コマンド | 説明 |
 |---|---|
-| `ChangeGold(delta=N)` | 所持金変更（負数で減少）|
-| `ChangeItems(item=N, op=0, src=0, amount=M, p4=0)` | アイテム増減（op: 0=増加, 1=減少）|
-| `ChangePartyMembers(add, src=0, actor=N)` | パーティメンバー追加 |
-| `ChangePartyMembers(remove, src=0, actor=N)` | パーティメンバー除外 |
+| `ChangeGold(delta=N)` | 所持金変更（負数で減少、`delta=var[N]` で変数参照）|
+| `ChangeItems(op=add, item=N, amount=M)` | アイテム増加（`item=var[N]`、`amount=var[N]` 形式も可）|
+| `ChangeItems(op=remove, item=N, amount=M)` | アイテム減少 |
+| `ChangePartyMembers(add, actor=N)` | パーティメンバー追加（`actor=var[N]` も可）|
+| `ChangePartyMembers(remove, actor=N)` | パーティメンバー除外 |
 
 ### アクターステータス
 
 | コマンド | 説明 |
 |---|---|
-| `ChangeExp(actor=N, op=0, src=0, val=V, show=0)` | EXP変更 |
-| `ChangeLevel(actor=N, op=0, src=0, val=V, show=0)` | レベル変更 |
+| `ChangeExp(actor=N, delta=V)` | EXP変更（`delta=-V` で減少、`delta=var[N]` で変数参照）|
+| `ChangeExp(party, delta=V)` | パーティ全員のEXP変更 |
+| `ChangeLevel(actor=N, delta=V)` | レベル変更（`delta=-V` で減少、`delta=var[N]` で変数参照）|
+| `ChangeLevel(actor=N, delta=V, show_levelup=1)` | レベルアップメッセージ表示あり |
 | `ChangeHP(actor=N, delta=N)` | HP変更 |
 | `ChangeSP(actor=N, delta=N)` | SP変更 |
 | `FullHeal(actor=N)` | 全回復（`party` でパーティ全員）|
-| `ChangeSkills(actor=N, op=learn, src=0, skill=N)` | スキル習得/忘却 |
-| `ChangeCondition(actor=N, op=add, state=N)` | 状態変化付与/解除 |
+| `ChangeSkills(actor=N, op=learn, skill=N)` | スキル習得（`op=forget` で忘却、`skill=var[N]` も可）|
+| `ChangeCondition(actor=N, op=add, state=N)` | 状態変化付与（`op=remove` で解除）|
 | `ChangeEquipment(actor=N, op=0, src=0, item=N)` | 装備変更 |
 | `ChangeParameters(who=0, actor=N, param=0, op=0, src=0, val=V)` | 基礎パラメータ変更 |
 | `ChangeHeroName(actor=N, name="名前")` | アクター名変更 |
@@ -276,11 +282,11 @@ comment("複数行\n2行目");
 
 | コマンド | 説明 |
 |---|---|
-| `PlayBGM("filename", event=0, volume=100, tempo=100, balance=50)` | BGM再生 |
+| `PlayBGM("filename", volume=100, tempo=100, balance=50)` | BGM再生（`fade=N` で既存BGMからフェードイン。省略時は即時切り替え）|
 | `FadeOutBGM(ms=800)` | BGMフェードアウト |
 | `MemorizeBGM()` | BGM記憶 |
 | `PlayMemorizedBGM()` | 記憶BGM再生 |
-| `PlaySound("filename", p0=60, p1=100, p2=50)` | SE再生 |
+| `PlaySound("filename", volume=60, tempo=100, balance=50)` | SE再生 |
 | `PlayMovie(file="filename", x=0, y=0, w=320, h=240)` | 動画再生 |
 | `ChangeSystemBGM(event=N, bgm="filename", volume=100, tempo=100, balance=50)` | システムBGM変更 |
 | `ChangeSystemSFX(type=N, sfx="filename", volume=100, tempo=100, balance=50)` | システムSE変更 |
@@ -301,8 +307,9 @@ comment("複数行\n2行目");
 | `BreakLoop()` | ループ脱出 |
 | `Label(N)` | ラベル |
 | `JumpToLabel(N)` | ラベルへジャンプ |
-| `CallEvent(type=0, id=N, page=0)` | イベント呼び出し（type: 0=マップイベント, 1=コモンイベント）|
-| `CallCommonEvent(id=N)` | コモンイベント呼び出し |
+| `CallEvent(common=N)` | コモンイベント呼び出し |
+| `CallEvent(event=N, page=P)` | マップイベントの指定ページを呼び出し |
+| `CallCommonEvent(id=N)` | コモンイベント呼び出し（別形式）|
 | `EndEventProcessing()` | イベント処理終了 |
 | `EraseEvent()` | イベント消去 |
 
@@ -369,3 +376,29 @@ event(2) {
 
 コモンイベントの `trigger` は `none` / `auto_start` / `parallel` の3種類です。  
 `cond_switch=N` でトリガースイッチを指定します。
+
+---
+
+## 7. スイッチ・変数の名前テーブル
+
+ゲームディレクトリ内に `RPG_RT.ldb` がある場合、`decode` / `decode-project` は自動的にそれを参照してスイッチ・変数番号を名前で出力します。
+
+```bash
+# -n を省略しても RPG_RT.ldb が同じディレクトリにあれば自動適用
+rm2kscript decode Map0001.lmu
+
+# 別のディレクトリから LDB を指定する場合
+rm2kscript decode Map0001.lmu -n /path/to/RPG_RT.ldb
+```
+
+**出力例（名前テーブルあり）：**
+
+```
+var["Episode"] = 1;
+var["PartyMemberID01"] = var["Episode"];
+if (switch["イベント済み"] == ON) {
+    CallEvent(common=5);
+}
+```
+
+**名前の一意性：** 同じ名前が複数の番号に割り当てられている場合は、番号形式（`var[N]`）にフォールバックします。エンコード時は名前から番号を逆引きするため、エンコードに使うスクリプトをデコードしたゲームと同じ `RPG_RT.ldb` で処理してください。

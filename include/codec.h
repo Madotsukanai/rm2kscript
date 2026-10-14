@@ -1,14 +1,19 @@
 #pragma once
 #include "ast.h"
+#include "nametable.h"
 #include <lcf/rpg/map.h>
 #include <lcf/rpg/database.h>
 #include <string>
+#include <stdexcept>
 
 namespace rm2k {
 
 // LMUファイル / LCFコマンド列 → 独自言語テキスト
 class Decoder {
 public:
+    // 名前テーブルを設定 (オプション)
+    void set_name_table(const NameTable* nt) { names_ = nt; }
+
     // マップ全体をテキストに変換
     std::string decode_map(const lcf::rpg::Map& map,
                            const std::string& encoding = "UTF-8");
@@ -18,6 +23,8 @@ public:
                                      const std::string& encoding = "UTF-8");
 
 private:
+    const NameTable* names_ = nullptr;
+
     std::string decode_event_commands(
         const std::vector<lcf::rpg::EventCommand>& cmds,
         int base_indent = 0);
@@ -26,9 +33,28 @@ private:
                                int visual_indent);
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// エンコード時バリデーションエラー
+// ──────────────────────────────────────────────────────────────────────────────
+
+class CompileError : public std::runtime_error {
+public:
+    CompileError(const std::string& msg, SourceLoc loc)
+        : std::runtime_error(msg), loc_(loc) {}
+    SourceLoc loc() const { return loc_; }
+private:
+    SourceLoc loc_;
+};
+
 // エンコーダー（テキスト → LCF）
 class Encoder {
 public:
+    // 名前テーブルを設定 (オプション)
+    void set_name_table(const NameTable* nt) { names_ = nt; }
+
+    // データベースを設定 (バリデーション用 — オプション)
+    void set_database(const lcf::rpg::Database* db) { db_ = db; }
+
     // テキストをパースしてLMUファイルに適用
     // target_map はすでに読み込まれたマップ; テキストで上書きする
     void encode_to_map(const std::string& source,
@@ -41,6 +67,9 @@ public:
                              const std::string& encoding = "UTF-8");
 
 private:
+    const NameTable*          names_ = nullptr;
+    const lcf::rpg::Database* db_    = nullptr;
+
     std::vector<lcf::rpg::EventCommand> encode_stmtblock(
         const StmtBlock& block,
         int32_t base_indent = 0,

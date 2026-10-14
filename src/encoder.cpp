@@ -6,6 +6,7 @@
 #include <lcf/rpg/commonevent.h>
 #include <stdexcept>
 #include <variant>
+#include <string>
 
 namespace rm2k {
 
@@ -56,8 +57,16 @@ static void append_cond_extra(const std::vector<Arg>& args, size_t known_idx,
     }
 }
 
-static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
-    if (args.empty()) return {0, 1, 0}; // default: switch[1]==ON
+static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
+                                         std::string* str_out = nullptr,
+                                         const NameTable* names = nullptr) {
+    // ConditionalBranch は常に6個のパラメータ (EasyRPG CmdSetup<...,6>)
+    // デコード時に末尾の 0 を省略したため、ここで resize(6,0) して補完する
+    auto pad6 = [](std::vector<int32_t> p) -> std::vector<int32_t> {
+        p.resize(6, 0); return p;
+    };
+
+    if (args.empty()) return pad6({0, 1, 0}); // default: switch[1]==ON
 
     // switch[N] == ON/OFF
     const Arg* sw = nullptr;
@@ -70,7 +79,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
     }
 
     if (sw) {
-        int32_t id  = sw->val.ival;
+        int32_t id  = (!sw->val.sidx.empty() && names) ? names->sw_id(sw->val.sidx) : sw->val.ival;
         // "op" キーの次の引数 = ON/OFF/toggle
         std::string val_s;
         bool after_op = false;
@@ -82,7 +91,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
         int32_t val = (val_s == "OFF") ? 1 : 0;
         std::vector<int32_t> p = {0, id, val};
         append_cond_extra(args, 3, p);
-        return p;
+        return pad6(p);
     }
 
     // var[N] op value
@@ -95,7 +104,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
     }
 
     if (va) {
-        int32_t id = va->val.ival;
+        int32_t id = (!va->val.sidx.empty() && names) ? names->var_id(va->val.sidx) : va->val.ival;
         std::string op_s = get_cond_op(args);
         int32_t op_i = 0;
         if      (op_s == ">=") op_i = 1;
@@ -107,14 +116,31 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
         const Arg* rhs = get_cond_rhs(args);
         if (rhs) {
             if (rhs->val.kind == ArgVal::Indexed && rhs->val.sval == "var") {
-                src = 1; val = rhs->val.ival;
+                src = 1;
+                val = (!rhs->val.sidx.empty() && names) ? names->var_id(rhs->val.sidx) : rhs->val.ival;
             } else {
                 src = 0; val = rhs->val.ival;
             }
         }
         std::vector<int32_t> p = {1, id, src, val, op_i};
         append_cond_extra(args, 5, p);
-        return p;
+        return pad6(p);
+    }
+
+    // hero_cond(actor=N, sub=S, val=V [, str="名前"])  (ConditionalBranch type 5)
+    for (const auto& a : args) {
+        if (a.key == "hero_cond") {
+            int32_t actor = 1, sub = 0, val = 0;
+            for (const auto& b : args) {
+                if (b.key == "actor") actor = b.val.ival;
+                if (b.key == "sub")   sub   = b.val.ival;
+                if (b.key == "val")   val   = b.val.ival;
+                if (b.key == "str" && str_out) *str_out = b.val.sval;
+            }
+            std::vector<int32_t> p = {5, actor, sub, val};
+            append_cond_extra(args, 4, p);
+            return pad6(p);
+        }
     }
 
     // has_item(id=N)
@@ -127,7 +153,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             if (a.key.empty()) item_id = arg_int(args, 0, "", 1);
             std::vector<int32_t> p = {6, item_id};
             append_cond_extra(args, 2, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -145,7 +171,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             else if (t_s == "any")     t_i = 3;
             std::vector<int32_t> p = {5, t_i};
             append_cond_extra(args, 2, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -164,7 +190,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             else if (dir_s == "left")  dir_i = 3;
             std::vector<int32_t> p = {4, who_i, dir_i};
             append_cond_extra(args, 3, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -179,7 +205,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             }
             std::vector<int32_t> p = {3, actor, cond, val};
             append_cond_extra(args, 4, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -195,7 +221,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             int32_t op_i = (op_s == "le") ? 1 : 0;
             std::vector<int32_t> p = {9, gold_v, op_i};
             append_cond_extra(args, 3, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -209,7 +235,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             }
             std::vector<int32_t> p = {8, event_id, val};
             append_cond_extra(args, 3, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -223,7 +249,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             }
             std::vector<int32_t> p = {7, actor, item};
             append_cond_extra(args, 3, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -237,7 +263,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
             if (rhs) val = rhs->val.ival;
             std::vector<int32_t> p = {2, val, op_i};
             append_cond_extra(args, 3, p);
-            return p;
+            return pad6(p);
         }
     }
 
@@ -247,11 +273,11 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args) {
         std::string op_s = get_cond_op(args);
         int32_t op_i = (op_s == "<=") ? 1 : 0;
         int32_t val  = arg_int(args, 2, "");
-        return {9, val, op_i};
+        return pad6({9, val, op_i});
     }
 
     // fallback: switch[1]==ON
-    return {0, 1, 0};
+    return pad6({0, 1, 0});
 }
 
 // push_branch_end の前方宣言 (encode_stmt で使用するため)
@@ -359,28 +385,65 @@ void Encoder::encode_choice(const ChoiceStmt& s, int32_t indent,
 }
 
 void Encoder::encode_switch_assign(const SwitchAssign& s, int32_t indent,
-                                    std::vector<lcf::rpg::EventCommand>& out) {
+                                     std::vector<lcf::rpg::EventCommand>& out) {
     // ControlSwitches: params = [type, id1, id2, op]
     // type: 0=single, 1=range, 2=var_index
     // op: 0=OFF, 1=ON, 2=toggle
+    int32_t id1 = (!s.id_label.empty() && names_) ? names_->sw_id(s.id_label) : s.id;
     int32_t type = s.is_var ? 2 : (s.is_range ? 1 : 0);
-    int32_t id2  = s.is_range ? s.id2 : s.id;
+    int32_t id2_v;
+    if (s.is_range) {
+        id2_v = (!s.id2_label.empty() && names_) ? names_->sw_id(s.id2_label) : s.id2;
+    } else if (s.is_var) {
+        id2_v = 0;
+    } else {
+        id2_v = id1;
+    }
     int32_t op   = (s.value == "ON") ? 1 : (s.value == "toggle") ? 2 : 0;
+
+    // バリデーション: switch ID がデータベースの範囲内か
+    if (db_ && !s.is_var) {
+        int32_t sw_count = static_cast<int32_t>(db_->switches.size());
+        if (sw_count > 0) {
+            if (id1 < 1 || id1 > sw_count)
+                throw CompileError("switch[" + std::to_string(id1) + "] is out of range (1.." + std::to_string(sw_count) + ")", s.loc);
+            if (s.is_range && (id2_v < 1 || id2_v > sw_count))
+                throw CompileError("switch[" + std::to_string(id2_v) + "] is out of range (1.." + std::to_string(sw_count) + ")", s.loc);
+        }
+    }
+
     LcfCmd c;
     c.code   = static_cast<int32_t>(LcfCode::ControlSwitches);
     c.indent = indent;
-    c.parameters = lcf::DBArray<int32_t>{type, s.id, id2, op};
+    c.parameters = lcf::DBArray<int32_t>{type, id1, id2_v, op};
     out.push_back(c);
 }
 
 void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
-                                 std::vector<lcf::rpg::EventCommand>& out) {
+                                   std::vector<lcf::rpg::EventCommand>& out) {
     // ControlVars: params = [type, id1, id2, op, src, val]
     // type: 0=single, 1=range
     // op: 0==, 1+=, 2-=, 3*=, 4/=, 5%=
     // src: 0=const, 1=var
+    int32_t id1   = (!s.id_label.empty() && names_) ? names_->var_id(s.id_label) : s.id;
     int32_t type  = s.is_range ? 1 : 0;
-    int32_t id2   = s.is_range ? s.id2 : s.id;
+    int32_t id2_v;
+    if (s.is_range) {
+        id2_v = (!s.id2_label.empty() && names_) ? names_->var_id(s.id2_label) : s.id2;
+    } else {
+        id2_v = id1;
+    }
+
+    // バリデーション: var ID がデータベースの範囲内か
+    if (db_) {
+        int32_t var_count = static_cast<int32_t>(db_->variables.size());
+        if (var_count > 0) {
+            if (id1 < 1 || id1 > var_count)
+                throw CompileError("var[" + std::to_string(id1) + "] is out of range (1.." + std::to_string(var_count) + ")", s.loc);
+            if (s.is_range && (id2_v < 1 || id2_v > var_count))
+                throw CompileError("var[" + std::to_string(id2_v) + "] is out of range (1.." + std::to_string(var_count) + ")", s.loc);
+        }
+    }
     int32_t op_i  = 0;
     if      (s.op == "+=") op_i = 1;
     else if (s.op == "-=") op_i = 2;
@@ -391,7 +454,7 @@ void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
     int32_t src = 0, val = 0;
     if (s.rhs.kind == ArgVal::Indexed && s.rhs.sval == "var") {
         src = 1;
-        val = s.rhs.ival;
+        val = (!s.rhs.sidx.empty() && names_) ? names_->var_id(s.rhs.sidx) : s.rhs.ival;
     } else {
         src = 0;
         val = s.rhs.ival;
@@ -400,17 +463,20 @@ void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
     LcfCmd c;
     c.code   = static_cast<int32_t>(LcfCode::ControlVars);
     c.indent = indent;
-    c.parameters = lcf::DBArray<int32_t>{type, s.id, id2, op_i, src, val};
+    // src_extra=0 を常に付与（RPGツクール2003は7個で保存するため）
+    c.parameters = lcf::DBArray<int32_t>{type, id1, id2_v, op_i, src, val, 0};
     out.push_back(c);
 }
 
 void Encoder::encode_if(const IfStmt& s, int32_t indent,
                          std::vector<lcf::rpg::EventCommand>& out) {
     // ConditionalBranch
-    auto params = encode_cond(s.cond_args);
+    std::string cond_str;
+    auto params = encode_cond(s.cond_args, &cond_str, names_);
     LcfCmd cond_cmd;
     cond_cmd.code   = static_cast<int32_t>(LcfCode::ConditionalBranch);
     cond_cmd.indent = indent;
+    cond_cmd.string = lcf::DBString(cond_str);
     cond_cmd.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
     out.push_back(cond_cmd);
 
@@ -434,10 +500,13 @@ void Encoder::encode_if(const IfStmt& s, int32_t indent,
         push_branch_end(out, indent + 1);
     }
 
-    // EndBranch
+    // EndBranch (end_branch_params があれば params として付与)
     LcfCmd end_cmd;
     end_cmd.code   = static_cast<int32_t>(LcfCode::EndBranch);
     end_cmd.indent = indent;
+    if (!s.end_branch_params.empty())
+        end_cmd.parameters = lcf::DBArray<int32_t>(
+            s.end_branch_params.begin(), s.end_branch_params.end());
     out.push_back(end_cmd);
 }
 

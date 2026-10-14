@@ -39,10 +39,15 @@ struct Token {
 // ─── 引数値 ──────────────────────────────────────────────────────────────────
 
 struct ArgVal {
-    enum Kind { Int, Str, Ident, Indexed } kind = Int;
+    enum Kind { Int, Str, Ident, Indexed, List } kind = Int;
     int32_t     ival = 0;
     std::string sval;
     // Indexed: sval=識別子, ival=インデックス  例: var[3]
+    // Indexed で文字列ラベル指定の場合: sidx に名前を格納し ival=0
+    // 例: switch["マップ移動中"] → sval="switch", sidx="マップ移動中", ival=0
+    std::string sidx; // 空の場合は ival を使用
+    // List: 識別子/整数の並び  例: [face_left, speed_down, up]
+    std::vector<std::string> list; // 各要素は識別子名または数値文字列
 };
 
 struct Arg {
@@ -67,7 +72,8 @@ struct CmdStmt {
 struct IfStmt {
     std::vector<Arg>               cond_args;
     std::unique_ptr<StmtBlock>     then_body;
-    std::unique_ptr<StmtBlock>     else_body;   // nullptr if no else
+    std::unique_ptr<StmtBlock>     else_body;       // nullptr if no else
+    std::vector<int32_t>           end_branch_params; // EndBranch(p0=N) の params
     SourceLoc                      loc;
 };
 
@@ -88,8 +94,10 @@ struct ChoiceStmt {
 // switch[N] = ON/OFF/toggle  (直接代入文)
 struct SwitchAssign {
     int32_t     id      = 0;
+    std::string id_label;        // 名前テーブル使用時の名前 (空なら id を使用)
     bool        is_range = false;
     int32_t     id2     = 0;    // range end
+    std::string id2_label;
     bool        is_var   = false; // switch[var[N]]
     std::string value;            // ON / OFF / toggle
     SourceLoc   loc;
@@ -98,8 +106,10 @@ struct SwitchAssign {
 // var[N] op= value  (直接代入文)
 struct VarAssign {
     int32_t     id   = 0;
+    std::string id_label;        // 名前テーブル使用時の名前 (空なら id を使用)
     bool        is_range = false;
     int32_t     id2  = 0;
+    std::string id2_label;
     std::string op;   // = += -= *= /= %=
     ArgVal      rhs;
     SourceLoc   loc;

@@ -18,23 +18,30 @@ namespace rm2k {
 //   5 = vehicle, 6 = item, 7 = equipment, 8 = event_state, 9 = gold_compare
 
 // extra_cond_params: type の「既知パラメータ数（type含む）」以降を cond_pN として追加
+// 末尾の連続する 0 は省略する（エンコーダ側で resize(6,0) により復元される）
 static std::string extra_cond_params(const lcf::rpg::EventCommand& c, size_t known_total) {
+    // 末尾から 0 をトリムした有効な末尾インデックスを求める
+    size_t last = c.parameters.size();
+    while (last > known_total && c.parameters[last - 1] == 0)
+        --last;
     std::string r;
-    for (size_t i = known_total; i < c.parameters.size(); ++i) {
-        int32_t v = c.parameters[i];
-        r += ", cond_p" + std::to_string(i) + "=" + std::to_string(v);
-    }
+    for (size_t i = known_total; i < last; ++i)
+        r += ", cond_p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
     return r;
 }
 
-static std::string decode_cond(const lcf::rpg::EventCommand& c) {
+static std::string quote_str(const std::string& s); // (下のユーティリティで定義)
+
+static std::string decode_cond(const lcf::rpg::EventCommand& c,
+                                const NameTable* names = nullptr) {
     auto p = [&](size_t i) { return i < c.parameters.size() ? c.parameters[i] : 0; };
     int32_t type = p(0);
     switch (type) {
         case 0: { // switch [type,id,val,p3,p4,p5]
             int32_t id  = p(1);
             int32_t val = p(2); // 0=ON, 1=OFF
-            std::string r = "switch[" + std::to_string(id) + "] == " + (val ? "OFF" : "ON");
+            std::string sw_s = names ? names->sw_label(id) : std::to_string(id);
+            std::string r = "switch[" + sw_s + "] == " + (val ? "OFF" : "ON");
             r += extra_cond_params(c, 3);
             return r;
         }
@@ -44,8 +51,10 @@ static std::string decode_cond(const lcf::rpg::EventCommand& c) {
             int32_t val = p(3);
             static const char* ops[] = {"==",">=","<=",">","<","!="};
             int32_t op  = p(4);
-            std::string rhs = src ? "var[" + std::to_string(val) + "]" : std::to_string(val);
-            std::string r = "var[" + std::to_string(id) + "] " + ops[op < 6 ? op : 0] + " " + rhs;
+            std::string v_s   = names ? names->var_label(id)  : std::to_string(id);
+            std::string rhs_s = names ? names->var_label(val) : std::to_string(val);
+            std::string rhs   = src ? "var[" + rhs_s + "]" : std::to_string(val);
+            std::string r     = "var[" + v_s + "] " + ops[op < 6 ? op : 0] + " " + rhs;
             r += extra_cond_params(c, 5);
             return r;
         }
@@ -74,11 +83,15 @@ static std::string decode_cond(const lcf::rpg::EventCommand& c) {
             r += extra_cond_params(c, 3);
             return r;
         }
-        case 5: { // vehicle [type,v,p2,p3,p4,p5]
-            int32_t v = p(1);
-            static const char* vs[] = {"ship","skiff","airship","any"};
-            std::string r = "on_vehicle(type=" + std::string(vs[v < 4 ? v : 0]) + ")";
-            r += extra_cond_params(c, 2);
+        case 5: { // hero [type,actor,sub,val,p4,p5] + string(名前比較など)
+            // sub: 0=パーティにいる, 1=名前, 2=レベル, 3=HP, 4=スキル, 5=アイテム, 6=状態
+            // (実データで [5,actor,1,...] に比較用の文字列が付くことを確認。以前は「乗り物」と誤解していた)
+            std::string r = "hero_cond(actor=" + std::to_string(p(1))
+                 + ", sub=" + std::to_string(p(2)) + ", val=" + std::to_string(p(3));
+            if (c.string.begin() != c.string.end())
+                r += ", str=" + quote_str(std::string(c.string.begin(), c.string.end()));
+            r += ")";
+            r += extra_cond_params(c, 4);
             return r;
         }
         case 6: { // item [type,item_id,p2,p3,p4,p5]
@@ -150,24 +163,36 @@ static inline std::string lcf_str(const lcf::DBString& ds) {
 // ControlSwitches → switch[N] = OP;
 // ControlVars (src<=1) → var[N] op= val;
 
-static std::string decode_control_switches(const lcf::rpg::EventCommand& c, int ind) {
+static std::string decode_control_switches(const lcf::rpg::EventCommand& c, int ind,
+                                            const NameTable* names = nullptr) {
     auto p = [&](size_t i) -> int32_t { return i < c.parameters.size() ? c.parameters[i] : 0; };
     int32_t type = p(0);
     int32_t id1  = p(1);
     int32_t id2  = p(2);
     int32_t val  = p(3);
+    // op が標準外 (0=OFF, 1=ON, 2=toggle 以外) の場合は ControlSwitches キー形式で保持
+    if (val < 0 || val > 2) {
+        std::string r = "ControlSwitches(type=" + std::to_string(type)
+            + ", id=" + std::to_string(id1)
+            + ", id2=" + std::to_string(id2)
+            + ", op_code=" + std::to_string(val) + ")";
+        return indent_str(ind) + r + ";";
+    }
     const char* op = (val == 0) ? "OFF" : (val == 1) ? "ON" : "toggle";
     std::string s = indent_str(ind);
+    std::string sw1 = names ? names->sw_label(id1) : std::to_string(id1);
+    std::string sw2 = names ? names->sw_label(id2) : std::to_string(id2);
     if (type == 0)
-        s += "switch[" + std::to_string(id1) + "] = " + op + ";";
+        s += "switch[" + sw1 + "] = " + op + ";";
     else if (type == 1)
-        s += "switch[" + std::to_string(id1) + ".." + std::to_string(id2) + "] = " + op + ";";
+        s += "switch[" + sw1 + ".." + sw2 + "] = " + op + ";";
     else
         s += "switch[var[" + std::to_string(id1) + "]] = " + op + ";";
     return s;
 }
 
-static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind) {
+static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
+                                        const NameTable* names = nullptr) {
     auto p = [&](size_t i) -> int32_t { return i < c.parameters.size() ? c.parameters[i] : 0; };
     int32_t type = p(0);
     int32_t id1  = p(1);
@@ -178,19 +203,30 @@ static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind)
     static const char* ops[] = {"=","+=","-=","*=","/=","%="};
     std::string op_s = (op >= 0 && op < 6) ? ops[op] : "=";
 
+    std::string v1 = names ? names->var_label(id1) : std::to_string(id1);
+    std::string v2 = names ? names->var_label(id2) : std::to_string(id2);
     std::string lhs;
     if (type == 0)
-        lhs = "var[" + std::to_string(id1) + "]";
+        lhs = "var[" + v1 + "]";
     else
-        lhs = "var[" + std::to_string(id1) + ".." + std::to_string(id2) + "]";
+        lhs = "var[" + v1 + ".." + v2 + "]";
 
-    if (src <= 1 && c.parameters.size() <= 6) {
-        // シンプル形式: var[N] op= val; (p[6] なし)
-        std::string rhs = (src == 0) ? std::to_string(val) : "var[" + std::to_string(val) + "]";
+    // src<=1 かつ src_extra(p[6])=0 かつ type<=1（single/range）の場合のみシンプル形式
+    // type=2(indirect) や type=3(indirect_range) はキー形式を維持する
+    int32_t src_extra = (c.parameters.size() > 6) ? p(6) : 0;
+    if (src <= 1 && src_extra == 0 && type <= 1) {
+        // シンプル形式: var[N] op= val;
+        std::string rhs;
+        if (src == 0) {
+            rhs = std::to_string(val);
+        } else {
+            std::string rv = names ? names->var_label(val) : std::to_string(val);
+            rhs = "var[" + rv + "]";
+        }
         return indent_str(ind) + lhs + " " + op_s + " " + rhs + ";";
     }
     // キー形式: ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=val [,src_extra=p6])
-    // src<=1 でも p[6] がある場合や src>=2 の場合はこちら
+    // src>=2 や src_extra!=0 の場合
     std::string r = indent_str(ind) + "ControlVars(var=" + std::to_string(id1)
          + ", type=" + std::to_string(type)
          + ", id2=" + std::to_string(id2)
@@ -209,6 +245,7 @@ static void decode_cmds_impl(
     const std::vector<lcf::rpg::EventCommand>& cmds,
     size_t& i, size_t n, int base_indent,
     std::ostringstream& out,
+    const NameTable* names,
     LcfCode stop1 = LcfCode::END,
     LcfCode stop2 = LcfCode::END)
 {
@@ -272,7 +309,7 @@ static void decode_cmds_impl(
                     out << ") {\n";
                     ++i;
                     // when 本体を再帰的に処理 (ShowChoiceOption / ShowChoiceEnd で停止)
-                    decode_cmds_impl(cmds, i, n, base_indent, out,
+                    decode_cmds_impl(cmds, i, n, base_indent, out, names,
                                      LcfCode::ShowChoiceOption, LcfCode::ShowChoiceEnd);
                     out << indent_str(wv) << "}\n";
                 } else {
@@ -286,19 +323,19 @@ static void decode_cmds_impl(
 
         // ── ControlSwitches → switch[N] = OP; ───────────────────────────
         if (code == LcfCode::ControlSwitches) {
-            out << decode_control_switches(cmd, vis) << "\n";
+            out << decode_control_switches(cmd, vis, names) << "\n";
             ++i; continue;
         }
 
         // ── ControlVars → var[N] op= val; ───────────────────────────────
         if (code == LcfCode::ControlVars) {
-            out << decode_control_vars(cmd, vis) << "\n";
+            out << decode_control_vars(cmd, vis, names) << "\n";
             ++i; continue;
         }
 
         // ── ConditionalBranch ────────────────────────────────────────────
         if (code == LcfCode::ConditionalBranch) {
-            out << indent_str(vis) << "if (" << decode_cond(cmd) << ") {\n";
+            out << indent_str(vis) << "if (" << decode_cond(cmd, names) << ") {\n";
             ++i; continue;
         }
         if (code == LcfCode::ElseBranch || code == LcfCode::ElseBranch_B) {
@@ -308,9 +345,18 @@ static void decode_cmds_impl(
             ++i; continue;
         }
         if (code == LcfCode::EndBranch || code == LcfCode::EndBranch_B) {
-            // EndBranch の cmd.indent は ConditionalBranch と同じ値
-            // vis をそのまま使うことで、if { ... } の閉じ } と同レベルに揃う
-            out << indent_str(vis) << "}\n";
+            // params がある場合は EndBranch(p0=N) としてコマンド文で保持
+            // params がない場合は } として出力
+            if (!cmd.parameters.empty()) {
+                out << indent_str(vis) << "EndBranch(";
+                for (size_t pi = 0; pi < cmd.parameters.size(); ++pi) {
+                    if (pi) out << ", ";
+                    out << "p" << pi << "=" << cmd.parameters[pi];
+                }
+                out << ");\n";
+            } else {
+                out << indent_str(vis) << "}\n";
+            }
             ++i; continue;
         }
 
@@ -335,22 +381,13 @@ static void decode_cmds_impl(
         }
 
         // ── Comment / Comment_2 ──────────────────────────────────────────
-        // comment("text") 形式でデコード → エンコード時に Comment + Comment_2 を復元
+        // 各コマンドを独立して出力 (文字列中の改行はそのまま保持)
         if (code == LcfCode::Comment) {
-            // 連続する Comment_2 を結合して1つの comment() にする
-            std::string text = lcf_str(cmd.string);
-            ++i;
-            while (i < n && static_cast<LcfCode>(cmds[i].code) == LcfCode::Comment_2) {
-                text += '\n';
-                text += lcf_str(cmds[i].string);
-                ++i;
-            }
-            out << indent_str(vis) << "comment(" << quote_str(text) << ");\n";
-            continue;
+            out << indent_str(vis) << "comment(" << quote_str(lcf_str(cmd.string)) << ");\n";
+            ++i; continue;
         }
         if (code == LcfCode::Comment_2) {
-            // 孤立した Comment_2 (通常はComment後にくるが念のため)
-            out << indent_str(vis) << "comment(" << quote_str(lcf_str(cmd.string)) << ");\n";
+            out << indent_str(vis) << "comment_cont(" << quote_str(lcf_str(cmd.string)) << ");\n";
             ++i; continue;
         }
 
@@ -382,7 +419,7 @@ std::string Decoder::decode_event_commands(
     register_all_commands();
     std::ostringstream out;
     size_t i = 0;
-    decode_cmds_impl(cmds, i, cmds.size(), base_indent, out);
+    decode_cmds_impl(cmds, i, cmds.size(), base_indent, out, names_);
     return out.str();
 }
 

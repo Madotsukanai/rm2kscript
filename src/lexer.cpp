@@ -340,12 +340,38 @@ MapDoc::PageEntry Parser::parse_page_entry_legacy() {
 // ブロック・文
 // ──────────────────────────────────────────────────────────────────────────────
 
+// EndBranch(p0=N,...) がブロック終端として来た場合に消費して params を返す (空なら通常終端)
+std::vector<int32_t> Parser::consume_end_branch_if_present() {
+    if (!check(TokenKind::Ident) || peek(0).text != "EndBranch") return {};
+    if (peek(1).kind != TokenKind::LParen) return {};
+    consume(); // EndBranch
+    consume(); // (
+    std::vector<int32_t> params;
+    while (!check(TokenKind::RParen) && !at_end()) {
+        if (check(TokenKind::Comma)) { consume(); continue; }
+        if (check(TokenKind::Ident)) consume(); // pN key
+        if (check(TokenKind::Equals)) consume();
+        if (check(TokenKind::Int)) { params.push_back(peek(0).ival); consume(); }
+        else if (!check(TokenKind::RParen)) consume(); // skip unknown
+    }
+    if (check(TokenKind::RParen)) consume();
+    if (check(TokenKind::Semi))   consume();
+    return params;
+}
+
 StmtBlock Parser::parse_block() {
     expect(TokenKind::LBrace, "{");
     StmtBlock block;
-    while (!check(TokenKind::RBrace) && !at_end())
+    // EndBranch(p0=N) も終端として受け付ける
+    while (!check(TokenKind::RBrace)
+           && !(check(TokenKind::Ident) && peek(0).text == "EndBranch"
+                && peek(1).kind == TokenKind::LParen)
+           && !at_end())
         block.stmts.push_back(parse_stmt());
-    expect(TokenKind::RBrace, "}");
+    if (check(TokenKind::RBrace)) {
+        expect(TokenKind::RBrace, "}");
+    }
+    // EndBranch(p0=N) は parse_if で消費するのでここでは触れない
     return block;
 }
 
@@ -353,6 +379,7 @@ StmtPtr Parser::parse_stmt() {
     if (check(TokenKind::Kw_if)) return parse_if();
 
     // switch[N] = ON/OFF/toggle  (直接代入)
+    // switch["name"] = ON/OFF/toggle  (名前テーブル使用)
     // switch[var[N]] = ON/OFF/toggle  (変数インデックス)
     if (check(TokenKind::Ident) && peek().text == "switch"
         && peek(1).kind == TokenKind::LBracket) {
@@ -368,12 +395,28 @@ StmtPtr Parser::parse_stmt() {
             sa.id = expect(TokenKind::Int, "var id").ival;
             expect(TokenKind::RBracket, "]");
             sa.is_var = true;
-        } else {
-            sa.id = expect(TokenKind::Int, "switch id").ival;
-            // 範囲: [N..M]  (ドット2つ)
+        } else if (check(TokenKind::String)) {
+            // switch["名前"] 形式 (または範囲 switch["a".."b"])
+            sa.id_label = consume().text;
             if (check(TokenKind::Dot) && peek(1).kind == TokenKind::Dot) {
                 consume(); consume();
-                sa.id2 = expect(TokenKind::Int, "switch id2").ival;
+                if (check(TokenKind::String)) {
+                    sa.id2_label = consume().text;
+                } else {
+                    sa.id2 = expect(TokenKind::Int, "switch id2").ival;
+                }
+                sa.is_range = true;
+            }
+        } else {
+            sa.id = expect(TokenKind::Int, "switch id").ival;
+            // 範囲: [N..M] または ["name".."name"]
+            if (check(TokenKind::Dot) && peek(1).kind == TokenKind::Dot) {
+                consume(); consume();
+                if (check(TokenKind::String)) {
+                    sa.id2_label = consume().text;
+                } else {
+                    sa.id2 = expect(TokenKind::Int, "switch id2").ival;
+                }
                 sa.is_range = true;
             }
         }
@@ -385,17 +428,27 @@ StmtPtr Parser::parse_stmt() {
     }
 
     // var[N] op= value  (直接代入)
+    // var["name"] op= value  (名前テーブル使用)
     if (check(TokenKind::Ident) && peek().text == "var"
         && peek(1).kind == TokenKind::LBracket) {
         VarAssign va;
         va.loc = peek().loc;
         consume(); // var
         consume(); // [
-        va.id = expect(TokenKind::Int, "var id").ival;
-        if (check(TokenKind::Dot) && peek(1).kind == TokenKind::Dot) {
-            consume(); consume();
-            va.id2 = expect(TokenKind::Int, "var id2").ival;
-            va.is_range = true;
+        if (check(TokenKind::String)) {
+            // var["名前"] 形式
+            va.id_label = consume().text;
+        } else {
+            va.id = expect(TokenKind::Int, "var id").ival;
+            if (check(TokenKind::Dot) && peek(1).kind == TokenKind::Dot) {
+                consume(); consume();
+                if (check(TokenKind::String)) {
+                    va.id2_label = consume().text;
+                } else {
+                    va.id2 = expect(TokenKind::Int, "var id2").ival;
+                }
+                va.is_range = true;
+            }
         }
         expect(TokenKind::RBracket, "]");
         va.op = compound_op(peek().kind);
@@ -428,6 +481,8 @@ IfStmt Parser::parse_if() {
         consume();
         s.else_body = std::make_unique<StmtBlock>(parse_block());
     }
+    // EndBranch(p0=N,...) が then/else ブロックの終端として来た場合に params を回収
+    s.end_branch_params = consume_end_branch_if_present();
     return s;
 }
 
@@ -600,6 +655,31 @@ Arg Parser::parse_one_arg() {
 
 ArgVal Parser::parse_arg_val() {
     ArgVal v;
+    // リスト: [elem1, elem2, ...]
+    // 各要素は識別子、整数、または "name(N)" 形式（switch_on(3) 等）
+    if (check(TokenKind::LBracket)) {
+        consume(); // [
+        v.kind = ArgVal::List;
+        while (!check(TokenKind::RBracket) && !check(TokenKind::Eof)) {
+            Token t = consume();
+            if (t.kind == TokenKind::Int) {
+                v.list.push_back(std::to_string(t.ival));
+            } else if (t.kind == TokenKind::Ident || t.kind == TokenKind::String) {
+                std::string elem = t.text;
+                // "name(N)" 形式: switch_on(3) / switch_off(5)
+                if (check(TokenKind::LParen)) {
+                    consume(); // (
+                    Token id = expect(TokenKind::Int, "switch id");
+                    expect(TokenKind::RParen, ")");
+                    elem += "(" + std::to_string(id.ival) + ")";
+                }
+                v.list.push_back(elem);
+            }
+            if (check(TokenKind::Comma)) consume();
+        }
+        expect(TokenKind::RBracket, "]");
+        return v;
+    }
     // 連結文字列: "a" + "b" + ...
     if (check(TokenKind::String)) {
         std::string s = consume().text;
@@ -643,6 +723,13 @@ ArgVal Parser::parse_arg_val() {
         Token t = consume();
         if (check(TokenKind::LBracket)) {
             consume();
+            if (check(TokenKind::String)) {
+                // var["名前"] / switch["名前"] 形式
+                std::string name = consume().text;
+                expect(TokenKind::RBracket, "]");
+                v.kind = ArgVal::Indexed; v.sval = t.text; v.ival = 0; v.sidx = name;
+                return v;
+            }
             Token idx = expect(TokenKind::Int, "index");
             expect(TokenKind::RBracket, "]");
             v.kind = ArgVal::Indexed; v.sval = t.text; v.ival = idx.ival;
