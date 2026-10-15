@@ -230,10 +230,10 @@ win64: submodules win64-check win64-deps
 	    "-DICU_i18n_LIBRARY=$(SYSROOT_ABS)/lib/libicui18n.a" \
 	    "-DICU_uc_LIBRARY=$(SYSROOT_ABS)/lib/libicuuc.a" \
 	    "-DICU_data_LIBRARY=$(SYSROOT_ABS)/lib/libicudata.a"
-	cmake --build "$(WIN_BUILD)" --target rm2kscript -j$(JOBS)
+	cmake --build "$(WIN_BUILD)" --target r2s -j$(JOBS)
 	mkdir -p "$(DIST_DIR)"
-	cp "$(WIN_BUILD)/rm2kscript.exe" "$(DIST_DIR)/"
-	echo "[make] 完了: $(DIST_DIR)/rm2kscript.exe ($$(du -sh "$(DIST_DIR)/rm2kscript.exe" | cut -f1))"
+	cp "$(WIN_BUILD)/r2s.exe" "$(DIST_DIR)/"
+	echo "[make] 完了: $(DIST_DIR)/r2s.exe ($$(du -sh "$(DIST_DIR)/r2s.exe" | cut -f1))"
 
 # クリーン
 

@@ -70,27 +70,27 @@ endif()
 # メイン実行ファイル
 # ──────────────────────────────────────────────────────────────────────────────
 
-add_executable(rm2kscript src/main.cpp)
-target_link_libraries(rm2kscript PRIVATE rm2kscript_core)
+add_executable(r2s src/main.cpp)
+target_link_libraries(r2s PRIVATE rm2kscript_core)
 if(MSVC)
-    target_compile_options(rm2kscript PRIVATE /W3)
+    target_compile_options(r2s PRIVATE /W3)
 else()
-    target_compile_options(rm2kscript PRIVATE -Wall -Wextra)
+    target_compile_options(r2s PRIVATE -Wall -Wextra)
 endif()
 
 # Windows スタティックリンク設定
 if(MSVC)
     # MSVC: /MT でランタイムをスタティックリンク
-    set_property(TARGET rm2kscript PROPERTY
+    set_property(TARGET r2s PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     set_property(TARGET rm2kscript_core PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 elseif(WIN32)
     # MinGW: gcc/stdc++/winpthread をスタティックリンク
-    target_link_options(rm2kscript PRIVATE -static-libgcc -static-libstdc++ -static)
+    target_link_options(r2s PRIVATE -static-libgcc -static-libstdc++ -static)
 endif()
 
-install(TARGETS rm2kscript DESTINATION bin)
+install(TARGETS r2s DESTINATION bin)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # テスト

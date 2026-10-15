@@ -1436,8 +1436,7 @@ void register_all_commands() {
                     }
                 }
             } else {
-                // pN= 形式との後方互換（change_graphic/play_sfx 等）
-                // has_frs の場合 p0=who, p1=freq, p2=rep, p3=skip まで埋まっているので p4 から
+                // リスト形式でない場合: has_frs なら p0=who, p1=freq, p2=rep, p3=skip の後ろから、それ以外は p1 から追加
                 size_t extra_start = has_frs ? 4 : 1;
                 append_extra_params(s, extra_start, params);
             }

@@ -12,9 +12,9 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 
 [Releases](../../releases) から最新のバイナリをダウンロードしてください。
 
-- Linux: `rm2kscript-linux-x86_64`
-- Windows (MinGW ビルド): `rm2kscript-windows-x86_64.exe`
-- Windows (MSVC ビルド): `rm2kscript-windows-msvc-x86_64.exe`
+- Linux: `r2s-linux-x86_64`
+- Windows (MinGW ビルド): `r2s-windows-x86_64.exe`
+- Windows (MSVC ビルド): `r2s-windows-msvc-x86_64.exe`
 
 ## ビルド
 
@@ -27,7 +27,7 @@ git clone --recurse-submodules <this repo>
 # liblcf が使う依存 (expat / inih / ICU) はシステムで用意する (例: Ubuntu)
 sudo apt-get install cmake ninja-build libexpat1-dev libinih-dev libicu-dev
 
-make          # Release ビルド -> build/rm2kscript
+make          # Release ビルド -> build/r2s
 make test     # テスト (make test GAME_DIR=/path/to/Game で実ゲームの往復テストも実行)
 ```
 
@@ -40,18 +40,18 @@ liblcf のバージョンを上げるときは `git -C third_party/liblcf checko
 
 ```bash
 # ゲームディレクトリを丸ごとデコード → scripts/ へ
-rm2kscript /path/to/Game -o /path/to/scripts
+r2s /path/to/Game -o /path/to/scripts
 
 # scripts/ の内容をゲームに書き戻す
-rm2kscript /path/to/scripts /path/to/Game
+r2s /path/to/scripts /path/to/Game
 
 # 単体ファイル
-rm2kscript Map0001.lmu -o Map0001.rs2k
-rm2kscript Map0001.rs2k Map0001.lmu
+r2s Map0001.lmu -o Map0001.rs2k
+r2s Map0001.rs2k Map0001.lmu
 
 # コモンイベント
-rm2kscript RPG_RT.ldb -o CommonEvents.rs2k
-rm2kscript CommonEvents.rs2k RPG_RT.ldb
+r2s RPG_RT.ldb -o CommonEvents.rs2k
+r2s CommonEvents.rs2k RPG_RT.ldb
 ```
 
 > [!NOTE]
@@ -131,26 +131,16 @@ make install PREFIX=$HOME/.local
 
 ### Windows（MSVC / Visual Studio）
 
-[vcpkg](https://vcpkg.io) で依存ライブラリを揃えてからビルドします。
+[vcpkg](https://vcpkg.io) で依存ライブラリを揃えてからビルドします。liblcf はサブモジュールから CMake が自動ビルドします。
 
 ```powershell
 # vcpkg で依存ライブラリをインストール
 vcpkg install expat inih icu --triplet x64-windows-static
 
-# liblcf をビルド
-git clone --depth=1 https://github.com/EasyRPG/liblcf.git C:\liblcf
-cmake -S C:\liblcf -B C:\liblcf\build `
-  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DLIBLCF_WITH_ICU=ON `
-  "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" `
-  "-DVCPKG_TARGET_TRIPLET=x64-windows-static" `
-  -G "Visual Studio 17 2022" -A x64
-cmake --build C:\liblcf\build --config Release
-cmake --install C:\liblcf\build --prefix C:\liblcf-install
-
 # rm2kscript をビルド
 cmake -B build `
   -DCMAKE_BUILD_TYPE=Release `
-  "-DCMAKE_PREFIX_PATH=C:\liblcf-install" `
+  -DLIBLCF_WITH_ICU=ON `
   "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" `
   "-DVCPKG_TARGET_TRIPLET=x64-windows-static" `
   -G "Visual Studio 17 2022" -A x64

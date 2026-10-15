@@ -66,7 +66,6 @@ private:
 
     // トップレベル
     MapDoc::PageEntry parse_event_entry();   // event(...) { page(...){} ... }
-    MapDoc::PageEntry parse_page_entry_legacy(); // 旧 @event/@page 形式
 
     // ページメタデータ
     void apply_meta_kv(PageMeta& m, const std::string& key, const std::string& val_s, int val_i,

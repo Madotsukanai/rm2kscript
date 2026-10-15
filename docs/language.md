@@ -173,7 +173,7 @@ bgm_looped()                // BGMが一巡したとき
 cond_raw(p0=T, p1=.., [str=".."]) // デコーダが高水準表現できなかった条件を無損失で保持する形式
 ```
 
-- 上記以外の条件はコンパイルエラーになります（以前のように `switch[1]==ON` へ黙って置き換わることはありません）。
+- 上記以外の条件はコンパイルエラーになります。
 - 各条件の末尾に `cond_pN=値` を付けて、既知パラメータより後ろの値を保持できます（デコーダが必要なときだけ出力します）。
 - 元データが既知のパラメータ数より少ない場合、デコーダは `cond_p_count=N` を出力します。エンコーダはこれを使って同じバイナリを再生成します。
 
@@ -253,7 +253,7 @@ choice("選択肢A", "選択肢B", cancel=5) {
 ```
 
 - `cancel=N` はキャンセル時の動作を表す LCF の値をそのまま指定します(省略時は 0)
-- `when` の `index=` は省略可能。省略すると旧形式（末尾 END なし）で出力されます。エディタが生成した形式を忠実に復元するため、デコーダは `index=` を出力します。
+- `when` の `index=` は省略可能です。デコーダは `index=` を出力します。
 - 選択肢の文字列に `/` を含めることはできません（LCF 内部で `/` 区切りの1文字列として保存されるため）。
 
 ### 4.8 コメント
@@ -561,10 +561,10 @@ event(2) {
 
 ```bash
 # -n を省略しても RPG_RT.ldb が同じディレクトリにあれば自動適用
-rm2kscript Map0001.lmu
+r2s Map0001.lmu
 
 # 別のディレクトリから LDB を指定する場合
-rm2kscript Map0001.lmu -n /path/to/RPG_RT.ldb
+r2s Map0001.lmu -n /path/to/RPG_RT.ldb
 ```
 
 **出力例（名前テーブルあり）：**
@@ -592,10 +592,10 @@ if (switch["イベント済み"] == ON) {
 | `var[N]` の N がデータベースの変数数を超えている | `var[99999] is out of range (1..5000)` |
 | `if (switch[N] == ON)` 等の条件式内でも同様 | 同上 |
 
-エラーが検出されるとエンコードは中断し、行番号・列番号付きでエラーが表示されます。
+エラーが検出されるとエンコードは中断し、行番号・列番号付きのエラーが表示されます。
 
 ```
-Compile error at line 3 col 9: switch[99999] is out of range (1..5040)
+script.rs2k:3:9: error: switch[99999] is out of range (1..5040)
 ```
 
 `RPG_RT.ldb` が参照できない場合（スタンドアローン使用など）は範囲チェックをスキップします。ただし名前指定（`switch["名前"]` / `var["名前"]`）は名前テーブルが必須で、見つからない名前や、名前テーブルなしでの名前指定はエラーになります。
@@ -607,20 +607,13 @@ Compile error at line 3 col 9: switch[99999] is out of range (1..5040)
 入力ファイルの拡張子から操作が自動的に決まります：
 
 ```bash
-rm2kscript Map0001.lmu              # デコード → stdout
-rm2kscript Map0001.lmu -o out.rs2k  # デコード → ファイル
-rm2kscript script.rs2k Map0001.lmu  # エンコード（元ファイルを上書き、.bak 退避）
-rm2kscript RPG_RT.ldb -o out.rs2k   # コモンイベント デコード
-rm2kscript script.rs2k RPG_RT.ldb   # コモンイベント エンコード
-rm2kscript Game/ -o scripts/        # プロジェクト全体デコード
-rm2kscript scripts/ Game/           # プロジェクト全体エンコード
-```
-
-サブコマンド名を明示することも引き続き可能です（後方互換）：
-
-```bash
-rm2kscript decode Map0001.lmu -o out.rs2k
-rm2kscript decode-project Game/ -o scripts/
+r2s Map0001.lmu              # デコード → stdout
+r2s Map0001.lmu -o out.rs2k  # デコード → ファイル
+r2s script.rs2k Map0001.lmu  # エンコード（元ファイルを上書き、.bak 退避）
+r2s RPG_RT.ldb -o out.rs2k   # コモンイベント デコード
+r2s script.rs2k RPG_RT.ldb   # コモンイベント エンコード
+r2s Game/ -o scripts/        # プロジェクト全体デコード
+r2s scripts/ Game/           # プロジェクト全体エンコード
 ```
 
 | オプション | 説明 |
@@ -636,5 +629,4 @@ rm2kscript decode-project Game/ -o scripts/
 - UTF-8 BOM 付きのスクリプトも読み込めます。
 - 未知のコマンド名・条件・ページオプション・when のオプションはエラーになります。
 - **キャラクター指定**（`MoveEvent` / `ShowBattleAnimation` / `FlashSprite` / `ChangeEventLocation` / `TradeEventLocations` / `char_facing`）は、`player`=10001、`boat`=10002、`ship`=10003、`airship`=10004、`this`=10005、それ以外はイベントIDです（RPG_RT / EasyRPG Editor の定数）。未知の識別子はエラーになります。
-- ⚠ 以前のバージョンは `this` を 10001（実際は主人公）、`player` を -1 として扱っていました。**旧バージョンでデコードした `.rs2k` を再エンコードすると対象が変わります。** 必ず現在のバージョンで `decode` し直してください（旧 `player`=-1 は `event=-1` として出力されます）。
 - **コマンド引数のキー名のタイプミスは検出されません**（例: `Wait(framez=30)` はエラーにならず既定値が使われます）。引数名は「5. コマンドリファレンス」と見比べて確認してください。

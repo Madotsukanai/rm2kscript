@@ -335,55 +335,11 @@ MapDoc Parser::parse() {
             }
             expect(TokenKind::RBrace, "}");
 
-        } else if (check(TokenKind::At)) {
-            // 旧形式: @event N @page M { }
-            doc.pages.push_back(parse_page_entry_legacy());
         } else {
-            throw ParseError("expected event(...) or @event", peek().loc);
+            throw ParseError("expected event(...)", peek().loc);
         }
     }
     return doc;
-}
-
-// 旧形式: @event N @page M { }
-
-MapDoc::PageEntry Parser::parse_page_entry_legacy() {
-    MapDoc::PageEntry entry;
-    entry.event_id = 0;
-    entry.page_id  = 1;
-
-    if (check(TokenKind::At) && peek(1).text == "event") {
-        consume(); consume();
-        entry.event_id = expect(TokenKind::Int, "event id").ival;
-        while (!check(TokenKind::At) && !at_end()) {
-            if (check(TokenKind::Ident) && peek(1).kind == TokenKind::Equals) {
-                Token key = consume(); consume();
-                Token val = consume();
-                if (key.text == "x") entry.event_meta.x = val.ival;
-                else if (key.text == "y") entry.event_meta.y = val.ival;
-            } else break;
-        }
-    }
-
-    expect(TokenKind::At, "@");
-    expect(TokenKind::Ident, "page");
-    entry.page_id = expect(TokenKind::Int, "page id").ival;
-    entry.meta.page_id = entry.page_id;
-
-    while (!check(TokenKind::LBrace) && !at_end()) {
-        if (!check(TokenKind::Ident)) break;
-        Token key = consume();
-        expect(TokenKind::Equals, "=");
-        std::string val_s; int val_i = 0; bool val_is_int = false;
-        if (check(TokenKind::String))      { val_s = consume().text; }
-        else if (check(TokenKind::Int))    { Token t = consume(); val_i = t.ival; val_s = t.text; val_is_int = true; }
-        else if (check(TokenKind::Ident))  { val_s = consume().text; }
-        else break;
-        apply_meta_kv(entry.meta, key.text, val_s, val_i, key.loc, val_is_int);
-    }
-
-    entry.body = parse_block();
-    return entry;
 }
 
 // ブロック・文

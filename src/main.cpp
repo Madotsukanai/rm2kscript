@@ -561,8 +561,7 @@ static std::string infer_command(const std::vector<std::string>& pos) {
 int main(int argc, char* argv[]) {
     if (argc < 2) { print_usage(argv[0]); return 1; }
 
-    // 最初の引数がオプションでもなく既知のサブコマンドでもない場合は拡張子自動判別モード
-    // (後方互換: 既知のサブコマンド名ならそのまま解釈する)
+    // 最初の引数が既知のサブコマンド名かどうかで動作モードを切り替える
     static const std::vector<std::string> known_cmds = {
         "decode", "encode", "decode-db", "encode-db", "decode-project", "encode-project"
     };
