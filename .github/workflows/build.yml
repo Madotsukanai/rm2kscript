@@ -74,32 +74,6 @@ jobs:
           path: build/r2s
 
   # ──────────────────────────────────────────────────────────────────────────────
-  # Windows ネイティブビルド (MSVC, windows-latest runner)
-  # ──────────────────────────────────────────────────────────────────────────────
-  windows-msvc:
-    name: Windows (MSVC)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install dependencies (vcpkg)
-        run: vcpkg install expat inih icu --triplet x64-windows-static
-
-      - name: Build
-        run: nmake /f NMakefile VCPKG_ROOT="$env:VCPKG_INSTALLATION_ROOT"
-
-      - name: Test
-        run: nmake /f NMakefile test-only
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: r2s-windows-msvc
-          path: build/Release/r2s.exe
-
-  # ──────────────────────────────────────────────────────────────────────────────
   # Windows (MinGW-w64 クロスコンパイル、Ubuntu上で実行)
   # ──────────────────────────────────────────────────────────────────────────────
   windows:
@@ -143,7 +117,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────────
   release:
     name: Release
-    needs: [ linux, macos, windows, windows-msvc ]
+    needs: [ linux, macos, windows ]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -164,18 +138,12 @@ jobs:
           name: r2s-windows
           path: dist/windows-mingw
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: r2s-windows-msvc
-          path: dist/windows-msvc
-
       - name: Prepare assets
         run: |
           chmod +x dist/linux/r2s dist/macos/r2s
           mv dist/linux/r2s             dist/r2s-linux-x86_64
           mv dist/macos/r2s             dist/r2s-macos-x86_64
           mv dist/windows-mingw/r2s.exe dist/r2s-windows-x86_64.exe
-          mv dist/windows-msvc/r2s.exe  dist/r2s-windows-msvc-x86_64.exe
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -184,4 +152,3 @@ jobs:
             dist/r2s-linux-x86_64
             dist/r2s-macos-x86_64
             dist/r2s-windows-x86_64.exe
-            dist/r2s-windows-msvc-x86_64.exe
