@@ -14,8 +14,7 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 
 - Linux: `r2s-linux-x86_64`
 - macOS: `r2s-macos-x86_64`
-- Windows (MinGW ビルド): `r2s-windows-x86_64.exe`
-- Windows (MSVC ビルド): `r2s-windows-msvc-x86_64.exe`
+- Windows: `r2s-windows-x86_64.exe`
 
 ## ビルド
 
@@ -48,7 +47,8 @@ r2s /path/to/scripts /path/to/Game
 
 # 単体ファイル
 r2s Map0001.lmu -o Map0001.rs2k
-r2s Map0001.rs2k Map0001.lmu
+r2s Map0001.rs2k Map0001.lmu          # 元ファイルを上書き（Map0001.lmu.bak へ自動退避）
+r2s Map0001.rs2k Map0001.lmu -o Map0001_new.lmu  # 新しいファイルとして書き出し
 
 # コモンイベント
 r2s RPG_RT.ldb -o CommonEvents.rs2k
