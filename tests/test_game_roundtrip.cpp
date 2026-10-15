@@ -91,10 +91,11 @@ static bool same_cmd(const lcf::rpg::EventCommand& a, const lcf::rpg::EventComma
     }
     if (!cv_trim_ok && a_sz != b_sz) return false;
 
-    // ControlSwitches(10210)/ControlVars(10220) の単独指定(type=0)では id2 は未使用値
-    // (エディタの残骸が残る)なので、意味のある差分としては扱わない
+    // ControlSwitches(10210)/ControlVars(10220): 範囲指定(type=1)以外では id2 は未使用値
+    // (エディタの残骸が残る。type=0 の単独指定も type=2 の変数指定も同様)なので、
+    // 意味のある差分としては扱わない
     const bool skip_id2 = (a.code == 10210 || a.code == 10220)
-                          && a_sz > 2 && ap(0) == 0;
+                          && a_sz > 2 && ap(0) != 1;
     size_t cmp_sz = std::max(a_sz, b_sz);
     if (cv_trim_ok) cmp_sz = std::min(a_sz, b_sz); // 共通部分のみ比較
     for (size_t i = 0; i < cmp_sz; ++i) {
