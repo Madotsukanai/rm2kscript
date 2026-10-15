@@ -396,7 +396,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | コマンド | 説明 |
 |---|---|
 | `PlayBGM("filename", fade=0, volume=100, tempo=100, balance=50)` | BGM再生（`fade=N` でフェードイン時間(ms)を指定。省略時は即時切り替え）|
-| `FadeOutBGM(ms=800)` | BGMフェードアウト |
+| `FadeOutBGM(N)` | BGMフェードアウト（N はフェードアウト時間 ms）|
 | `MemorizeBGM()` | BGM記憶 |
 | `PlayMemorizedBGM()` | 記憶BGM再生 |
 | `PlaySound("filename", volume=60, tempo=100, balance=50)` | SE再生 |
@@ -408,7 +408,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `Wait(frames=N)` | N フレーム待機 |
+| `Wait(N)` | N フレーム待機 |
 | `KeyInputProc(var=N, wait=1, dir=1, act=1, cancel=1)` | キー入力待機 |
 
 `KeyInputProc` の全引数：`var`, `wait`, `dir`(方向キーまとめ), `act`(決定), `cancel`(キャンセル), `shift`, `key_down`, `key_left`, `key_right`, `key_up`
@@ -426,7 +426,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `JumpToLabel(N)` | ラベルへジャンプ |
 | `CallEvent(common=N)` | コモンイベント呼び出し |
 | `CallEvent(event=N, page=P)` | マップイベントの指定ページを呼び出し |
-| `CallCommonEvent(id=N)` | コモンイベント呼び出し（別形式）|
+| `CallCommonEvent(N)` | コモンイベント呼び出し（バトルイベント専用）|
 | `EndEventProcessing()` | イベント処理終了 |
 | `EraseEvent()` | イベント消去 |
 
@@ -451,7 +451,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `ChangeMonsterHP(enemy=0, delta=V, lethal=false)` | 敵HPを変更（`delta=-var[N]` で変数参照の減算）|
 | `ChangeMonsterMP(enemy=0, delta=V)` | 敵MPを変更 |
 | `ChangeMonsterCondition(enemy=0, op=add, state=1)` | 敵状態変化（`op=remove` で解除）|
-| `ShowHiddenMonster(enemy=0)` | 隠れた敵を表示 |
+| `ShowHiddenMonster(N)` | 隠れた敵を表示（N は敵インデックス）|
 | `ChangeBattleBG(bg="ファイル名")` | バトル背景変更 |
 | `ShowBattleAnimation_B(anim=1, target=0, wait=true)` | バトルアニメ表示（バトルイベント用）|
 | `TerminateBattle()` | バトル終了 |
@@ -474,9 +474,9 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `ChangeMapTileset(id=N)` | チップセット変更 |
+| `ChangeMapTileset(N)` | チップセット変更（N はチップセットID）|
 | `ChangePBG(name="ファイル名", scroll_horz=0, scroll_vert=0, scroll_horz_auto=0, scroll_horz_speed=0, scroll_vert_auto=0, scroll_vert_speed=0)` | パノラマ変更 |
-| `ChangeEncounterSteps(steps=30)` | エンカウント歩数変更 |
+| `ChangeEncounterSteps(N)` | エンカウント歩数変更（N は歩数）|
 | `TileSubstitution(chip_set=1, src=N, dst=M)` | タイル置換 |
 | `TeleportTargets(action=0, map=N, x=X, y=Y, switch_on=false, switch_id=1)` | テレポート先追加/削除 |
 | `EscapeTarget(map=N, x=X, y=Y, switch_on=false, switch_id=1)` | 逃げる先設定 |
@@ -526,7 +526,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 |---|---|---|
 | `Maniac_GetSaveInfo(slot_mode=, slot=, out_date_var=, out_time_var=, out_level_var=, out_hp_var=, p6=, face_mode=, face_pic0=, face_pic1=, face_pic2=, face_pic3=)` | 12 | セーブ情報取得 |
 | `Maniac_Save(slot_mode=, slot=, has_out_var= [, out_var=])` | 3 | セーブ |
-| `Maniac_Load(slot_mode=, slot=, skip_check=)` | 3 | ロード |
+| `Maniac_Load(slot_mode=, slot=, skip_check=false)` | 3 | ロード |
 | `Maniac_EndLoadProcess()` | 0 | ロードプロセス終了 |
 | `Maniac_GetMousePosition(x_var=, y_var=)` | 2 | マウス座標取得 |
 | `Maniac_SetMousePosition(pN=...)` | 3 | マウス座標設定 (EasyRPGに実装なし) |
@@ -538,7 +538,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `Maniac_GetBattleInfo(pN=...)` | — | バトル情報取得 (EasyRPGに実装なし) |
 | `Maniac_ControlVarArray(op=, mode=, target_a=, length=, target_b=)` | 5 | 変数配列操作 |
 | `Maniac_KeyInputProcEx(operation=, start_var_id= [, mode_key=, key_id=])` | 4 | キー入力拡張 |
-| `Maniac_RewriteMap(mode=, is_replace_range=, is_upper_layer=, tile_index=, x_start=, y_start=, width=, height=, disable_autotile=)` | 9 | マップ書き換え |
+| `Maniac_RewriteMap(mode=, is_replace_range=false, is_upper_layer=false, tile_index=, x_start=, y_start=, width=, height=, disable_autotile=false)` | 9 | マップ書き換え |
 | `Maniac_ControlGlobalSave(operation=, mode_bits=, type=, game_state_idx=, global_save_idx=, length=)` | 6 | グローバルセーブ操作 |
 | `Maniac_ChangePictureId(pN=...)` | — | ピクチャID変更 (EasyRPGに実装なし) |
 | `Maniac_SetGameOption(mode=, option_type=, value=, flags=)` | 4 | ゲームオプション設定 |

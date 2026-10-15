@@ -1505,7 +1505,7 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::Wait, "Wait",
         [](const LcfCmd& c) -> std::string {
-            std::string r = "Wait(frames=" + std::to_string(param(c,0));
+            std::string r = "Wait(" + std::to_string(param(c,0));
             for (size_t i = 1; i < c.parameters.size(); ++i)
                 r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             r += ")";
@@ -1554,7 +1554,7 @@ void register_all_commands() {
     });
 
     reg.register_cmd(CmdDef{ LcfCode::FadeOutBGM, "FadeOutBGM",
-        [](const LcfCmd& c) -> std::string { return "FadeOutBGM(ms=" + std::to_string(param(c,0)) + ")"; },
+        [](const LcfCmd& c) -> std::string { return "FadeOutBGM(" + std::to_string(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::FadeOutBGM, ctx.indent, {arg_int(s.args,0,"ms",800)}));
         }
@@ -1953,7 +1953,7 @@ void register_all_commands() {
     // params: [enemy_id]
     reg.register_cmd(CmdDef{ LcfCode::ShowHiddenMonster, "ShowHiddenMonster",
         [](const LcfCmd& c) -> std::string {
-            return "ShowHiddenMonster(enemy=" + std::to_string(param(c,0)) + ")";
+            return "ShowHiddenMonster(" + std::to_string(param(c,0)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ShowHiddenMonster, ctx.indent,
@@ -2108,7 +2108,7 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::CallCommonEvent, "CallCommonEvent",
         [](const LcfCmd& c) -> std::string {
-            return "CallCommonEvent(id=" + std::to_string(param(c,0)) + ")";
+            return "CallCommonEvent(" + std::to_string(param(c,0)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::CallCommonEvent, ctx.indent, {arg_int(s.args,0,"id",1)}));
@@ -2186,14 +2186,14 @@ void register_all_commands() {
     });
 
     reg.register_cmd(CmdDef{ LcfCode::ChangeMapTileset, "ChangeMapTileset",
-        [](const LcfCmd& c) -> std::string { return "ChangeMapTileset(id=" + std::to_string(param(c,0)) + ")"; },
+        [](const LcfCmd& c) -> std::string { return "ChangeMapTileset(" + std::to_string(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeMapTileset, ctx.indent, {arg_int(s.args,0,"id",1)}));
         }
     });
 
     reg.register_cmd(CmdDef{ LcfCode::ChangeEncounterSteps, "ChangeEncounterSteps",
-        [](const LcfCmd& c) -> std::string { return "ChangeEncounterSteps(steps=" + std::to_string(param(c,0)) + ")"; },
+        [](const LcfCmd& c) -> std::string { return "ChangeEncounterSteps(" + std::to_string(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeEncounterSteps, ctx.indent, {arg_int(s.args,0,"steps",30)}));
         }
