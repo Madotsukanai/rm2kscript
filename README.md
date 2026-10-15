@@ -13,6 +13,7 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 [Releases](../../releases/latest) から最新のバイナリをダウンロードしてください。
 
 - Linux: `r2s-linux-x86_64`
+- macOS: `r2s-macos-x86_64`
 - Windows (MinGW ビルド): `r2s-windows-x86_64.exe`
 - Windows (MSVC ビルド): `r2s-windows-msvc-x86_64.exe`
 
@@ -130,11 +131,20 @@ make install PREFIX=$HOME/.local
 
 [vcpkg](https://vcpkg.io) で依存ライブラリを揃えてからビルドします。liblcf はサブモジュールから CMake が自動ビルドします。
 
-```powershell
-# vcpkg で依存ライブラリをインストール
+Developer Command Prompt から `nmake` で手軽にビルドできます。
+
+```bat
+rem vcpkg で依存ライブラリをインストール
 vcpkg install expat inih icu --triplet x64-windows-static
 
-# r2s をビルド
+rem NMakefile でビルド
+nmake /f NMakefile VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
+```
+
+または PowerShell から直接 CMake を呼ぶ場合:
+
+```powershell
+vcpkg install expat inih icu --triplet x64-windows-static
 cmake -B build `
   -DCMAKE_BUILD_TYPE=Release `
   -DLIBLCF_WITH_ICU=ON `

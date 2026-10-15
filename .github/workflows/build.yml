@@ -46,6 +46,34 @@ jobs:
           path: build/r2s
 
   # ──────────────────────────────────────────────────────────────────────────────
+  # macOS ネイティブビルド + テスト
+  # ──────────────────────────────────────────────────────────────────────────────
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: brew install cmake ninja expat inih icu4c
+
+      - name: Build
+        run: |
+          ICU_PREFIX=$(brew --prefix icu4c)
+          make CMAKE_FLAGS="-DCMAKE_PREFIX_PATH=$ICU_PREFIX"
+
+      - name: Test
+        run: make test CMAKE_FLAGS="-DCMAKE_PREFIX_PATH=$(brew --prefix icu4c)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2s-macos
+          path: build/r2s
+
+  # ──────────────────────────────────────────────────────────────────────────────
   # Windows ネイティブビルド (MSVC, windows-latest runner)
   # ──────────────────────────────────────────────────────────────────────────────
   windows-msvc:
@@ -59,19 +87,11 @@ jobs:
       - name: Install dependencies (vcpkg)
         run: vcpkg install expat inih icu --triplet x64-windows-static
 
-      - name: Configure
-        run: |
-          cmake -B build `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DLIBLCF_WITH_ICU=ON `
-            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
-
       - name: Build
-        run: cmake --build build --config Release
+        run: nmake /f NMakefile VCPKG_ROOT="$env:VCPKG_INSTALLATION_ROOT"
 
       - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: nmake /f NMakefile test-only
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -123,7 +143,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────────
   release:
     name: Release
-    needs: [ linux, windows, windows-msvc ]
+    needs: [ linux, macos, windows, windows-msvc ]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -133,6 +153,11 @@ jobs:
         with:
           name: r2s-linux
           path: dist/linux
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: r2s-macos
+          path: dist/macos
 
       - uses: actions/download-artifact@v4
         with:
@@ -146,8 +171,9 @@ jobs:
 
       - name: Prepare assets
         run: |
-          chmod +x dist/linux/r2s
-          mv dist/linux/r2s            dist/r2s-linux-x86_64
+          chmod +x dist/linux/r2s dist/macos/r2s
+          mv dist/linux/r2s             dist/r2s-linux-x86_64
+          mv dist/macos/r2s             dist/r2s-macos-x86_64
           mv dist/windows-mingw/r2s.exe dist/r2s-windows-x86_64.exe
           mv dist/windows-msvc/r2s.exe  dist/r2s-windows-msvc-x86_64.exe
 
@@ -156,5 +182,6 @@ jobs:
         with:
           files: |
             dist/r2s-linux-x86_64
+            dist/r2s-macos-x86_64
             dist/r2s-windows-x86_64.exe
             dist/r2s-windows-msvc-x86_64.exe

@@ -10,6 +10,8 @@
 
 namespace rm2k {
 
+Decoder::Decoder() { register_all_commands(); }
+
 // ユーティリティ
 
 static inline std::string quote_str(const std::string& s) { return quote_string(s); }
@@ -210,6 +212,23 @@ static std::string decode_control_switches(const lcf::rpg::EventCommand& c, int 
     return s;
 }
 
+// ControlVars のキー形式フォールバック出力
+static std::string decode_control_vars_key(int ind,
+                                            int32_t id1, int32_t type, int32_t id2,
+                                            int32_t op, int32_t src, int32_t val,
+                                            int32_t extra, bool has_extra) {
+    std::string r = indent_str(ind) + "ControlVars(var=" + std::to_string(id1)
+         + ", type=" + std::to_string(type)
+         + ", id2=" + std::to_string(id2)
+         + ", op_code=" + std::to_string(op)
+         + ", src=" + std::to_string(src)
+         + ", src_val=" + std::to_string(val);
+    if (has_extra)
+        r += ", src_extra=" + std::to_string(extra);
+    r += ");";
+    return r;
+}
+
 static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
                                         const NameTable* names = nullptr) {
     auto p = [&](size_t i) -> int32_t { return i < c.parameters.size() ? c.parameters[i] : 0; };
@@ -223,113 +242,98 @@ static std::string decode_control_vars(const lcf::rpg::EventCommand& c, int ind,
     bool has_extra   = (c.parameters.size() > 6);
     static const char* ops[] = {"=","+=","-=","*=","/=","%="};
 
-    // op が範囲外はキー形式にフォールバック
-    if (op < 0 || op >= 6) goto key_form;
+    // op が範囲外 → キー形式
+    if (op < 0 || op >= 6)
+        return decode_control_vars_key(ind, id1, type, id2, op, src, val, extra, has_extra);
 
-    {
-        // LHS 構築
-        std::string v1 = names ? names->var_label(id1) : std::to_string(id1);
-        std::string v2 = names ? names->var_label(id2) : std::to_string(id2);
-        std::string lhs;
-        if      (type == 0) lhs = "var[" + v1 + "]";
-        else if (type == 1) lhs = "var[" + v1 + ".." + v2 + "]";
-        else if (type == 2) {
-            // 間接参照: var[*var[N]] — 数値IDで出力（名前だとエンコード時の名前解決が困難）
-            lhs = "var[*var[" + std::to_string(id1) + "]]";
-        } else {
-            goto key_form;
-        }
-
-        // RHS 構築
-        std::string rhs;
-        switch (src) {
-            case 0: // 定数
-                rhs = std::to_string(val);
-                break;
-            case 1: { // 変数
-                std::string rv = names ? names->var_label(val) : std::to_string(val);
-                rhs = "var[" + rv + "]";
-                break;
-            }
-            case 2: { // 間接参照 *var[N]
-                std::string rv = names ? names->var_label(val) : std::to_string(val);
-                rhs = "*var[" + rv + "]";
-                break;
-            }
-            case 3: // rand(lo, hi)
-                rhs = "rand(" + std::to_string(val) + ", " + std::to_string(extra) + ")";
-                break;
-            case 4: { // item_count(id=N, op=M)
-                // p[5]=item_id=val, p[6]=sub_op=extra
-                static const char* item_ops[] = {"count", "equip"};
-                std::string iop = (extra >= 0 && extra <= 1) ? item_ops[extra] : std::to_string(extra);
-                rhs = "item_count(id=" + std::to_string(val) + ", op=" + iop + ")";
-                break;
-            }
-            case 5: { // actor_stat(id=N, stat=S)
-                // p[5]=actor_id=val, p[6]=sub_op=extra
-                static const char* actor_stats[] = {
-                    "level","exp","hp","mp","max_hp","max_mp",
-                    "atk","def","spi","agi",
-                    "weapon_id","shield_id","armor_id","helmet_id","accessory_id"
-                };
-                std::string stat = (extra >= 0 && extra <= 14) ? actor_stats[extra] : std::to_string(extra);
-                rhs = "actor_stat(id=" + std::to_string(val) + ", stat=" + stat + ")";
-                break;
-            }
-            case 6: { // event_stat(event=N, stat=S)
-                // p[5]=event_id=val, p[6]=sub_op=extra
-                static const char* event_stats[] = {"map_id","x","y","dir","screen_x","screen_y"};
-                std::string stat = (extra >= 0 && extra <= 5) ? event_stats[extra] : std::to_string(extra);
-                std::string eid  = char_ref_name(val);
-                if (eid.empty()) eid = std::to_string(val);
-                rhs = "event_stat(event=" + eid + ", stat=" + stat + ")";
-                break;
-            }
-            case 7: { // system_stat(name)
-                // val=sub_op, extra unused
-                static const char* sys_stats[] = {
-                    "gold","timer1","party_size","save_count",
-                    "battle_count","win_count","defeat_count","escape_count","midi_pos","timer2"
-                };
-                std::string stat = (val >= 0 && val <= 9) ? sys_stats[val] : std::to_string(val);
-                rhs = "system_stat(" + stat + ")";
-                break;
-            }
-            case 8: { // enemy_stat(id=N, stat=S)
-                // p[5]=enemy_id=val, p[6]=sub_op=extra
-                static const char* enemy_stats[] = {"hp","mp","max_hp","max_mp","atk","def","spi","agi"};
-                std::string stat = (extra >= 0 && extra <= 7) ? enemy_stats[extra] : std::to_string(extra);
-                rhs = "enemy_stat(id=" + std::to_string(val) + ", stat=" + stat + ")";
-                break;
-            }
-            default:
-                goto key_form;
-        }
-
-        // has_extra=false(6パラメータ以下)かつ src>=3 は p[6] が省略されている。
-        // エンコード時にバイナリを再現できないためキー形式にフォールバック。
-        // has_extra=true(7パラメータ) の場合のみ C言語風関数記法を使う。
-        // src=0〜2 は has_extra にかかわらず C言語風でよい（src_extra は EasyRPG が無視する）。
-        if (src >= 3 && !has_extra) goto key_form;
-
-        return indent_str(ind) + lhs + " " + ops[op] + " " + rhs + ";";
+    // LHS 構築
+    std::string v1 = names ? names->var_label(id1) : std::to_string(id1);
+    std::string v2 = names ? names->var_label(id2) : std::to_string(id2);
+    std::string lhs;
+    if      (type == 0) lhs = "var[" + v1 + "]";
+    else if (type == 1) lhs = "var[" + v1 + ".." + v2 + "]";
+    else if (type == 2) {
+        // 間接参照: var[*var[N]] — 数値IDで出力（名前だとエンコード時の名前解決が困難）
+        lhs = "var[*var[" + std::to_string(id1) + "]]";
+    } else {
+        return decode_control_vars_key(ind, id1, type, id2, op, src, val, extra, has_extra);
     }
 
-key_form:
-    {
-        // キー形式: ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=val [,src_extra=p6])
-        std::string r = indent_str(ind) + "ControlVars(var=" + std::to_string(id1)
-             + ", type=" + std::to_string(type)
-             + ", id2=" + std::to_string(id2)
-             + ", op_code=" + std::to_string(op)
-             + ", src=" + std::to_string(src)
-             + ", src_val=" + std::to_string(val);
-        if (has_extra)
-            r += ", src_extra=" + std::to_string(extra);
-        r += ");";
-        return r;
+    // RHS 構築
+    std::string rhs;
+    switch (src) {
+        case 0: // 定数
+            rhs = std::to_string(val);
+            break;
+        case 1: { // 変数
+            std::string rv = names ? names->var_label(val) : std::to_string(val);
+            rhs = "var[" + rv + "]";
+            break;
+        }
+        case 2: { // 間接参照 *var[N]
+            std::string rv = names ? names->var_label(val) : std::to_string(val);
+            rhs = "*var[" + rv + "]";
+            break;
+        }
+        case 3: // rand(lo, hi)
+            rhs = "rand(" + std::to_string(val) + ", " + std::to_string(extra) + ")";
+            break;
+        case 4: { // item_count(id=N, op=M)
+            // p[5]=item_id=val, p[6]=sub_op=extra
+            static const char* item_ops[] = {"count", "equip"};
+            std::string iop = (extra >= 0 && extra <= 1) ? item_ops[extra] : std::to_string(extra);
+            rhs = "item_count(id=" + std::to_string(val) + ", op=" + iop + ")";
+            break;
+        }
+        case 5: { // actor_stat(id=N, stat=S)
+            // p[5]=actor_id=val, p[6]=sub_op=extra
+            static const char* actor_stats[] = {
+                "level","exp","hp","mp","max_hp","max_mp",
+                "atk","def","spi","agi",
+                "weapon_id","shield_id","armor_id","helmet_id","accessory_id"
+            };
+            std::string stat = (extra >= 0 && extra <= 14) ? actor_stats[extra] : std::to_string(extra);
+            rhs = "actor_stat(id=" + std::to_string(val) + ", stat=" + stat + ")";
+            break;
+        }
+        case 6: { // event_stat(event=N, stat=S)
+            // p[5]=event_id=val, p[6]=sub_op=extra
+            static const char* event_stats[] = {"map_id","x","y","dir","screen_x","screen_y"};
+            std::string stat = (extra >= 0 && extra <= 5) ? event_stats[extra] : std::to_string(extra);
+            std::string eid  = char_ref_name(val);
+            if (eid.empty()) eid = std::to_string(val);
+            rhs = "event_stat(event=" + eid + ", stat=" + stat + ")";
+            break;
+        }
+        case 7: { // system_stat(name)
+            // val=sub_op, extra unused
+            static const char* sys_stats[] = {
+                "gold","timer1","party_size","save_count",
+                "battle_count","win_count","defeat_count","escape_count","midi_pos","timer2"
+            };
+            std::string stat = (val >= 0 && val <= 9) ? sys_stats[val] : std::to_string(val);
+            rhs = "system_stat(" + stat + ")";
+            break;
+        }
+        case 8: { // enemy_stat(id=N, stat=S)
+            // p[5]=enemy_id=val, p[6]=sub_op=extra
+            static const char* enemy_stats[] = {"hp","mp","max_hp","max_mp","atk","def","spi","agi"};
+            std::string stat = (extra >= 0 && extra <= 7) ? enemy_stats[extra] : std::to_string(extra);
+            rhs = "enemy_stat(id=" + std::to_string(val) + ", stat=" + stat + ")";
+            break;
+        }
+        default:
+            return decode_control_vars_key(ind, id1, type, id2, op, src, val, extra, has_extra);
     }
+
+    // has_extra=false(6パラメータ以下)かつ src>=3 は p[6] が省略されている。
+    // エンコード時にバイナリを再現できないためキー形式にフォールバック。
+    // has_extra=true(7パラメータ) の場合のみ C言語風関数記法を使う。
+    // src=0〜2 は has_extra にかかわらず C言語風でよい（src_extra は EasyRPG が無視する）。
+    if (src >= 3 && !has_extra)
+        return decode_control_vars_key(ind, id1, type, id2, op, src, val, extra, has_extra);
+
+    return indent_str(ind) + lhs + " " + ops[op] + " " + rhs + ";";
 }
 
 // decode_cmds_impl: i を参照で受け取り、stop_code に出会ったら止まる
@@ -723,7 +727,6 @@ std::string Decoder::decode_event_commands(
     const std::vector<lcf::rpg::EventCommand>& cmds,
     int base_indent)
 {
-    register_all_commands();
     std::ostringstream out;
     size_t i = 0;
     decode_cmds_impl(cmds, i, cmds.size(), base_indent, out, names_);
@@ -734,7 +737,6 @@ std::string Decoder::decode_event_commands(
 
 std::string Decoder::decode_map(const lcf::rpg::Map& map,
                                  const std::string& /*encoding*/) {
-    register_all_commands();
     std::ostringstream out;
 
     static const char* triggers[]   = {"action","touched","collision","auto_start","parallel"};
@@ -821,7 +823,6 @@ std::string Decoder::decode_map(const lcf::rpg::Map& map,
 
 std::string Decoder::decode_common_events(const lcf::rpg::Database& db,
                                            const std::string& /*encoding*/) {
-    register_all_commands();
     std::ostringstream out;
     for (const auto& ce : db.commonevents) {
         std::string ce_name = lcf_str(ce.name);

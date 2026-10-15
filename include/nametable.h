@@ -6,6 +6,7 @@
 #include <vector>
 #include <optional>
 #include <cstdint>
+#include <limits>
 
 namespace rm2k {
 
@@ -57,26 +58,20 @@ struct NameTable {
     }
 
     // スイッチ ID → 表示用文字列
-    // 名前が一意である (sw_ids に逆引きエントリがある) 場合のみ "名前" 形式で返す。
-    // 重複している場合は数値文字列を返す (ラウンドトリップ保証のため)。
+    // 名前がある場合は "名前[ID]" 形式で返す。
+    // 名前が重複している場合も "名前[ID]" で返す (ID が一意なのでラウンドトリップ保証)。
     std::string sw_label(int32_t id) const {
         auto it = sw_names.find(id);
-        if (it != sw_names.end() && !it->second.empty()) {
-            auto inv = sw_ids.find(it->second);
-            if (inv != sw_ids.end() && inv->second == id)
-                return quote_string(it->second);
-        }
+        if (it != sw_names.end() && !it->second.empty())
+            return quote_string(it->second + "[" + std::to_string(id) + "]");
         return std::to_string(id);
     }
 
     // 変数 ID → 表示用文字列
     std::string var_label(int32_t id) const {
         auto it = var_names.find(id);
-        if (it != var_names.end() && !it->second.empty()) {
-            auto inv = var_ids.find(it->second);
-            if (inv != var_ids.end() && inv->second == id)
-                return quote_string(it->second);
-        }
+        if (it != var_names.end() && !it->second.empty())
+            return quote_string(it->second + "[" + std::to_string(id) + "]");
         return std::to_string(id);
     }
 
@@ -108,7 +103,13 @@ private:
         if (i >= s.size()) return std::nullopt;
         for (size_t k = i; k < s.size(); ++k)
             if (s[k] < '0' || s[k] > '9') return std::nullopt;
-        try { return static_cast<int32_t>(std::stoi(s)); }
+        try {
+            long long ll = std::stoll(s);
+            if (ll < static_cast<long long>(std::numeric_limits<int32_t>::min()) ||
+                ll > static_cast<long long>(std::numeric_limits<int32_t>::max()))
+                return std::nullopt;
+            return static_cast<int32_t>(ll);
+        }
         catch (...) { return std::nullopt; }
     }
 
@@ -116,13 +117,33 @@ private:
         const std::unordered_map<std::string, int32_t>& table,
         const std::string& label)
     {
+        // 直接一致
         auto it = table.find(label);
         if (it != table.end()) return it->second;
-        // 引用符付き形式 ("名前") も受け付ける
-        if (label.size() >= 2 && label.front() == '"' && label.back() == '"') {
-            it = table.find(label.substr(1, label.size() - 2));
+
+        // 引用符付き形式: "..." → 中身で再検索
+        std::string inner = label;
+        if (inner.size() >= 2 && inner.front() == '"' && inner.back() == '"')
+            inner = inner.substr(1, inner.size() - 2);
+
+        // "名前[ID]" 形式: 末尾の [N] を除いた名前で検索し、IDが一致するか確認
+        if (!inner.empty() && inner.back() == ']') {
+            auto bracket = inner.rfind('[');
+            if (bracket != std::string::npos) {
+                auto id_opt = parse_int(inner.substr(bracket + 1, inner.size() - bracket - 2));
+                if (id_opt) {
+                    // IDが直接一致すればそれを返す (名前が変わっていてもIDで復元できる)
+                    return *id_opt;
+                }
+            }
+        }
+
+        // 引用符なし名前で再検索
+        if (inner != label) {
+            it = table.find(inner);
             if (it != table.end()) return it->second;
         }
+
         return parse_int(label);
     }
 };

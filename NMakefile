@@ -1,0 +1,58 @@
+# NMakefile — Windows (MSVC / nmake) 用ビルドファイル
+#
+# 使い方 (Developer Command Prompt または vcpkg 環境):
+#   nmake /f NMakefile                  — Release ビルド (build\)
+#   nmake /f NMakefile debug            — Debug ビルド   (build-debug\)
+#   nmake /f NMakefile test             — テスト (ctest)
+#   nmake /f NMakefile install          — インストール (PREFIX=C:\r2s)
+#   nmake /f NMakefile clean            — ビルドディレクトリ削除
+#
+# vcpkg を使う場合は VCPKG_ROOT を設定する:
+#   nmake /f NMakefile VCPKG_ROOT=C:\vcpkg
+#
+# PREFIX のデフォルトは C:\r2s。変更する場合:
+#   nmake /f NMakefile install PREFIX=C:\tools\r2s
+
+BUILD_DIR   = build
+DEBUG_DIR   = build-debug
+PREFIX      = C:\r2s
+
+# vcpkg ツールチェーンファイル (VCPKG_ROOT が設定されていれば使用)
+!IFDEF VCPKG_ROOT
+VCPKG_FLAGS = "-DCMAKE_TOOLCHAIN_FILE=$(VCPKG_ROOT)\scripts\buildsystems\vcpkg.cmake" \
+              "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
+!ELSE
+VCPKG_FLAGS =
+!ENDIF
+
+!IFDEF CMAKE_FLAGS
+EXTRA_FLAGS = $(CMAKE_FLAGS)
+!ELSE
+EXTRA_FLAGS =
+!ENDIF
+
+all: release
+
+release:
+	cmake -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release \
+	      -DLIBLCF_WITH_ICU=ON $(VCPKG_FLAGS) $(EXTRA_FLAGS)
+	cmake --build $(BUILD_DIR) --config Release
+
+debug:
+	cmake -B $(DEBUG_DIR) -DCMAKE_BUILD_TYPE=Debug \
+	      -DLIBLCF_WITH_ICU=ON $(VCPKG_FLAGS) $(EXTRA_FLAGS)
+	cmake --build $(DEBUG_DIR) --config Debug
+
+test: release
+	cd $(BUILD_DIR) && ctest -C Release --output-on-failure
+
+# ビルド済みの前提でテストだけ実行 (CI でビルドステップと分けるために使用)
+test-only:
+	cd $(BUILD_DIR) && ctest -C Release --output-on-failure
+
+install: release
+	cmake --install $(BUILD_DIR) --config Release --prefix "$(PREFIX)"
+
+clean:
+	if exist $(BUILD_DIR)  rmdir /s /q $(BUILD_DIR)
+	if exist $(DEBUG_DIR)  rmdir /s /q $(DEBUG_DIR)

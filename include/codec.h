@@ -11,6 +11,8 @@ namespace rm2k {
 // LMUファイル / LCFコマンド列 → 独自言語テキスト
 class Decoder {
 public:
+    Decoder();
+
     // 名前テーブルを設定 (オプション)
     void set_name_table(const NameTable* nt) { names_ = nt; }
 
@@ -44,6 +46,8 @@ private:
 // エンコーダー（テキスト → LCF）
 class Encoder {
 public:
+    Encoder();
+
     // 名前テーブルを設定 (オプション)
     void set_name_table(const NameTable* nt) { names_ = nt; }
 

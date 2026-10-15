@@ -14,6 +14,8 @@
 
 namespace rm2k {
 
+Encoder::Encoder() { register_all_commands(); }
+
 // ConditionalBranch エンコード: if (cond_args) の引数を解釈
 
 // テキスト上の if 文の条件を LCF ConditionalBranch パラメータに変換
@@ -310,9 +312,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
                 if (b.key == "op")   op_s   = b.val.sval;
             }
             int32_t op_i = (op_s == "le") ? 1 : 0;
-            std::vector<int32_t> p = {3, gold_v, op_i, 0};
+            std::vector<int32_t> p = {3, gold_v, op_i};
             size_t before_g = p.size();
-            size_t after_g = append_cond_extra(args, 4, p);
+            size_t after_g = append_cond_extra(args, 3, p);
             return trim0(p, final_size(before_g, after_g));
         }
     }
@@ -378,11 +380,16 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
 
     // 未知/不正な条件はエラー (以前は switch[1]==ON に黙ってフォールバックしていた)
     throw CompileError("unsupported or malformed condition (see docs/language.md for supported conditions)", loc);
-    return trim0({0, 1, 0}, 3);
 }
 
-// push_branch_end の前方宣言 (encode_stmt で使用するため)
-static void push_branch_end(std::vector<lcf::rpg::EventCommand>& out, int32_t indent);
+// ブランチ節末尾に END (indent=depth) を挿入するヘルパー
+// (encode_stmt / encode_if / encode_choice / encode_while / encode_for で使用)
+static void push_branch_end(std::vector<lcf::rpg::EventCommand>& out, int32_t indent) {
+    LcfCmd c;
+    c.code   = static_cast<int32_t>(LcfCode::END);
+    c.indent = indent;
+    out.push_back(c);
+}
 
 // Encoder::encode_stmt
 
@@ -466,7 +473,6 @@ void Encoder::encode_stmt(const StmtPtr& stmt_v, int32_t indent,
                 out.push_back(raw);
                 return;
             }
-            register_all_commands();
             EncodeCtx ctx;
             ctx.indent = indent;
             ctx.names  = names_;
@@ -575,15 +581,6 @@ void Encoder::encode_stmt(const StmtPtr& stmt_v, int32_t indent,
             }
         }
     }, stmt_v);
-}
-
-// ブランチ節末尾に END (indent=depth) を挿入するヘルパー
-// (encode_if と encode_choice で使用)
-static void push_branch_end(std::vector<lcf::rpg::EventCommand>& out, int32_t indent) {
-    LcfCmd c;
-    c.code   = static_cast<int32_t>(LcfCode::END);
-    c.indent = indent;
-    out.push_back(c);
 }
 
 void Encoder::encode_choice(const ChoiceStmt& s, int32_t indent,
@@ -911,7 +908,6 @@ static void set_enum(const std::string (&tbl)[N], const std::string& v, size_t f
 void Encoder::encode_to_map(const std::string& source,
                              lcf::rpg::Map& target_map,
                              const std::string& /*encoding*/) {
-    register_all_commands();
     Lexer  lex(source);
     auto   tokens = lex.tokenize();
     Parser par(std::move(tokens));
@@ -1132,7 +1128,6 @@ static const char* first_map_only_option(const PageMeta& m) {
 void Encoder::encode_to_database(const std::string& source,
                                    lcf::rpg::Database& db,
                                    const std::string& /*encoding*/) {
-    register_all_commands();
     Lexer  lex(source);
     auto   tokens = lex.tokenize();
     Parser par(std::move(tokens));

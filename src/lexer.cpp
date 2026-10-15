@@ -121,15 +121,7 @@ std::vector<Token> Lexer::tokenize() {
         && static_cast<unsigned char>(src_[2]) == 0xBF)
         pos_ = 3;
     while (true) {
-        while (pos_ < src_.size()) {
-            const char ch = peek();
-            if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') advance();
-            else if (ch == '/' && peek(1) == '/') {
-                // // は行末までの無視されるメモ。ツクールのコメントコマンドは comment("...") で書く
-                while (pos_ < src_.size() && peek() != '\n') advance();
-            }
-            else break;
-        }
+        skip_ws_and_comments();
         if (pos_ >= src_.size()) break;
 
         SourceLoc loc = here();
@@ -381,6 +373,111 @@ StmtBlock Parser::parse_block() {
     return block;
 }
 
+// ControlVars RHS 関数形式 (rand/item_count/actor_stat/event_stat/system_stat/enemy_stat) を
+// src / src_val / src_extra に変換する共通ヘルパー。
+// fn: 関数名、fn_args: 引数リスト。
+// 戻り値: {src, src_val, src_extra, need_extra}
+struct CvFnSrc { int32_t src; int32_t src_val; int32_t src_extra; bool need_extra; };
+
+static CvFnSrc parse_cv_fn_src(const std::string& fn, const std::vector<Arg>& fn_args) {
+    CvFnSrc r{0, 0, 0, false};
+    auto get_i = [&](int idx, int32_t def) -> int32_t {
+        if (idx < static_cast<int>(fn_args.size())) return fn_args[idx].val.ival;
+        return def;
+    };
+    if (fn == "rand") {
+        r.src = 3; r.src_val = get_i(0,0); r.src_extra = get_i(1,0); r.need_extra = true;
+    } else if (fn == "item_count") {
+        r.src = 4;
+        for (const auto& a : fn_args) {
+            if (a.key == "id") r.src_val = a.val.ival;
+            if (a.key == "op") r.src_extra = (a.val.sval == "equip") ? 1 : a.val.ival;
+        }
+        r.need_extra = true;
+    } else if (fn == "actor_stat") {
+        r.src = 5;
+        static const std::map<std::string,int> actor_stat_map = {
+            {"level",0},{"exp",1},{"hp",2},{"mp",3},{"max_hp",4},{"max_mp",5},
+            {"atk",6},{"def",7},{"spi",8},{"agi",9},
+            {"weapon_id",10},{"shield_id",11},{"armor_id",12},{"helmet_id",13},{"accessory_id",14}
+        };
+        for (const auto& a : fn_args) {
+            if (a.key == "id")   r.src_val   = a.val.ival;
+            if (a.key == "stat") r.src_extra = actor_stat_map.count(a.val.sval)
+                                               ? actor_stat_map.at(a.val.sval) : a.val.ival;
+        }
+        r.need_extra = true;
+    } else if (fn == "event_stat") {
+        r.src = 6;
+        static const std::map<std::string,int> event_stat_map = {
+            {"map_id",0},{"x",1},{"y",2},{"dir",3},{"screen_x",4},{"screen_y",5}
+        };
+        static const std::map<std::string,int> event_id_map = {
+            {"player",10001},{"boat",10002},{"ship",10003},{"airship",10004},{"this",10005}
+        };
+        for (const auto& a : fn_args) {
+            if (a.key == "event") r.src_val   = event_id_map.count(a.val.sval)
+                                                ? event_id_map.at(a.val.sval) : a.val.ival;
+            if (a.key == "stat")  r.src_extra = event_stat_map.count(a.val.sval)
+                                                ? event_stat_map.at(a.val.sval) : a.val.ival;
+        }
+        r.need_extra = true;
+    } else if (fn == "system_stat") {
+        r.src = 7;
+        static const std::map<std::string,int> sys_stat_map = {
+            {"gold",0},{"timer1",1},{"party_size",2},{"save_count",3},
+            {"battle_count",4},{"win_count",5},{"defeat_count",6},
+            {"escape_count",7},{"midi_pos",8},{"timer2",9}
+        };
+        if (!fn_args.empty()) {
+            const auto& a = fn_args[0];
+            r.src_val = sys_stat_map.count(a.val.sval) ? sys_stat_map.at(a.val.sval) : a.val.ival;
+        }
+        r.need_extra = true;
+    } else if (fn == "enemy_stat") {
+        r.src = 8;
+        static const std::map<std::string,int> enemy_stat_map = {
+            {"hp",0},{"mp",1},{"max_hp",2},{"max_mp",3},{"atk",4},{"def",5},{"spi",6},{"agi",7}
+        };
+        for (const auto& a : fn_args) {
+            if (a.key == "id")   r.src_val   = a.val.ival;
+            if (a.key == "stat") r.src_extra = enemy_stat_map.count(a.val.sval)
+                                               ? enemy_stat_map.at(a.val.sval) : a.val.ival;
+        }
+        r.need_extra = true;
+    }
+    return r;
+}
+
+// ControlVars 関数 RHS を CmdStmt に変換するヘルパー
+// type_v / id1_v (+ id1_label) / id2_v (+ id2_label) / op_i は呼び出し側が決定する。
+static CmdStmt make_cv_fn_stmt(SourceLoc loc,
+                                int32_t type_v, int32_t id1_v, const std::string& id1_label,
+                                int32_t id2_v,  const std::string& id2_label,
+                                int32_t op_i,
+                                const CvFnSrc& fs) {
+    CmdStmt cs; cs.name = "ControlVars"; cs.loc = loc;
+    auto mk = [](const std::string& k, int32_t v) {
+        Arg a; a.key = k; a.val.kind = ArgVal::Int; a.val.ival = v; return a;
+    };
+    auto mk_named = [](const std::string& k, int32_t v, const std::string& label) {
+        Arg a; a.key = k; a.val.kind = ArgVal::Int; a.val.ival = v; a.val.sidx = label; return a;
+    };
+    cs.args.push_back(mk_named("var",    id1_v, id1_label));
+    cs.args.push_back(mk("type",         type_v));
+    cs.args.push_back(mk_named("id2",    id2_v, id2_label));
+    cs.args.push_back(mk("op_code",      op_i));
+    cs.args.push_back(mk("src",          fs.src));
+    cs.args.push_back(mk("src_val",      fs.src_val));
+    if (fs.need_extra) cs.args.push_back(mk("src_extra", fs.src_extra));
+    return cs;
+}
+
+// ControlVars 関数 RHS 名前セット（判定用）
+static const std::set<std::string> kCvFns = {
+    "rand","item_count","actor_stat","event_stat","system_stat","enemy_stat"
+};
+
 StmtPtr Parser::parse_stmt() {
     if (check(TokenKind::Kw_if))    return parse_if();
     if (check(TokenKind::Kw_while)) {
@@ -515,88 +612,20 @@ StmtPtr Parser::parse_stmt() {
                 int op_i = op_map3.count(va.op) ? op_map3.at(va.op) : 0;
 
                 // RHS が関数呼び出し形式か確認（parse_arg_val() を呼ぶ前にチェック）
-                if (check(TokenKind::Ident) && peek(1).kind == TokenKind::LParen) {
+                if (check(TokenKind::Ident) && peek(1).kind == TokenKind::LParen
+                    && kCvFns.count(peek().text)) {
                     std::string fn2 = peek().text;
-                    static const std::set<std::string> cv_fns2 = {
-                        "rand","item_count","actor_stat","event_stat","system_stat","enemy_stat"
-                    };
-                    if (cv_fns2.count(fn2)) {
-                        consume(); consume(); // fn (
-                        std::vector<Arg> fn_args2;
-                        while (!check(TokenKind::RParen) && !at_end()) {
-                            if (check(TokenKind::Comma)) { consume(); continue; }
-                            fn_args2.push_back(parse_one_arg());
-                        }
-                        expect(TokenKind::RParen, ")");
-                        if (check(TokenKind::Semi)) consume();
-                        // fn_args2 を CmdStmt "ControlVars" に変換（va.id は後で名前解決）
-                        // ここでは type=2 を使う点のみが通常の関数パースと異なる
-                        // 通常の関数パース処理と同じロジックを実行するため、
-                        // ダミーの VarAssign を作って処理を共通化する
-                        // 簡単化: type=2 固定で src/src_val/src_extra を求める
-                        int32_t src = 0, src_val = 0, src_extra = 0;
-                        bool need_extra2 = false;
-                        auto get_i2 = [&](int idx, int def) -> int32_t {
-                            if (idx < (int)fn_args2.size()) return fn_args2[idx].val.ival;
-                            return def;
-                        };
-                        if (fn2 == "rand") {
-                            src = 3; src_val = get_i2(0,0); src_extra = get_i2(1,0); need_extra2 = true;
-                        } else if (fn2 == "item_count") {
-                            src = 4;
-                            for (auto& a : fn_args2) {
-                                if (a.key == "id") src_val = a.val.ival;
-                                if (a.key == "op") { src_extra = (a.val.sval == "equip") ? 1 : a.val.ival; }
-                            }
-                            need_extra2 = true;
-                        } else if (fn2 == "actor_stat") {
-                            src = 5;
-                            static const std::map<std::string,int> am2 = {
-                                {"level",0},{"exp",1},{"hp",2},{"mp",3},{"max_hp",4},{"max_mp",5},
-                                {"atk",6},{"def",7},{"spi",8},{"agi",9},
-                                {"weapon_id",10},{"shield_id",11},{"armor_id",12},{"helmet_id",13},{"accessory_id",14}
-                            };
-                            for (auto& a : fn_args2) {
-                                if (a.key == "id") src_val = a.val.ival;
-                                if (a.key == "stat") { src_extra = am2.count(a.val.sval) ? am2.at(a.val.sval) : a.val.ival; }
-                            }
-                            need_extra2 = true;
-                        } else if (fn2 == "event_stat") {
-                            src = 6;
-                            static const std::map<std::string,int> em2 = {{"map_id",0},{"x",1},{"y",2},{"dir",3},{"screen_x",4},{"screen_y",5}};
-                            static const std::map<std::string,int> ei2 = {{"player",10001},{"boat",10002},{"ship",10003},{"airship",10004},{"this",10005}};
-                            for (auto& a : fn_args2) {
-                                if (a.key == "event") { src_val = ei2.count(a.val.sval) ? ei2.at(a.val.sval) : a.val.ival; }
-                                if (a.key == "stat")  { src_extra = em2.count(a.val.sval) ? em2.at(a.val.sval) : a.val.ival; }
-                            }
-                            need_extra2 = true;
-                        } else if (fn2 == "system_stat") {
-                            src = 7;
-                            static const std::map<std::string,int> sm2 = {{"gold",0},{"timer1",1},{"party_size",2},{"save_count",3},{"battle_count",4},{"win_count",5},{"defeat_count",6},{"escape_count",7},{"midi_pos",8},{"timer2",9}};
-                            if (!fn_args2.empty()) { src_val = sm2.count(fn_args2[0].val.sval) ? sm2.at(fn_args2[0].val.sval) : fn_args2[0].val.ival; }
-                            need_extra2 = true;
-                        } else if (fn2 == "enemy_stat") {
-                            src = 8;
-                            static const std::map<std::string,int> enemm2 = {{"hp",0},{"mp",1},{"max_hp",2},{"max_mp",3},{"atk",4},{"def",5},{"spi",6},{"agi",7}};
-                            for (auto& a : fn_args2) {
-                                if (a.key == "id") src_val = a.val.ival;
-                                if (a.key == "stat") { src_extra = enemm2.count(a.val.sval) ? enemm2.at(a.val.sval) : a.val.ival; }
-                            }
-                            need_extra2 = true;
-                        }
-                        CmdStmt cs; cs.name = "ControlVars"; cs.loc = va.loc;
-                        auto mk2 = [](const std::string& k, int32_t v) {
-                            Arg a; a.key = k; a.val.kind = ArgVal::Int; a.val.ival = v; return a;
-                        };
-                        cs.args.push_back(mk2("var", va.id));
-                        cs.args.push_back(mk2("type", 2));
-                        cs.args.push_back(mk2("id2", 0));  // type=2 では id2 は未使用
-                        cs.args.push_back(mk2("op_code", op_i));
-                        cs.args.push_back(mk2("src", src));
-                        cs.args.push_back(mk2("src_val", src_val));
-                        if (need_extra2) cs.args.push_back(mk2("src_extra", src_extra));
-                        return cs;
+                    consume(); consume(); // fn (
+                    std::vector<Arg> fn_args2;
+                    while (!check(TokenKind::RParen) && !at_end()) {
+                        if (check(TokenKind::Comma)) { consume(); continue; }
+                        fn_args2.push_back(parse_one_arg());
                     }
+                    expect(TokenKind::RParen, ")");
+                    if (check(TokenKind::Semi)) consume();
+                    // type=2 固定 (var[*var[N]] LHS)
+                    auto fs = parse_cv_fn_src(fn2, fn_args2);
+                    return make_cv_fn_stmt(va.loc, 2, va.id, "", 0, "", op_i, fs);
                 }
 
                 // 通常RHS (整数 / var[M] / var["名前"] / *var[M] / *var["名前"])
@@ -660,161 +689,30 @@ StmtPtr Parser::parse_stmt() {
 
         // RHS が関数呼び出し形式 (rand/item_count/actor_stat/event_stat/system_stat/enemy_stat)
         // → ControlVars コマンド形式で出力するため CmdStmt として返す
-        if (check(TokenKind::Ident) && peek(1).kind == TokenKind::LParen) {
+        if (check(TokenKind::Ident) && peek(1).kind == TokenKind::LParen
+            && kCvFns.count(peek().text)) {
             std::string fn = peek().text;
-            static const std::set<std::string> cv_fns = {
-                "rand","item_count","actor_stat","event_stat","system_stat","enemy_stat"
-            };
-            if (cv_fns.count(fn)) {
-                // var[N] op= fn(args); → ControlVars(var=N, ...) に変換
-                consume(); consume(); // fn (
-                std::vector<Arg> fn_args = {};
-                while (!check(TokenKind::RParen) && !at_end()) {
-                    if (check(TokenKind::Comma)) { consume(); continue; }
-                    fn_args.push_back(parse_one_arg());
-                }
-                expect(TokenKind::RParen, ")");
-                if (check(TokenKind::Semi)) consume();
-
-                // op 文字列 → op_code
-                static const std::map<std::string,int> op_map = {
-                    {"=",0},{"+=",1},{"-=",2},{"*=",3},{"/=",4},{"%=",5}
-                };
-                int op_i = op_map.count(va.op) ? op_map.at(va.op) : 0;
-
-                // type / id1 / id2
-                int32_t type_v = va.is_range ? 1 : 0;
-                // id1 / id2 は encode 時に名前解決するため CmdStmt 形式で保持
-                // ここでは ControlVars(var=N, type=T, id2=M, op_code=op, src=S, src_val=V [,src_extra=E]) 形式を作る
-
-                // id1 / id2 の値（名前は別途解決が必要だが、ここでは整数のみ対応）
-                int32_t id1_v = va.id;   // 名前の場合は 0（後で resolve が必要だが今は単純化）
-                int32_t id2_v = va.is_range ? va.id2 : va.id;
-
-                // fn 別に src/src_val/src_extra を決定
-                int32_t src = 0, src_val = 0, src_extra = 0;
-                bool need_extra = false;
-                auto get_i = [&](int idx, int def) -> int32_t {
-                    if (idx < (int)fn_args.size()) return fn_args[idx].val.ival;
-                    return def;
-                };
-
-                if (fn == "rand") {
-                    src = 3;
-                    src_val   = get_i(0, 0);
-                    src_extra = get_i(1, 0);
-                    need_extra = true;
-                } else if (fn == "item_count") {
-                    src = 4;
-                    // p[5]=item_id=src_val, p[6]=sub_op=src_extra
-                    for (auto& a : fn_args) {
-                        if (a.key == "id") src_val = a.val.ival;
-                        if (a.key == "op") {
-                            if (a.val.sval == "equip") src_extra = 1;
-                            else src_extra = a.val.ival;
-                        }
-                    }
-                    need_extra = true;
-                } else if (fn == "actor_stat") {
-                    src = 5;
-                    // p[5]=actor_id=src_val, p[6]=sub_op=src_extra
-                    static const std::map<std::string,int> actor_stat_map = {
-                        {"level",0},{"exp",1},{"hp",2},{"mp",3},{"max_hp",4},{"max_mp",5},
-                        {"atk",6},{"def",7},{"spi",8},{"agi",9},
-                        {"weapon_id",10},{"shield_id",11},{"armor_id",12},{"helmet_id",13},{"accessory_id",14}
-                    };
-                    for (auto& a : fn_args) {
-                        if (a.key == "id") src_val = a.val.ival;
-                        if (a.key == "stat") {
-                            if (actor_stat_map.count(a.val.sval)) src_extra = actor_stat_map.at(a.val.sval);
-                            else src_extra = a.val.ival;
-                        }
-                    }
-                    need_extra = true;
-                } else if (fn == "event_stat") {
-                    src = 6;
-                    // p[5]=event_id=src_val, p[6]=sub_op=src_extra
-                    static const std::map<std::string,int> event_stat_map = {
-                        {"map_id",0},{"x",1},{"y",2},{"dir",3},{"screen_x",4},{"screen_y",5}
-                    };
-                    static const std::map<std::string,int> event_id_map = {
-                        {"player",10001},{"boat",10002},{"ship",10003},{"airship",10004},{"this",10005}
-                    };
-                    for (auto& a : fn_args) {
-                        if (a.key == "event") {
-                            if (event_id_map.count(a.val.sval)) src_val = event_id_map.at(a.val.sval);
-                            else src_val = a.val.ival;
-                        }
-                        if (a.key == "stat") {
-                            if (event_stat_map.count(a.val.sval)) src_extra = event_stat_map.at(a.val.sval);
-                            else src_extra = a.val.ival;
-                        }
-                    }
-                    need_extra = true;
-                } else if (fn == "system_stat") {
-                    src = 7;
-                    // p[5]=sub_op=src_val, p[6]=0(unused)=src_extra
-                    static const std::map<std::string,int> sys_stat_map = {
-                        {"gold",0},{"timer1",1},{"party_size",2},{"save_count",3},
-                        {"battle_count",4},{"win_count",5},{"defeat_count",6},
-                        {"escape_count",7},{"midi_pos",8},{"timer2",9}
-                    };
-                    // system_stat(gold) — 位置引数
-                    if (!fn_args.empty()) {
-                        auto& a = fn_args[0];
-                        if (sys_stat_map.count(a.val.sval)) src_val = sys_stat_map.at(a.val.sval);
-                        else src_val = a.val.ival;
-                    }
-                    need_extra = true; // src=7 も7パラメータで出力（extra=0）
-                } else if (fn == "enemy_stat") {
-                    src = 8;
-                    // p[5]=enemy_id=src_val, p[6]=sub_op=src_extra
-                    static const std::map<std::string,int> enemy_stat_map = {
-                        {"hp",0},{"mp",1},{"max_hp",2},{"max_mp",3},{"atk",4},{"def",5},{"spi",6},{"agi",7}
-                    };
-                    for (auto& a : fn_args) {
-                        if (a.key == "id") src_val = a.val.ival;
-                        if (a.key == "stat") {
-                            if (enemy_stat_map.count(a.val.sval)) src_extra = enemy_stat_map.at(a.val.sval);
-                            else src_extra = a.val.ival;
-                        }
-                    }
-                    need_extra = true;
-                }
-
-                // 名前付き変数 (id_label) は未サポート（ID直接指定のみ）
-                // TODO: 名前解決が必要な場合は CmdStmt として保持する別経路が必要
-
-                std::vector<int32_t> params;
-                if (need_extra) {
-                    params = {type_v, id1_v, id2_v, op_i, src, src_val, src_extra};
-                } else {
-                    params = {type_v, id1_v, id2_v, op_i, src, src_val};
-                }
-                // VarAssign と同じ LcfCmd 生成は encoder.cpp で行うため、
-                // ここでは arg 形式に変換してCmdStmtとして返す
-                // 一番シンプルなのは VarAssign の rhs を Fn形式で保持するか、
-                // LcfCmd を直接作れる構造にすること。
-                // 今は CmdStmt に "ControlVars" + キー形式 args を埋め込む。
-                CmdStmt cs; cs.name = "ControlVars"; cs.loc = va.loc;
-                auto mk = [](const std::string& k, int32_t v) {
-                    Arg a; a.key = k; a.val.kind = ArgVal::Int; a.val.ival = v; return a;
-                };
-                auto mk_named = [](const std::string& k, int32_t v, const std::string& label) {
-                    Arg a; a.key = k; a.val.kind = ArgVal::Int; a.val.ival = v;
-                    a.val.sidx = label;
-                    return a;
-                };
-                // va.id_label がある場合は sidx に格納して encoder 側で名前解決する
-                cs.args.push_back(mk_named("var",  id1_v, va.id_label));
-                cs.args.push_back(mk("type", type_v));
-                cs.args.push_back(mk_named("id2",  id2_v, va.is_range ? va.id2_label : va.id_label));
-                cs.args.push_back(mk("op_code", op_i));
-                cs.args.push_back(mk("src", src));
-                cs.args.push_back(mk("src_val", src_val));
-                if (need_extra) cs.args.push_back(mk("src_extra", src_extra));
-                return cs;
+            consume(); consume(); // fn (
+            std::vector<Arg> fn_args;
+            while (!check(TokenKind::RParen) && !at_end()) {
+                if (check(TokenKind::Comma)) { consume(); continue; }
+                fn_args.push_back(parse_one_arg());
             }
+            expect(TokenKind::RParen, ")");
+            if (check(TokenKind::Semi)) consume();
+
+            static const std::map<std::string,int> op_map = {
+                {"=",0},{"+=",1},{"-=",2},{"*=",3},{"/=",4},{"%=",5}
+            };
+            int op_i    = op_map.count(va.op) ? op_map.at(va.op) : 0;
+            int32_t type_v = va.is_range ? 1 : 0;
+            int32_t id1_v  = va.id;
+            int32_t id2_v  = va.is_range ? va.id2 : va.id;
+
+            auto fs = parse_cv_fn_src(fn, fn_args);
+            std::string id2_label = va.is_range ? va.id2_label : va.id_label;
+            return make_cv_fn_stmt(va.loc, type_v, id1_v, va.id_label,
+                                             id2_v, id2_label, op_i, fs);
         }
 
         // *var[N] RHS: 間接参照 src=2
@@ -889,17 +787,6 @@ IfStmt Parser::parse_if() {
     }
     // EndBranch(p0=N,...) が then/else ブロックの終端として来た場合に params を回収
     s.end_branch_params = consume_end_branch_if_present();
-    return s;
-}
-
-WhileStmt Parser::parse_while() {
-    WhileStmt s;
-    s.loc = peek().loc;
-    consume(); // while
-    expect(TokenKind::LParen, "(");
-    s.cond_args = parse_cond_args();
-    expect(TokenKind::RParen, ")");
-    s.body = std::make_unique<StmtBlock>(parse_block());
     return s;
 }
 

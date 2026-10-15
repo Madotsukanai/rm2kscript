@@ -76,7 +76,6 @@ private:
     std::vector<int32_t>   consume_end_branch_if_present();
     StmtPtr                parse_stmt();
     IfStmt                 parse_if();
-    WhileStmt              parse_while();
     LoopStmt               parse_loop();
     ForStmt                parse_for();
     ChoiceStmt       parse_choice(Token name_tok);

@@ -136,6 +136,7 @@ var[N] = var[M];            // 変数Mの値を代入
 var[N..M] = 値;             // N〜M の範囲を一括
 var["変数名"] = 値;         // 名前テーブルがある場合
 var[*var[N]] = 値;          // 間接参照: 変数Nの値をIDとして代入先を決定
+                             // ※ デコード時は名前テーブルがあっても数値IDで出力される（エンコード時の逆引きが困難なため）
 ```
 
 ### 4.4 if 文
@@ -297,11 +298,11 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | コマンド | 説明 |
 |---|---|
 | `message("テキスト")` | メッセージを表示（`\n` で改行）|
-| `MessageOptions(skip=0, position=2, transparent=0, continue_events=0)` | メッセージオプション |
-| `ChangeFaceGraphic(file="face", index=0, right=0, flip=0)` | フェイスグラフィック設定 |
+| `MessageOptions(skip=false, position=2, transparent=false, continue_events=false)` | メッセージオプション |
+| `ChangeFaceGraphic(file="face", index=0, right=false, flip=false)` | フェイスグラフィック設定 |
 | `choice("A","B", cancel=5) { when("A"){} }` | 選択肢表示 |
 | `InputNumber(digits=4, var=1)` | 数字入力 |
-| `EnterHeroName(actor=1, p1=0, p2=0)` | 名前入力 |
+| `EnterHeroName(actor=1, charset=0, use_default_name=false)` | 名前入力 |
 
 ### スイッチ・変数
 
@@ -311,9 +312,9 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `var[N] op= 値` | 変数操作（単純形式）|
 | `var[*var[N]] op= 値` | 変数操作（間接参照：変数Nの値をIDとして代入先を決定）|
 | `ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=V)` | 変数操作（間接参照など特殊形式）|
-| `TimerOperation(set=N, p1=0, p2=0, p3=0, p4=0)` | タイマーセット |
-| `TimerOperation(start, p1=0, p2=0, p3=0, p4=0)` | タイマー開始 |
-| `TimerOperation(stop, p1=0, p2=0, p3=0, p4=0)` | タイマー停止 |
+| `TimerOperation(set=N, visible=true, battle=false)` | タイマーにN秒をセット |
+| `TimerOperation(start, set=N, visible=true, battle=false)` | タイマー開始（セット値も同時指定）|
+| `TimerOperation(stop, set=N, visible=true, battle=false)` | タイマー停止 |
 
 ### パーティ・アイテム
 
@@ -332,18 +333,27 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `ChangeExp(actor=N, delta=V)` | EXP変更（負数で減少、`delta=var[N]` または `delta=-var[N]` で変数参照）|
 | `ChangeExp(party, delta=V)` | パーティ全員のEXP変更 |
 | `ChangeLevel(actor=N, delta=V)` | レベル変更（負数で減少、`delta=var[N]` で変数参照）|
-| `ChangeLevel(actor=N, delta=V, show_levelup=1)` | レベルアップメッセージ表示あり |
-| `ChangeHP(actor=N, delta=V, die_allowed=0)` | HP変更（`delta=-var[N]` で変数参照の減算）|
+| `ChangeLevel(actor=N, delta=V, show_levelup=true)` | レベルアップメッセージ表示あり |
+| `ChangeHP(actor=N, delta=V, die_allowed=false)` | HP変更（`delta=-var[N]` で変数参照の減算）|
 | `ChangeSP(actor=N, delta=V)` | SP変更（`delta=-var[N]` で変数参照の減算）|
 | `FullHeal(actor=N)` | 全回復（`party` でパーティ全員）|
 | `ChangeSkills(actor=N, op=learn, skill=N)` | スキル習得（`op=forget` で忘却、`skill=var[N]` も可）|
 | `ChangeCondition(actor=N, op=add, state=N)` | 状態変化付与（`op=remove` で解除）|
 | `ChangeEquipment(actor=N, op=0, src=0, item=N)` | 装備変更 |
 | `ChangeParameters(who=0, actor=N, param=0, op=0, src=0, val=V)` | 基礎パラメータ変更 |
+| `SimulatedAttack(actor=N, atk=0, def=0, spi=0, var=0 [, result_var=V])` | 疑似攻撃（`party` でパーティ全員、`result_var=` で結果格納）|
+| `ChangeClass(actor=N, class=1, level1=false, skill_mode=0, param_mode=0, show_msg=false)` | クラス変更（RPGツクール2003）|
+| `ChangeBattleCommands(actor=N, op=add, cmd=1)` | バトルコマンド変更（RPGツクール2003、`op=remove` で削除）|
 | `ChangeHeroName(actor=N, name="名前")` | アクター名変更 |
 | `ChangeHeroTitle(actor=N, title="肩書き")` | 肩書き変更 |
-| `ChangeSpriteAssociation(actor=N, sprite="ファイル名", sprite_index=0, transparent=0)` | 歩行グラ変更 |
+| `ChangeSpriteAssociation(actor=N, sprite="ファイル名", sprite_index=0, transparent=false)` | 歩行グラ変更 |
 | `ChangeActorFace(face="ファイル名", actor=N, index=0)` | 顔グラ変更 |
+
+### グラフィック変更
+
+| コマンド | 説明 |
+|---|---|
+| `ChangeVehicleGraphic(vehicle=boat, sprite="ファイル名", index=0)` | 乗り物グラ変更（`vehicle=boat/ship/airship`）|
 
 ### 移動・テレポート
 
@@ -369,17 +379,17 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 |---|---|
 | `EraseScreen(type=0)` | 画面消去（`speed=N` で速度指定可）|
 | `ShowScreen(type=0)` | 画面表示（`speed=N` で速度指定可）|
-| `TintScreen(r=100, g=100, b=100, s=100, frames=20, wait=1)` | 色調変更 |
-| `FlashScreen(r=255, g=255, b=255, power=31, frames=20, wait=1)` | フラッシュ |
-| `ShakeScreen(power=5, speed=5, frames=20, wait=1)` | シェイク |
-| `PanScreen(op=move, dir=0, dist=0, speed=0, wait=0)` | 画面スクロール（op: `lock`/`unlock`/`move`/`reset`）|
+| `TintScreen(r=100, g=100, b=100, s=100, frames=20, wait=true)` | 色調変更 |
+| `FlashScreen(r=255, g=255, b=255, power=31, frames=20, wait=true)` | フラッシュ |
+| `ShakeScreen(power=5, speed=5, frames=20, wait=true)` | シェイク |
+| `PanScreen(op=move, dir=0, dist=0, speed=0, wait=false)` | 画面スクロール（op: `lock`/`unlock`/`move`/`reset`）|
 | `WeatherEffects(type=0, power=2)` | 天候効果 |
 | `ShowPicture(file="名前", id=N, ...)` | ピクチャ表示（詳細は下表）|
 | `MovePicture(id=N, ...)` | ピクチャ移動（詳細は下表）|
 | `ErasePicture(id=N)` | ピクチャ消去 |
-| `ShowBattleAnimation(anim=N, event=this, wait=1 [, global=0])` | バトルアニメ表示（`event=` は player/boat/ship/airship/this またはイベントID）|
-| `FlashSprite(event=this, r=31, g=31, b=31, chroma=31, duration=5, wait=1)` | スプライトフラッシュ |
-| `PlayerVisibility(visible=1)` | プレイヤー表示切替 |
+| `ShowBattleAnimation(anim=N, event=this, wait=true [, global=false])` | バトルアニメ表示（`event=` は player/boat/ship/airship/this またはイベントID）|
+| `FlashSprite(event=this, r=31, g=31, b=31, chroma=31, duration=5, wait=true)` | スプライトフラッシュ |
+| `PlayerVisibility(visible=true)` | プレイヤー表示切替 |
 
 ### BGM・SE
 
@@ -424,18 +434,41 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `EnemyEncounter(troop=N, type=0, can_escape=1, can_lose=0 [, bg="背景ファイル名"]) { ... }` | 戦闘開始（ハンドラあり形式）|
-| `VictoryHandler { ... }` | 勝利後処理（`EnemyEncounter { }` ブロック内に記述）|
-| `EscapeHandler { ... }` | 逃走後処理 |
-| `DefeatHandler { ... }` | 敗北後処理 |
-| `EndBattle {}` | 戦闘ハンドラ終了 |
+| `EnemyEncounter(troop=N, bg_type=0, escape_mode=1, defeat_mode=0, first_strike=false [, bg="背景ファイル名"])` | 戦闘開始 |
+| `VictoryHandler()` | 勝利後処理（`EnemyEncounter` 直後に記述）|
+| `EscapeHandler()` | 逃走後処理 |
+| `DefeatHandler()` | 敗北後処理 |
+| `EndBattle()` | 戦闘ハンドラ終了 |
+
+`EnemyEncounter` の RPGツクール2003 追加引数: `condition=0, formation=0, terrain_id=0`
+
+### バトルイベント専用コマンド（RPGツクール2003）
+
+| コマンド | 説明 |
+|---|---|
+| `ForceFlee(mode=0, id=0, check=false)` | 逃走強制（`mode=0`=全員逃走 / `1`=敵モンスター / `2`=アクター）|
+| `EnableCombo(actor=1, cmd=1, multiple=1)` | コンボ有効化 |
+| `ChangeMonsterHP(enemy=0, delta=V, lethal=false)` | 敵HPを変更（`delta=-var[N]` で変数参照の減算）|
+| `ChangeMonsterMP(enemy=0, delta=V)` | 敵MPを変更 |
+| `ChangeMonsterCondition(enemy=0, op=add, state=1)` | 敵状態変化（`op=remove` で解除）|
+| `ShowHiddenMonster(enemy=0)` | 隠れた敵を表示 |
+| `ChangeBattleBG(bg="ファイル名")` | バトル背景変更 |
+| `ShowBattleAnimation_B(anim=1, target=0, wait=true)` | バトルアニメ表示（バトルイベント用）|
+| `TerminateBattle()` | バトル終了 |
+| `ConditionalBranch_B` / `ElseBranch_B` / `EndBranch_B` | バトルイベント用条件分岐（通常の `if` と同構造）|
 
 ### ショップ・宿屋
 
 | コマンド | 説明 |
 |---|---|
 | `OpenShop(type=0, item1=N, item2=M, ...)` | ショップ開店 |
-| `ShowInn(type=0, cost=100)` | 宿屋 |
+| `ShowInn(type=0, cost=100 [, has_handlers=false])` | 宿屋 |
+| `Transaction()` | 購入/宿泊した場合の処理ブロック開始 |
+| `NoTransaction()` | 購入しなかった/宿泊しなかった場合の処理ブロック開始 |
+| `EndShop()` | ショップハンドラ終了 |
+| `Stay()` | 宿泊した場合の処理ブロック開始 |
+| `NoStay()` | 宿泊しなかった場合の処理ブロック開始 |
+| `EndInn()` | 宿屋ハンドラ終了 |
 
 ### マップ設定
 
@@ -445,25 +478,78 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `ChangePBG(name="ファイル名", scroll_horz=0, scroll_vert=0, scroll_horz_auto=0, scroll_horz_speed=0, scroll_vert_auto=0, scroll_vert_speed=0)` | パノラマ変更 |
 | `ChangeEncounterSteps(steps=30)` | エンカウント歩数変更 |
 | `TileSubstitution(chip_set=1, src=N, dst=M)` | タイル置換 |
-| `TeleportTargets(action=0, map=N, x=X, y=Y, switch_on=0, switch_id=1)` | テレポート先追加/削除 |
-| `EscapeTarget(map=N, x=X, y=Y, switch_on=0, switch_id=1)` | 逃げる先設定 |
+| `TeleportTargets(action=0, map=N, x=X, y=Y, switch_on=false, switch_id=1)` | テレポート先追加/削除 |
+| `EscapeTarget(map=N, x=X, y=Y, switch_on=false, switch_id=1)` | 逃げる先設定 |
 
 ### システム設定
 
 | コマンド | 説明 |
 |---|---|
-| `ChangeSystemGraphics(system="system", stretch=0, font=0)` | システムグラフィック変更 |
+| `ChangeSystemGraphics(system="system", stretch=false, font=0)` | システムグラフィック変更 |
 | `ChangeScreenTransitions(type=0, id=0)` | 画面切り替え効果変更 |
-| `ChangeSaveAccess(enable=1)` | セーブ許可/禁止 |
-| `ChangeTeleportAccess(enable=1)` | テレポート許可/禁止 |
-| `ChangeEscapeAccess(enable=1)` | 逃げる許可/禁止 |
-| `ChangeMainMenuAccess(enable=1)` | メインメニュー許可/禁止 |
+| `ChangeSaveAccess(enable=true)` | セーブ許可/禁止 |
+| `ChangeTeleportAccess(enable=true)` | テレポート許可/禁止 |
+| `ChangeEscapeAccess(enable=true)` | 逃げる許可/禁止 |
+| `ChangeMainMenuAccess(enable=true)` | メインメニュー許可/禁止 |
 | `OpenSaveMenu()` | セーブ画面を開く |
 | `OpenLoadMenu()` | ロード画面を開く |
 | `OpenMainMenu()` | メニューを開く |
 | `GameOver()` | ゲームオーバー |
 | `ReturntoTitleScreen()` | タイトルへ戻る |
 | `ExitGame()` | ゲーム終了 |
+| `ToggleAtbMode()` | ATBモード切替（EasyRPG）|
+| `ToggleFullscreen()` | フルスクリーン切替（EasyRPG）|
+| `OpenVideoOptions()` | ビデオオプション（EasyRPG）|
+
+### EasyRPG Player 拡張コマンド
+
+以下のコマンドは EasyRPG Player 独自の拡張です。
+
+| コマンド | CmdSetup サイズ | 説明 |
+|---|---|---|
+| `EasyRpg_TriggerEventAt(mode_x=, x=, mode_y=, y= [, flags=])` | 4 | 指定座標のイベントをトリガー |
+| `EasyRpg_Pathfinder(mode_src=, src_event=, mode_dest_x=, dest_x=, mode_dest_y=, dest_y=, mode_search=, search_max=, mode_steps=, steps_max=, flags=, mode_ignore=, num_ignore= [, pN=...])` | 13 | 経路探索して移動ルートを適用 |
+| `EasyRpg_CallMovementAction(pN=...)` | — | 移動アクション呼び出し (EasyRPGに実装なし) |
+| `EasyRpg_WaitForSingleMovement(mode_event=, event_id=, mode_fail=, fail_limit=, mode_out=, out_var=)` | 6 | 単一移動完了まで待機 |
+| `EasyRpg_AnimateVariable(pN=...)` | — | 変数アニメーション (EasyRPGに実装なし) |
+| `EasyRpg_SetInterpreterFlag([flag="名前",] mode=, flag_value= [, flag_id=])` | 2 | インタープリタフラグ設定 |
+| `EasyRpg_ProcessJson([json_path="パス",] mode_op=, operation=, src_mode=, src_str_id=, mode_tgt_type=, tgt_type=, mode_tgt_id=, tgt_id=, path_mode=, path_pos= [, flags=])` | 8 | JSON処理 |
+| `EasyRpg_CloneMapEvent([target_name="名前",] src_map_mode=, src_map=, src_event_mode=, src_event=, target_x_mode=, target_x=, target_y_mode=, target_y=, target_event_mode=, target_event= [, str_mode=, str_id=])` | 10 | マップイベント複製 |
+| `EasyRpg_DestroyMapEvent(mode=, target_event=)` | 2 | マップイベント削除 |
+| `EasyRpg_StringPictureMenu([str="...",] pN=...)` | — | 文字列ピクチャメニュー (EasyRPGに実装なし) |
+
+### Maniac Patch コマンド
+
+以下のコマンドは [Maniac Patch](https://github.com/BuggyBurst/ManiacPatch) 独自の拡張です。
+
+| コマンド | CmdSetup サイズ | 説明 |
+|---|---|---|
+| `Maniac_GetSaveInfo(slot_mode=, slot=, out_date_var=, out_time_var=, out_level_var=, out_hp_var=, p6=, face_mode=, face_pic0=, face_pic1=, face_pic2=, face_pic3=)` | 12 | セーブ情報取得 |
+| `Maniac_Save(slot_mode=, slot=, has_out_var= [, out_var=])` | 3 | セーブ |
+| `Maniac_Load(slot_mode=, slot=, skip_check=)` | 3 | ロード |
+| `Maniac_EndLoadProcess()` | 0 | ロードプロセス終了 |
+| `Maniac_GetMousePosition(x_var=, y_var=)` | 2 | マウス座標取得 |
+| `Maniac_SetMousePosition(pN=...)` | 3 | マウス座標設定 (EasyRPGに実装なし) |
+| `Maniac_ShowStringPicture(bitfield=, pic_id=, x=, y=, magnify_w=, top_trans=, red=, green=, blue=, saturation=, effect_mode=, effect_power=, flags=, flags2=, flags3=, map_layer=, battle_layer=, flags4=, width=, height=, font_size=, angle_divisor=, str_id= [, magnify_h=])` | 23 | 文字列ピクチャ表示 |
+| `Maniac_GetPictureInfo(bitfield=, info_type=, coord_mode=, pic_id=, out_var=, out_var2=, out_w_var=, out_h_var=)` | 8 | ピクチャ情報取得 |
+| `Maniac_ControlBattle(pN=...)` | — | バトル制御 (EasyRPGに実装なし) |
+| `Maniac_ControlAtbGauge(pN=...)` | — | ATBゲージ制御 (EasyRPGに実装なし) |
+| `Maniac_ChangeBattleCommandEx(pN=...)` | — | バトルコマンド拡張変更 (EasyRPGに実装なし) |
+| `Maniac_GetBattleInfo(pN=...)` | — | バトル情報取得 (EasyRPGに実装なし) |
+| `Maniac_ControlVarArray(op=, mode=, target_a=, length=, target_b=)` | 5 | 変数配列操作 |
+| `Maniac_KeyInputProcEx(operation=, start_var_id= [, mode_key=, key_id=])` | 4 | キー入力拡張 |
+| `Maniac_RewriteMap(mode=, is_replace_range=, is_upper_layer=, tile_index=, x_start=, y_start=, width=, height=, disable_autotile=)` | 9 | マップ書き換え |
+| `Maniac_ControlGlobalSave(operation=, mode_bits=, type=, game_state_idx=, global_save_idx=, length=)` | 6 | グローバルセーブ操作 |
+| `Maniac_ChangePictureId(pN=...)` | — | ピクチャID変更 (EasyRPGに実装なし) |
+| `Maniac_SetGameOption(mode=, option_type=, value=, flags=)` | 4 | ゲームオプション設定 |
+| `Maniac_CallCommand([str="...",] mode_code=, cmd_code=, start_or_mode_index=, length=, str_mode=, str_id= [, pN=...])` | 6 | コマンド呼び出し |
+| `Maniac_ControlStrings([str="...",] mode_bits=, str_id_0=, str_id_1=, op_flags=, arg0=, arg1=, arg2= [, arg3=])` | 8 | 文字列操作 |
+| `Maniac_GetGameInfo(bitfield=, info_type=, out_var=, extra_var=, extra2=, coord_x=, coord_y=, out_var2=)` | 8 | ゲーム情報取得 |
+| `Maniac_EditPicture(bitfield=, pic_id=, op=, mode=, arg0=, arg1=, arg2=, arg3=)` | 8 | ピクチャ編集 |
+| `Maniac_WritePicture([filename="...",] mode_bits=, target_type=, pic_id=, filename_id=, flags=)` | 5 | ピクチャ書き込み |
+| `Maniac_AddMoveRoute([str="...",] pN=...)` | — | 移動ルート追加 (EasyRPGに実装なし) |
+| `Maniac_EditTile(pN=...)` | — | タイル編集 (EasyRPGに実装なし) |
+| `Maniac_ControlTextProcessing([str="...",] pN=...)` | — | テキスト処理制御 (EasyRPGに実装なし) |
 
 ---
 
@@ -477,10 +563,10 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `pos_mode` | `0` | 座標指定方法（`0`=定数 / `1`=変数）|
 | `x` | `0` | X座標（`pos_mode=1` のとき変数ID）|
 | `y` | `0` | Y座標（`pos_mode=1` のとき変数ID）|
-| `fixed_to_map` | `0` | マップに固定（`1`=固定）|
+| `fixed_to_map` | `false` | マップに固定 |
 | `magnify` | `100` | 拡大率（%）|
 | `top_trans` | `0` | 上側透明度（0〜100）|
-| `use_transparent_color` | `0` | 透過色を使用（`1`=使用）|
+| `use_transparent_color` | `false` | 透過色を使用 |
 | `red` | `100` | 赤（0〜200）|
 | `green` | `100` | 緑（0〜200）|
 | `blue` | `100` | 青（0〜200）|
@@ -494,7 +580,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | 引数 | デフォルト | 説明 |
 |---|---|---|
 | `duration` | `8` | 移動フレーム数 |
-| `wait` | `0` | 完了まで待つ（`1`=待つ）|
+| `wait` | `false` | 完了まで待つ |
 
 ---
 
@@ -526,7 +612,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 ```
 MoveEvent(this, move=[face_down, wait, forward, wait])
-MoveEvent(event=3, freq=4, repeat=1, skip=0, move=[up, up, right, switch_on(5)])
+MoveEvent(event=3, freq=4, repeat=true, skip=false, move=[up, up, right, switch_on(5)])
 ```
 
 ---

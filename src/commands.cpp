@@ -7,6 +7,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
+#include <set>
 
 namespace rm2k {
 
@@ -71,6 +72,9 @@ static const Arg* find_arg_by_key(const std::vector<Arg>& args, const std::strin
 }
 
 
+// bool 値を "true"/"false" で出力するヘルパー
+static inline std::string bool_str(int32_t v) { return v ? "true" : "false"; }
+
 // 公開ヘルパー (commands.h で宣言)
 const Arg* find_arg(const std::vector<Arg>& args, size_t pos, const std::string& key) {
     return find_arg_impl(args, pos, key);
@@ -81,6 +85,8 @@ int32_t arg_int(const std::vector<Arg>& args, size_t pos, const std::string& key
     if (!a) return def;
     if (a->val.kind == ArgVal::Int)     return a->val.ival;
     if (a->val.kind == ArgVal::Indexed) return a->val.ival;
+    if (a->val.sval == "true")  return 1;
+    if (a->val.sval == "false") return 0;
     try { return std::stoi(a->val.sval); } catch (...) { return def; }
 }
 
@@ -322,10 +328,10 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::MessageOptions, "MessageOptions",
         [](const LcfCmd& c) -> std::string {
-            return "MessageOptions(skip=" + std::to_string(param(c,0))
+            return "MessageOptions(skip=" + bool_str(param(c,0))
                  + ", position=" + std::to_string(param(c,1))
-                 + ", transparent=" + std::to_string(param(c,2))
-                 + ", continue_events=" + std::to_string(param(c,3)) + ")";
+                 + ", transparent=" + bool_str(param(c,2))
+                 + ", continue_events=" + bool_str(param(c,3)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::MessageOptions, ctx.indent, {
@@ -339,8 +345,8 @@ void register_all_commands() {
         [](const LcfCmd& c) -> std::string {
             return "ChangeFaceGraphic(file=" + quote(str(c.string))
                  + ", index=" + std::to_string(param(c,0))
-                 + ", right=" + std::to_string(param(c,1))
-                 + ", flip="  + std::to_string(param(c,2)) + ")";
+                 + ", right=" + bool_str(param(c,1))
+                 + ", flip="  + bool_str(param(c,2)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeFaceGraphic, ctx.indent,
@@ -536,21 +542,34 @@ void register_all_commands() {
         }
     });
 
-    // op=0:set, op=1:start, op=2:stop
-    // params: [op, val, show_in_battle, show_on_map, p4]
+    // params[0]=op(0=set/1=start/2=stop), params[1]=val_type(0=const/1=var),
+    // params[2]=val(set時の秒数/var_id), params[3]=visible, params[4]=battle
+    // params[5]=timer_id (RPG2k3、6個以上のときのみ)
+    // RPGツクールエディタは op に関わらず5個すべてを保存するため、
+    // デコード・エンコードとも5個を扱う。
+    // EasyRPG: CommandTimerOperation (game_interpreter.cpp)
     reg.register_cmd(CmdDef{ LcfCode::TimerOperation, "TimerOperation",
         [](const LcfCmd& c) -> std::string {
-            int32_t op = param(c,0);
+            int32_t op       = param(c,0);
+            int32_t val_type = param(c,1);
+            int32_t val      = param(c,2);
+            int32_t visible  = param(c,3);
+            int32_t battle   = param(c,4);
+            std::string rhs = (val_type == 1) ? "var[" + std::to_string(val) + "]"
+                                              : std::to_string(val);
+            std::string r;
             if (op == 0) {
-                std::string r = "TimerOperation(set=" + std::to_string(param(c,1));
-                for (size_t i = 2; i < c.parameters.size(); ++i)
-                    r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
-                return r + ")";
+                r = "TimerOperation(set=" + rhs
+                  + ", visible=" + bool_str(visible)
+                  + ", battle="  + bool_str(battle);
+            } else {
+                r = "TimerOperation(" + std::string(op == 1 ? "start" : "stop")
+                  + ", set=" + rhs
+                  + ", visible=" + bool_str(visible)
+                  + ", battle="  + bool_str(battle);
             }
-            std::string op_s = (op == 1) ? "start" : "stop";
-            std::string r = "TimerOperation(" + op_s;
-            for (size_t i = 1; i < c.parameters.size(); ++i)
-                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            if (c.parameters.size() > 5)
+                r += ", timer_id=" + std::to_string(c.parameters[5]);
             return r + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
@@ -559,15 +578,18 @@ void register_all_commands() {
             if      (op_s == "start") op_i = 1;
             else if (op_s == "stop")  op_i = 2;
             else                      op_i = 0;
-            int32_t val = arg_int(s.args, 0, "set", 0);
-            if (op_s == "start" || op_s == "stop")
-                val = arg_int(s.args, 0, "p1", 0);
-            int32_t p2 = arg_int(s.args, 0, "p2", 0);
-            int32_t p3 = arg_int(s.args, 0, "p3", 0);
-            int32_t p4 = arg_int(s.args, 0, "p4", 0);
-            std::vector<int32_t> params = {op_i, val, p2, p3, p4};
-            // RPGツクール2003 の p5 以降 (タイマー番号など) も保持する。デコーダは p2.. を全て出力するため
-            append_extra_params(s, 5, params);
+            int32_t val_type = 0, val = 0;
+            const Arg* sa = find_arg_impl(s.args, 0, "set");
+            if (sa && sa->val.kind == ArgVal::Indexed && sa->val.sval == "var") {
+                val_type = 1; val = sa->val.ival;
+            } else if (sa) {
+                val_type = 0; val = sa->val.ival;
+            }
+            int32_t visible = arg_int(s.args, 0, "visible", 1);
+            int32_t battle  = arg_int(s.args, 0, "battle",  0);
+            std::vector<int32_t> params = {op_i, val_type, val, visible, battle};
+            const Arg* tid_a = find_arg_by_key(s.args, "timer_id");
+            if (tid_a) params.push_back(tid_a->val.ival);
             out.push_back(make_cmd(LcfCode::TimerOperation, ctx.indent, params));
         }
     });
@@ -712,7 +734,7 @@ void register_all_commands() {
             std::string rhs = (src == 0) ? std::to_string(val) : "var["+std::to_string(val)+"]";
             std::string delta = std::string(op?"-":"") + rhs;
             std::string r = "ChangeExp(" + t + ", delta=" + delta
-                          + ", show_levelup=" + std::to_string(show);
+                          + ", show_levelup=" + bool_str(show);
             r += ")";
             return r;
         },
@@ -758,7 +780,7 @@ void register_all_commands() {
             std::string rhs = (src == 0) ? std::to_string(val) : "var["+std::to_string(val)+"]";
             int32_t show = (c.parameters.size() >= 6) ? param(c,5) : 0;
             std::string r = "ChangeLevel(" + t + ", delta=" + std::string(op?"-":"") + rhs
-                          + ", show_levelup=" + std::to_string(show);
+                          + ", show_levelup=" + bool_str(show);
             r += ")";
             return r;
         },
@@ -781,9 +803,9 @@ void register_all_commands() {
                 src  = arg_int(s.args,1,"src",0);
                 val  = arg_int(s.args,2,"val",0);
             }
-            const Arg* show_a = find_arg_by_key(s.args, "show_levelup");
-            if (!show_a) show_a = find_arg_by_key(s.args, "show");
-            int32_t show = show_a ? show_a->val.ival : 0;
+            int32_t show = arg_int(s.args, 0, "show_levelup", 0);
+            if (!find_arg_by_key(s.args, "show_levelup"))
+                show = arg_int(s.args, 0, "show", 0);
             // show_msg は常に6番目パラメータとして出力（0でも省略しない）
             out.push_back(make_cmd(LcfCode::ChangeLevel, ctx.indent, {who, actor, op_i, src, val, show}));
         }
@@ -798,7 +820,7 @@ void register_all_commands() {
             std::string t = who_text(who, id);
             std::string rhs = (src==1) ? "var["+std::to_string(val)+"]" : std::to_string(val);
             std::string r = "ChangeHP(" + t + ", delta=" + std::string(op?"-":"") + rhs
-                          + ", die_allowed=" + std::to_string(die);
+                          + ", die_allowed=" + bool_str(die);
             r += ")";
             return r;
         },
@@ -952,18 +974,21 @@ void register_all_commands() {
         }
     });
 
+    // params: [actor_id, charset(0=全), use_default_name(0=空欄, 1=現在の名前)]
     reg.register_cmd(CmdDef{ LcfCode::EnterHeroName, "EnterHeroName",
         [](const LcfCmd& c) -> std::string {
             std::string r = "EnterHeroName(actor=" + std::to_string(param(c,0));
-            for (size_t i = 1; i < c.parameters.size(); ++i)
-                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            if (c.parameters.size() > 1) r += ", charset=" + std::to_string(c.parameters[1]);
+            if (c.parameters.size() > 2) r += ", use_default_name=" + bool_str(c.parameters[2]);
             r += ")";
             return r;
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            std::vector<int32_t> params = { arg_int(s.args,0,"actor",1) };
-            append_extra_params(s, 1, params);
-            while (params.size() < 3) params.push_back(0);
+            std::vector<int32_t> params = {
+                arg_int(s.args,0,"actor",1),
+                arg_int(s.args,0,"charset",0),
+                arg_int(s.args,0,"use_default_name",0)
+            };
             out.push_back(make_cmd(LcfCode::EnterHeroName, ctx.indent, params));
         }
     });
@@ -1081,7 +1106,7 @@ void register_all_commands() {
             return "TintScreen(r=" + std::to_string(param(c,0))
                  + ", g=" + std::to_string(param(c,1)) + ", b=" + std::to_string(param(c,2))
                  + ", s=" + std::to_string(param(c,3)) + ", frames=" + std::to_string(param(c,4))
-                 + ", wait=" + std::to_string(param(c,5)) + ")";
+                 + ", wait=" + bool_str(param(c,5)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::TintScreen, ctx.indent, {
@@ -1097,7 +1122,7 @@ void register_all_commands() {
             std::string r = "FlashScreen(r=" + std::to_string(param(c,0))
                  + ", g=" + std::to_string(param(c,1)) + ", b=" + std::to_string(param(c,2))
                  + ", power=" + std::to_string(param(c,3)) + ", frames=" + std::to_string(param(c,4))
-                 + ", wait=" + std::to_string(param(c,5));
+                 + ", wait=" + bool_str(param(c,5));
             for (size_t i = 6; i < c.parameters.size(); ++i)
                 r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             r += ")";
@@ -1118,7 +1143,7 @@ void register_all_commands() {
         [](const LcfCmd& c) -> std::string {
             std::string r = "ShakeScreen(power=" + std::to_string(param(c,0))
                  + ", speed=" + std::to_string(param(c,1)) + ", frames=" + std::to_string(param(c,2))
-                 + ", wait=" + std::to_string(param(c,3));
+                 + ", wait=" + bool_str(param(c,3));
             for (size_t i = 4; i < c.parameters.size(); ++i)
                 r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             r += ")";
@@ -1147,7 +1172,7 @@ void register_all_commands() {
                 + ", dir=" + std::to_string(param(c,1))
                 + ", dist=" + std::to_string(param(c,2))
                 + ", speed=" + std::to_string(param(c,3))
-                + ", wait=" + std::to_string(param(c,4)) + ")";
+                + ", wait=" + bool_str(param(c,4)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             std::string op_s = arg_ident(s.args,0,"op","move");
@@ -1190,10 +1215,14 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::ShowPicture, "ShowPicture",
         [](const LcfCmd& c) -> std::string {
+            // インデックス 4=fixed_to_map のみ bool 出力
+            // 7=use_transparent_color は整数で保持（非0/1値が入ることがある）
+            static const std::set<size_t> bool_idx = {4};
             std::string r = "ShowPicture(file=" + quote(str(c.string));
             for (size_t i = 0; i < c.parameters.size(); ++i) {
                 if (i < show_pic_known)
-                    r += ", " + std::string(show_pic_names[i]) + "=" + std::to_string(c.parameters[i]);
+                    r += ", " + std::string(show_pic_names[i]) + "="
+                       + (bool_idx.count(i) ? bool_str(c.parameters[i]) : std::to_string(c.parameters[i]));
                 else
                     r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             }
@@ -1203,9 +1232,13 @@ void register_all_commands() {
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             // 名前付き引数と旧来の pN= 両方に対応
             auto named = [&](size_t i, const char* key, int32_t def) -> int32_t {
-                // 名前付き引数を優先
+                // 名前付き引数を優先 (true/false の Ident も変換する)
                 const Arg* a = find_arg_by_key(s.args, key);
-                if (a) return a->val.ival;
+                if (a) {
+                    if (a->val.sval == "true")  return 1;
+                    if (a->val.sval == "false") return 0;
+                    return a->val.ival;
+                }
                 // 旧形式 pN=
                 std::string pk = "p" + std::to_string(i);
                 a = find_arg_by_key(s.args, pk);
@@ -1261,9 +1294,9 @@ void register_all_commands() {
             std::string nm = char_ref_name(who);
             std::string w = "event=" + (nm.empty() ? std::to_string(who) : nm);
             std::string r = "ShowBattleAnimation(anim=" + std::to_string(param(c,0))
-                 + ", " + w + ", wait=" + std::to_string(param(c,2));
+                 + ", " + w + ", wait=" + bool_str(param(c,2));
             if (c.parameters.size() >= 4)
-                r += ", global=" + std::to_string(param(c,3));
+                r += ", global=" + bool_str(param(c,3));
             r += ")";
             return r;
         },
@@ -1277,14 +1310,14 @@ void register_all_commands() {
             };
             const Arg* ga = find_arg_by_key(s.args, "global");
             if (!ga) ga = find_arg(s.args, 3, "p3"); // 旧形式互換
-            if (ga) params.push_back(ga->val.ival);
+            if (ga) params.push_back(arg_int(s.args, 3, "global", 0));
             out.push_back(make_cmd(LcfCode::ShowBattleAnimation, ctx.indent, params));
         }
     });
 
     reg.register_cmd(CmdDef{ LcfCode::PlayerVisibility, "PlayerVisibility",
         [](const LcfCmd& c) -> std::string {
-            return "PlayerVisibility(visible=" + std::to_string(param(c,0)) + ")";
+            return "PlayerVisibility(visible=" + bool_str(param(c,0)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::PlayerVisibility, ctx.indent, {arg_int(s.args,0,"visible",1)}));
@@ -1327,8 +1360,8 @@ void register_all_commands() {
             // freq/rep/skip が全て0のとき省略（元ファイルで省略されているケース対応）
             if (freq != 0 || rep != 0 || skip != 0) {
                 r += ", freq=" + std::to_string(freq)
-                   + ", repeat=" + std::to_string(rep)
-                   + ", skip=" + std::to_string(skip);
+                   + ", repeat=" + bool_str(rep)
+                   + ", skip=" + bool_str(skip);
             }
 
             // 移動コマンド列を move=[...] 形式でデコード
@@ -1405,9 +1438,9 @@ void register_all_commands() {
             } else if (const Arg* p0 = find_arg_impl(s.args, 0, "")) {
                 who = who_from_arg(*p0);
             }
-            int32_t freq = find_arg_by_key(s.args,"freq")   ? find_arg_by_key(s.args,"freq")->val.ival   : 0;
-            int32_t rep  = find_arg_by_key(s.args,"repeat") ? find_arg_by_key(s.args,"repeat")->val.ival : 0;
-            int32_t skip = find_arg_by_key(s.args,"skip")   ? find_arg_by_key(s.args,"skip")->val.ival   : 0;
+            int32_t freq = arg_int(s.args, 0, "freq",   0);
+            int32_t rep  = arg_int(s.args, 0, "repeat", 0);
+            int32_t skip = arg_int(s.args, 0, "skip",   0);
             // freq/rep/skip が明示されているか確認
             bool has_freq = (find_arg_by_key(s.args,"freq")   != nullptr);
             bool has_rep  = (find_arg_by_key(s.args,"repeat") != nullptr);
@@ -1651,32 +1684,69 @@ void register_all_commands() {
         }
     });
 
+    // params: [mode(0=const,1=var), troop_id, bg_type(0=random,1=named,2=terrain),
+    //          escape_mode(0=不可,1=終了,2=ハンドラ), defeat_mode(0=game_over,1=ハンドラ),
+    //          first_strike, condition(2k3), formation(2k3), terrain_id(2k3)]
     reg.register_cmd(CmdDef{ LcfCode::EnemyEncounter, "EnemyEncounter",
         [](const LcfCmd& c) -> std::string {
-            std::string r = "EnemyEncounter(troop=" + std::to_string(param(c,0))
-                 + ", type=" + std::to_string(param(c,1))
-                 + ", can_escape=" + std::to_string(param(c,4))
-                 + ", can_lose=" + std::to_string(param(c,5));
-            // 背景ファイル名 (文字列) と既知フィールド以外のパラメータは無損失に保持する
-            // (以前は文字列・p2・p3・p6以降がデコード/エンコードで失われていた)
+            int32_t mode        = param(c,0);
+            int32_t troop       = param(c,1);
+            int32_t bg_type     = param(c,2);
+            int32_t escape_mode = param(c,3);
+            int32_t defeat_mode = param(c,4);
+            int32_t first_str   = param(c,5);
+            std::string troop_s = (mode == 1) ? "var[" + std::to_string(troop) + "]"
+                                              : std::to_string(troop);
+            std::string r = "EnemyEncounter(troop=" + troop_s
+                 + ", bg_type=" + std::to_string(bg_type);
             std::string bg = str(c.string);
             if (!bg.empty()) r += ", bg=" + quote(bg);
-            if (param(c,2) != 0) r += ", p2=" + std::to_string(param(c,2));
-            if (param(c,3) != 0) r += ", p3=" + std::to_string(param(c,3));
-            for (size_t i = 6; i < c.parameters.size(); ++i)
+            r += ", escape_mode=" + std::to_string(escape_mode)
+               + ", defeat_mode=" + std::to_string(defeat_mode)
+               + ", first_strike=" + bool_str(first_str);
+            // RPG2k3 追加パラメータ
+            if (c.parameters.size() > 6)
+                r += ", condition=" + std::to_string(c.parameters[6]);
+            if (c.parameters.size() > 7)
+                r += ", formation=" + std::to_string(c.parameters[7]);
+            if (c.parameters.size() > 8)
+                r += ", terrain_id=" + std::to_string(c.parameters[8]);
+            for (size_t i = 9; i < c.parameters.size(); ++i)
                 r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             return r + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
-            auto opt = [&](const char* key) -> int32_t {
+            auto opt = [&](const char* key, int32_t def = 0) -> int32_t {
                 const Arg* a = find_arg_by_key(s.args, key);
-                return a ? a->val.ival : 0;
+                return a ? a->val.ival : def;
             };
+            // troop= は数値または var[N]
+            int32_t mode = 0, troop = 1;
+            const Arg* ta = find_arg_by_key(s.args, "troop");
+            if (ta) {
+                if (ta->val.kind == ArgVal::Indexed && ta->val.sval == "var") {
+                    mode = 1; troop = ta->val.ival;
+                } else {
+                    mode = 0; troop = ta->val.ival;
+                }
+            }
             std::vector<int32_t> params = {
-                arg_int(s.args,0,"troop",1), arg_int(s.args,1,"type",0), opt("p2"), opt("p3"),
-                arg_int(s.args,2,"can_escape",1), arg_int(s.args,3,"can_lose",0)
+                mode, troop,
+                opt("bg_type"),
+                opt("escape_mode", 1),
+                opt("defeat_mode"),
+                arg_int(s.args, 0, "first_strike", 0)
             };
-            append_extra_params(s, 6, params);
+            // RPG2k3 追加パラメータ
+            const Arg* cond_a = find_arg_by_key(s.args, "condition");
+            const Arg* form_a = find_arg_by_key(s.args, "formation");
+            const Arg* terr_a = find_arg_by_key(s.args, "terrain_id");
+            if (cond_a || form_a || terr_a) {
+                params.push_back(cond_a ? cond_a->val.ival : 0);
+                params.push_back(form_a ? form_a->val.ival : 0);
+                if (terr_a) params.push_back(terr_a->val.ival);
+            }
+            append_extra_params(s, 9, params);
             const Arg* bg = find_arg_by_key(s.args, "bg");
             out.push_back(make_cmd(LcfCode::EnemyEncounter, ctx.indent,
                 bg ? bg->val.sval : std::string(), params));
@@ -1710,17 +1780,21 @@ void register_all_commands() {
         }
     });
 
+    // params: [type(0=A,1=B), cost, has_handlers]
     reg.register_cmd(CmdDef{ LcfCode::ShowInn, "ShowInn",
         [](const LcfCmd& c) -> std::string {
             std::string r = "ShowInn(type=" + std::to_string(param(c,0)) + ", cost=" + std::to_string(param(c,1));
-            // 3番目以降 (宿屋イベントハンドラの有無など) は無損失に保持する
-            for (size_t i = 2; i < c.parameters.size(); ++i)
+            if (c.parameters.size() > 2)
+                r += ", has_handlers=" + bool_str(c.parameters[2]);
+            for (size_t i = 3; i < c.parameters.size(); ++i)
                 r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             return r + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             std::vector<int32_t> params = {arg_int(s.args,0,"type",0), arg_int(s.args,1,"cost",100)};
-            append_extra_params(s, 2, params);
+            const Arg* hh = find_arg_by_key(s.args, "has_handlers");
+            if (hh) params.push_back(hh->val.ival);
+            append_extra_params(s, 3, params);
             out.push_back(make_cmd(LcfCode::ShowInn, ctx.indent, params));
         }
     });
@@ -1773,6 +1847,209 @@ void register_all_commands() {
     reg.register_cmd(CmdDef{ LcfCode::EndBranch, "EndBranch",
         [](const LcfCmd&) -> std::string { return "}"; },
         [](const CmdStmt&, EncodeCtx&, CmdVec&) {}
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // バトルイベント専用コマンド (RPG2k3)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // params: [mode(0=all flee,1=monster flee,2=actor flee), monster_id, check_condition]
+    reg.register_cmd(CmdDef{ LcfCode::ForceFlee, "ForceFlee",
+        [](const LcfCmd& c) -> std::string {
+            return "ForceFlee(mode=" + std::to_string(param(c,0))
+                 + ", id=" + std::to_string(param(c,1))
+                 + ", check=" + bool_str(param(c,2)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::ForceFlee, ctx.indent, {
+                arg_int(s.args, 0, "mode",  0),
+                arg_int(s.args, 0, "id",    0),
+                arg_int(s.args, 0, "check", 0)
+            }));
+        }
+    });
+
+    // params: [actor_id, cmd_id, multiple]
+    reg.register_cmd(CmdDef{ LcfCode::EnableCombo, "EnableCombo",
+        [](const LcfCmd& c) -> std::string {
+            return "EnableCombo(actor=" + std::to_string(param(c,0))
+                 + ", cmd=" + std::to_string(param(c,1))
+                 + ", multiple=" + std::to_string(param(c,2)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::EnableCombo, ctx.indent, {
+                arg_int(s.args, 0, "actor",    1),
+                arg_int(s.args, 0, "cmd",      1),
+                arg_int(s.args, 0, "multiple", 1)
+            }));
+        }
+    });
+
+    // params: [enemy_id, op(0=add,1=sub), src(0=const,1=var), val, lethal]
+    reg.register_cmd(CmdDef{ LcfCode::ChangeMonsterHP, "ChangeMonsterHP",
+        [](const LcfCmd& c) -> std::string {
+            int32_t src = param(c,2);
+            std::string rhs = (src == 1) ? "var[" + std::to_string(param(c,3)) + "]"
+                                         : std::to_string(param(c,3));
+            return "ChangeMonsterHP(enemy=" + std::to_string(param(c,0))
+                 + ", delta=" + std::string(param(c,1) ? "-" : "") + rhs
+                 + ", lethal=" + bool_str(param(c,4)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            int32_t src = 0, val = 0, op = 0;
+            const Arg* da = find_arg_impl(s.args, 0, "delta");
+            if (da) {
+                if (da->val.kind == ArgVal::Indexed && da->val.sval == "var")  { src=1; val=da->val.ival; op=0; }
+                else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") { src=1; val=da->val.ival; op=1; }
+                else { src=0; op=da->val.ival<0?1:0; val=std::abs(da->val.ival); }
+            }
+            out.push_back(make_cmd(LcfCode::ChangeMonsterHP, ctx.indent, {
+                arg_int(s.args, 0, "enemy", 0), op, src, val,
+                arg_int(s.args, 0, "lethal", 0)
+            }));
+        }
+    });
+
+    // params: [enemy_id, op(0=add,1=sub), src(0=const,1=var), val]
+    reg.register_cmd(CmdDef{ LcfCode::ChangeMonsterMP, "ChangeMonsterMP",
+        [](const LcfCmd& c) -> std::string {
+            int32_t src = param(c,2);
+            std::string rhs = (src == 1) ? "var[" + std::to_string(param(c,3)) + "]"
+                                         : std::to_string(param(c,3));
+            return "ChangeMonsterMP(enemy=" + std::to_string(param(c,0))
+                 + ", delta=" + std::string(param(c,1) ? "-" : "") + rhs + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            int32_t src = 0, val = 0, op = 0;
+            const Arg* da = find_arg_impl(s.args, 0, "delta");
+            if (da) {
+                if (da->val.kind == ArgVal::Indexed && da->val.sval == "var")  { src=1; val=da->val.ival; op=0; }
+                else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") { src=1; val=da->val.ival; op=1; }
+                else { src=0; op=da->val.ival<0?1:0; val=std::abs(da->val.ival); }
+            }
+            out.push_back(make_cmd(LcfCode::ChangeMonsterMP, ctx.indent, {
+                arg_int(s.args, 0, "enemy", 0), op, src, val
+            }));
+        }
+    });
+
+    // params: [enemy_id, op(0=add,1=remove), state_id]
+    reg.register_cmd(CmdDef{ LcfCode::ChangeMonsterCondition, "ChangeMonsterCondition",
+        [](const LcfCmd& c) -> std::string {
+            return "ChangeMonsterCondition(enemy=" + std::to_string(param(c,0))
+                 + ", op=" + std::string(param(c,1) ? "remove" : "add")
+                 + ", state=" + std::to_string(param(c,2)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            std::string op_s = arg_ident(s.args, 0, "op", "add");
+            out.push_back(make_cmd(LcfCode::ChangeMonsterCondition, ctx.indent, {
+                arg_int(s.args, 0, "enemy", 0),
+                op_s == "remove" ? 1 : 0,
+                arg_int(s.args, 0, "state", 1)
+            }));
+        }
+    });
+
+    // params: [enemy_id]
+    reg.register_cmd(CmdDef{ LcfCode::ShowHiddenMonster, "ShowHiddenMonster",
+        [](const LcfCmd& c) -> std::string {
+            return "ShowHiddenMonster(enemy=" + std::to_string(param(c,0)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::ShowHiddenMonster, ctx.indent,
+                { arg_int(s.args, 0, "enemy", 0) }));
+        }
+    });
+
+    // string=background_file (パラメータなし)
+    reg.register_cmd(CmdDef{ LcfCode::ChangeBattleBG, "ChangeBattleBG",
+        [](const LcfCmd& c) -> std::string {
+            return "ChangeBattleBG(bg=" + quote(str(c.string)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::ChangeBattleBG, ctx.indent,
+                arg_str(s.args, 0, "bg"), {}));
+        }
+    });
+
+    // params: [anim_id, target(0=all enemies,1=enemy_id), wait]
+    reg.register_cmd(CmdDef{ LcfCode::ShowBattleAnimation_B, "ShowBattleAnimation_B",
+        [](const LcfCmd& c) -> std::string {
+            return "ShowBattleAnimation_B(anim=" + std::to_string(param(c,0))
+                 + ", target=" + std::to_string(param(c,1))
+                 + ", wait=" + bool_str(param(c,2)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::ShowBattleAnimation_B, ctx.indent, {
+                arg_int(s.args, 0, "anim",   1),
+                arg_int(s.args, 0, "target", 0),
+                arg_int(s.args, 0, "wait",   1)
+            }));
+        }
+    });
+
+    reg.register_cmd(CmdDef{ LcfCode::TerminateBattle, "TerminateBattle",
+        [](const LcfCmd&) -> std::string { return "TerminateBattle()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::TerminateBattle, ctx.indent));
+        }
+    });
+
+    // バトル用条件分岐 (ConditionalBranch_B / ElseBranch_B / EndBranch_B)
+    // 5パラメータ構造は ConditionalBranch と同じ
+    reg.register_cmd(CmdDef{ LcfCode::ConditionalBranch_B, "ConditionalBranch_B",
+        [](const LcfCmd& c) -> std::string {
+            return "if_battle(/* cond type=" + std::to_string(param(c,0)) + " */) {";
+        },
+        [](const CmdStmt&, EncodeCtx&, CmdVec&) {}
+    });
+
+    reg.register_cmd(CmdDef{ LcfCode::ElseBranch_B, "ElseBranch_B",
+        [](const LcfCmd&) -> std::string { return "} else {"; },
+        [](const CmdStmt&, EncodeCtx&, CmdVec&) {}
+    });
+
+    reg.register_cmd(CmdDef{ LcfCode::EndBranch_B, "EndBranch_B",
+        [](const LcfCmd&) -> std::string { return "}  // end battle branch"; },
+        [](const CmdStmt&, EncodeCtx&, CmdVec&) {}
+    });
+
+    // ショップ・宿屋のサブコマンド (OpenShop/ShowInn の内部構造)
+    reg.register_cmd(CmdDef{ LcfCode::Transaction, "Transaction",
+        [](const LcfCmd&) -> std::string { return "Transaction()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::Transaction, ctx.indent));
+        }
+    });
+    reg.register_cmd(CmdDef{ LcfCode::NoTransaction, "NoTransaction",
+        [](const LcfCmd&) -> std::string { return "NoTransaction()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::NoTransaction, ctx.indent));
+        }
+    });
+    reg.register_cmd(CmdDef{ LcfCode::EndShop, "EndShop",
+        [](const LcfCmd&) -> std::string { return "EndShop()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::EndShop, ctx.indent));
+        }
+    });
+    reg.register_cmd(CmdDef{ LcfCode::Stay, "Stay",
+        [](const LcfCmd&) -> std::string { return "Stay()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::Stay, ctx.indent));
+        }
+    });
+    reg.register_cmd(CmdDef{ LcfCode::NoStay, "NoStay",
+        [](const LcfCmd&) -> std::string { return "NoStay()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::NoStay, ctx.indent));
+        }
+    });
+    reg.register_cmd(CmdDef{ LcfCode::EndInn, "EndInn",
+        [](const LcfCmd&) -> std::string { return "EndInn()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::EndInn, ctx.indent));
+        }
     });
 
     reg.register_cmd(CmdDef{ LcfCode::EndEventProcessing, "EndEventProcessing",
@@ -1881,28 +2158,28 @@ void register_all_commands() {
     });
 
     reg.register_cmd(CmdDef{ LcfCode::ChangeSaveAccess, "ChangeSaveAccess",
-        [](const LcfCmd& c) -> std::string { return "ChangeSaveAccess(enable=" + std::to_string(param(c,0)) + ")"; },
+        [](const LcfCmd& c) -> std::string { return "ChangeSaveAccess(enable=" + bool_str(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeSaveAccess, ctx.indent, {arg_int(s.args,0,"enable",1)}));
         }
     });
 
     reg.register_cmd(CmdDef{ LcfCode::ChangeTeleportAccess, "ChangeTeleportAccess",
-        [](const LcfCmd& c) -> std::string { return "ChangeTeleportAccess(enable=" + std::to_string(param(c,0)) + ")"; },
+        [](const LcfCmd& c) -> std::string { return "ChangeTeleportAccess(enable=" + bool_str(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeTeleportAccess, ctx.indent, {arg_int(s.args,0,"enable",1)}));
         }
     });
 
     reg.register_cmd(CmdDef{ LcfCode::ChangeEscapeAccess, "ChangeEscapeAccess",
-        [](const LcfCmd& c) -> std::string { return "ChangeEscapeAccess(enable=" + std::to_string(param(c,0)) + ")"; },
+        [](const LcfCmd& c) -> std::string { return "ChangeEscapeAccess(enable=" + bool_str(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeEscapeAccess, ctx.indent, {arg_int(s.args,0,"enable",1)}));
         }
     });
 
     reg.register_cmd(CmdDef{ LcfCode::ChangeMainMenuAccess, "ChangeMainMenuAccess",
-        [](const LcfCmd& c) -> std::string { return "ChangeMainMenuAccess(enable=" + std::to_string(param(c,0)) + ")"; },
+        [](const LcfCmd& c) -> std::string { return "ChangeMainMenuAccess(enable=" + bool_str(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeMainMenuAccess, ctx.indent, {arg_int(s.args,0,"enable",1)}));
         }
@@ -1967,7 +2244,7 @@ void register_all_commands() {
     reg.register_cmd(CmdDef{ LcfCode::ChangeSystemGraphics, "ChangeSystemGraphics",
         [](const LcfCmd& c) -> std::string {
             std::string r = "ChangeSystemGraphics(system=" + quote(str(c.string))
-                + ", stretch=" + std::to_string(param(c,0))
+                + ", stretch=" + bool_str(param(c,0))
                 + ", font=" + std::to_string(param(c,1));
             for (size_t i = 2; i < c.parameters.size(); ++i)
                 r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
@@ -2013,7 +2290,7 @@ void register_all_commands() {
             return "ChangeSpriteAssociation(actor=" + std::to_string(param(c,0))
                  + ", sprite=" + quote(str(c.string))
                  + ", sprite_index=" + std::to_string(param(c,1))
-                 + ", transparent=" + std::to_string(param(c,2)) + ")";
+                 + ", transparent=" + bool_str(param(c,2)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             out.push_back(make_cmd(LcfCode::ChangeSpriteAssociation, ctx.indent,
@@ -2021,6 +2298,102 @@ void register_all_commands() {
                 { arg_int(s.args,0,"actor",1),
                   arg_int(s.args,1,"sprite_index",0),
                   arg_int(s.args,2,"transparent",arg_int(s.args,2,"p2",0)) }));
+        }
+    });
+
+    // params: [vehicle(0=boat,1=ship,2=airship), index], string=file
+    reg.register_cmd(CmdDef{ LcfCode::ChangeVehicleGraphic, "ChangeVehicleGraphic",
+        [](const LcfCmd& c) -> std::string {
+            static const char* vehicles[] = {"boat","ship","airship"};
+            int32_t v = param(c,0);
+            std::string vname = (v >= 0 && v <= 2) ? vehicles[v] : std::to_string(v);
+            return "ChangeVehicleGraphic(vehicle=" + vname
+                 + ", sprite=" + quote(str(c.string))
+                 + ", index=" + std::to_string(param(c,1)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            std::string vname = arg_ident(s.args, 0, "vehicle", "boat");
+            int32_t v = 0;
+            if      (vname == "boat")    v = 0;
+            else if (vname == "ship")    v = 1;
+            else if (vname == "airship") v = 2;
+            else { try { v = std::stoi(vname); } catch (...) {} }
+            out.push_back(make_cmd(LcfCode::ChangeVehicleGraphic, ctx.indent,
+                arg_str(s.args, 0, "sprite"),
+                { v, arg_int(s.args, 1, "index", 0) }));
+        }
+    });
+
+    // params: [who(0=party,1=actor,2=var), actor_id, atk, def_pct, spi_pct, var_pct,
+    //          store_result(0/1), result_var]
+    reg.register_cmd(CmdDef{ LcfCode::SimulatedAttack, "SimulatedAttack",
+        [](const LcfCmd& c) -> std::string {
+            std::string t = who_text(param(c,0), param(c,1));
+            std::string r = "SimulatedAttack(" + t
+                 + ", atk=" + std::to_string(param(c,2))
+                 + ", def=" + std::to_string(param(c,3))
+                 + ", spi=" + std::to_string(param(c,4))
+                 + ", var=" + std::to_string(param(c,5));
+            if (param(c,6) != 0)
+                r += ", result_var=" + std::to_string(param(c,7));
+            return r + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            auto [who, actor] = parse_who(s.args);
+            int32_t atk = arg_int(s.args, 0, "atk", 0);
+            int32_t def = arg_int(s.args, 0, "def", 0);
+            int32_t spi = arg_int(s.args, 0, "spi", 0);
+            int32_t var = arg_int(s.args, 0, "var", 0);
+            const Arg* rv = find_arg_by_key(s.args, "result_var");
+            std::vector<int32_t> params = {who, actor, atk, def, spi, var,
+                rv ? 1 : 0, rv ? rv->val.ival : 0};
+            out.push_back(make_cmd(LcfCode::SimulatedAttack, ctx.indent, params));
+        }
+    });
+
+    // params: [who(0=party,1=actor,2=var), actor_id, class_id, level1,
+    //          skill_mode(0=no change,1=replace,2=add), param_mode, show_msg]
+    // RPG2k3 のみ
+    reg.register_cmd(CmdDef{ LcfCode::ChangeClass, "ChangeClass",
+        [](const LcfCmd& c) -> std::string {
+            std::string t = who_text(param(c,0), param(c,1), true);
+            return "ChangeClass(" + t
+                 + ", class=" + std::to_string(param(c,2))
+                 + ", level1=" + bool_str(param(c,3))
+                 + ", skill_mode=" + std::to_string(param(c,4))
+                 + ", param_mode=" + std::to_string(param(c,5))
+                 + ", show_msg=" + bool_str(param(c,6)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            auto [who, actor] = parse_who(s.args);
+            out.push_back(make_cmd(LcfCode::ChangeClass, ctx.indent, {
+                who, actor,
+                arg_int(s.args, 0, "class",      0),
+                arg_int(s.args, 0, "level1",     0),
+                arg_int(s.args, 0, "skill_mode", 0),
+                arg_int(s.args, 0, "param_mode", 0),
+                arg_int(s.args, 0, "show_msg",   0)
+            }));
+        }
+    });
+
+    // params: [who(0=party,1=actor,2=var), actor_id, cmd_id, add(0=remove,1=add)]
+    // RPG2k3 のみ
+    reg.register_cmd(CmdDef{ LcfCode::ChangeBattleCommands, "ChangeBattleCommands",
+        [](const LcfCmd& c) -> std::string {
+            std::string t = who_text(param(c,0), param(c,1), true);
+            return "ChangeBattleCommands(" + t
+                 + ", op=" + std::string(param(c,3) ? "add" : "remove")
+                 + ", cmd=" + std::to_string(param(c,2)) + ")";
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            auto [who, actor] = parse_who(s.args);
+            int32_t op = add_remove_op(s.args, "op");
+            out.push_back(make_cmd(LcfCode::ChangeBattleCommands, ctx.indent, {
+                who, actor,
+                arg_int(s.args, 0, "cmd", 1),
+                op
+            }));
         }
     });
 
@@ -2096,11 +2469,15 @@ void register_all_commands() {
 
     reg.register_cmd(CmdDef{ LcfCode::MovePicture, "MovePicture",
         [](const LcfCmd& c) -> std::string {
+            // インデックス 4=fixed_to_map のみ bool 出力
+            // 7=use_transparent_color, 15=wait は整数で保持（非0/1値が入ることがある）
+            static const std::set<size_t> bool_idx = {4};
             std::string r = "MovePicture(";
             for (size_t i = 0; i < c.parameters.size(); ++i) {
                 if (i) r += ", ";
                 if (i < move_pic_known)
-                    r += std::string(move_pic_names[i]) + "=" + std::to_string(c.parameters[i]);
+                    r += std::string(move_pic_names[i]) + "="
+                       + (bool_idx.count(i) ? bool_str(c.parameters[i]) : std::to_string(c.parameters[i]));
                 else
                     r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
             }
@@ -2110,7 +2487,11 @@ void register_all_commands() {
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             auto named = [&](size_t i, const char* key, int32_t def) -> int32_t {
                 const Arg* a = find_arg_by_key(s.args, key);
-                if (a) return a->val.ival;
+                if (a) {
+                    if (a->val.sval == "true")  return 1;
+                    if (a->val.sval == "false") return 0;
+                    return a->val.ival;
+                }
                 std::string pk = "p" + std::to_string(i);
                 a = find_arg_by_key(s.args, pk);
                 if (a) return a->val.ival;
@@ -2150,7 +2531,7 @@ void register_all_commands() {
                  + ", b=" + std::to_string(param(c,3))
                  + ", chroma=" + std::to_string(param(c,4))
                  + ", duration=" + std::to_string(param(c,5))
-                 + ", wait=" + std::to_string(param(c,6)) + ")";
+                 + ", wait=" + bool_str(param(c,6)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
             const Arg* ea = find_arg_impl(s.args, 0, "event");
@@ -2165,6 +2546,790 @@ void register_all_commands() {
                   arg_int(s.args,6,"wait",1) }));
         }
     });
+
+    // EasyRPG Player 拡張コマンド (パラメータなし)
+    // CmdSetup<..., 0> で登録されているため全て引数なし
+
+    reg.register_cmd(CmdDef{ LcfCode::ToggleAtbMode, "ToggleAtbMode",
+        [](const LcfCmd&) -> std::string { return "ToggleAtbMode()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::ToggleAtbMode, ctx.indent));
+        }
+    });
+
+    reg.register_cmd(CmdDef{ LcfCode::ToggleFullscreen, "ToggleFullscreen",
+        [](const LcfCmd&) -> std::string { return "ToggleFullscreen()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::ToggleFullscreen, ctx.indent));
+        }
+    });
+
+    reg.register_cmd(CmdDef{ LcfCode::OpenVideoOptions, "OpenVideoOptions",
+        [](const LcfCmd&) -> std::string { return "OpenVideoOptions()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::OpenVideoOptions, ctx.indent));
+        }
+    });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // EasyRPG Player 独自拡張コマンド (名前付き引数)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // 汎用エンコーダ: 引数名リストで順番通りに pN= を読む
+    // (EasyRPGのパラメータ列に直接対応している場合に使う)
+    auto named_encode = [](LcfCode code, const std::vector<const char*>& names,
+                           const std::string& str_key = "") {
+        return [code, names, str_key](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            LcfCmd c;
+            c.code   = static_cast<int32_t>(code);
+            c.indent = ctx.indent;
+            if (!str_key.empty()) {
+                const Arg* sa = find_arg_by_key(s.args, str_key);
+                c.string = lcf::DBString(sa ? sa->val.sval : std::string());
+            }
+            std::vector<int32_t> params;
+            for (size_t i = 0; i < names.size(); ++i)
+                params.push_back(arg_int(s.args, i, names[i], 0));
+            // 末尾の余分な pN= も保持
+            for (size_t i = names.size(); ; ++i) {
+                const Arg* a = find_arg_by_key(s.args, "p" + std::to_string(i));
+                if (!a) break;
+                params.push_back(a->val.ival);
+            }
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        };
+    };
+
+    // ─── EasyRpg_TriggerEventAt ───────────────────────────────────────────
+    // p0=mode_x, p1=x, p2=mode_y, p3=y [, p4=flags]
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_TriggerEventAt, "EasyRpg_TriggerEventAt",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "EasyRpg_TriggerEventAt("
+                "mode_x=" + std::to_string(param(c,0))
+                + ", x=" + std::to_string(param(c,1))
+                + ", mode_y=" + std::to_string(param(c,2))
+                + ", y=" + std::to_string(param(c,3));
+            if (c.parameters.size() > 4)
+                r += ", flags=" + std::to_string(param(c,4));
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::EasyRpg_TriggerEventAt, {"mode_x","x","mode_y","y","flags"})
+    });
+
+    // ─── EasyRpg_Pathfinder ───────────────────────────────────────────────
+    // p0=mode_src, p1=src_event, p2=mode_dest_x, p3=dest_x,
+    // p4=mode_dest_y, p5=dest_y, p6=mode_search, p7=search_max,
+    // p8=mode_steps, p9=steps_max, p10=flags, p11=mode_ignore, p12=num_ignore
+    // (p13以降: 無視するイベントIDのリスト; p13+N+1,+2: move_freq)
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_Pathfinder, "EasyRpg_Pathfinder",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "mode_src","src_event","mode_dest_x","dest_x",
+                "mode_dest_y","dest_y","mode_search","search_max",
+                "mode_steps","steps_max","flags","mode_ignore","num_ignore"
+            };
+            std::string r = "EasyRpg_Pathfinder(";
+            for (size_t i = 0; i < 13 && i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                r += std::string(names[i]) + "=" + std::to_string(c.parameters[i]);
+            }
+            for (size_t i = 13; i < c.parameters.size(); ++i)
+                r += ", p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::EasyRpg_Pathfinder,
+            {"mode_src","src_event","mode_dest_x","dest_x",
+             "mode_dest_y","dest_y","mode_search","search_max",
+             "mode_steps","steps_max","flags","mode_ignore","num_ignore"})
+    });
+
+    // ─── EasyRpg_CallMovementAction ── 実装なし、パラメータ不明 ───────────
+    // (liblcfに存在するが EasyRPG Player に実装なし)
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_CallMovementAction, "EasyRpg_CallMovementAction",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "EasyRpg_CallMovementAction(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::EasyRpg_CallMovementAction, {})
+    });
+
+    // ─── EasyRpg_WaitForSingleMovement ───────────────────────────────────
+    // p0=mode_event, p1=event_id, p2=mode_fail, p3=fail_limit,
+    // p4=mode_out, p5=out_var
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_WaitForSingleMovement, "EasyRpg_WaitForSingleMovement",
+        [](const LcfCmd& c) -> std::string {
+            return "EasyRpg_WaitForSingleMovement("
+                "mode_event=" + std::to_string(param(c,0))
+                + ", event_id=" + std::to_string(param(c,1))
+                + ", mode_fail=" + std::to_string(param(c,2))
+                + ", fail_limit=" + std::to_string(param(c,3))
+                + ", mode_out=" + std::to_string(param(c,4))
+                + ", out_var=" + std::to_string(param(c,5)) + ")";
+        },
+        named_encode(LcfCode::EasyRpg_WaitForSingleMovement,
+            {"mode_event","event_id","mode_fail","fail_limit","mode_out","out_var"})
+    });
+
+    // ─── EasyRpg_AnimateVariable ── 実装なし、パラメータ不明 ─────────────
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_AnimateVariable, "EasyRpg_AnimateVariable",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "EasyRpg_AnimateVariable(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::EasyRpg_AnimateVariable, {})
+    });
+
+    // ─── EasyRpg_SetInterpreterFlag ──────────────────────────────────────
+    // str=flag_name, p0=mode, p1=flag_value [, p2=flag_id]
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_SetInterpreterFlag, "EasyRpg_SetInterpreterFlag",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "EasyRpg_SetInterpreterFlag(";
+            const std::string sv = std::string(c.string.begin(), c.string.end());
+            if (!sv.empty()) r += "flag=" + quote_string(sv) + ", ";
+            r += "mode=" + std::to_string(param(c,0))
+               + ", flag_value=" + std::to_string(param(c,1));
+            if (c.parameters.size() > 2)
+                r += ", flag_id=" + std::to_string(param(c,2));
+            r += ")";
+            return r;
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            LcfCmd c;
+            c.code   = static_cast<int32_t>(LcfCode::EasyRpg_SetInterpreterFlag);
+            c.indent = ctx.indent;
+            const Arg* fa = find_arg_by_key(s.args, "flag");
+            c.string = lcf::DBString(fa ? fa->val.sval : std::string());
+            std::vector<int32_t> params = {
+                arg_int(s.args, 0, "mode",       0),
+                arg_int(s.args, 1, "flag_value", 0)
+            };
+            const Arg* fid = find_arg_by_key(s.args, "flag_id");
+            if (fid) params.push_back(fid->val.ival);
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        }
+    });
+
+    // ─── EasyRpg_ProcessJson ─────────────────────────────────────────────
+    // str=json_path (with mode in p8/p9), p0=mode_op, p1=operation,
+    // p2=src_mode, p3=src_str_id, p4=mode_tgt_type, p5=tgt_type,
+    // p6=mode_tgt_id, p7=tgt_id, p8=path_mode, p9=path_pos [, p10=flags]
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_ProcessJson, "EasyRpg_ProcessJson",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "mode_op","operation","src_mode","src_str_id",
+                "mode_tgt_type","tgt_type","mode_tgt_id","tgt_id",
+                "path_mode","path_pos","flags"
+            };
+            const std::string sv = std::string(c.string.begin(), c.string.end());
+            std::string r = "EasyRpg_ProcessJson(";
+            if (!sv.empty()) r += "json_path=" + quote_string(sv) + ", ";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i || !sv.empty()) r += ", ";
+                const char* n = (i < 11) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            LcfCmd c;
+            c.code   = static_cast<int32_t>(LcfCode::EasyRpg_ProcessJson);
+            c.indent = ctx.indent;
+            const Arg* pa = find_arg_by_key(s.args, "json_path");
+            c.string = lcf::DBString(pa ? pa->val.sval : std::string());
+            static const char* names[] = {
+                "mode_op","operation","src_mode","src_str_id",
+                "mode_tgt_type","tgt_type","mode_tgt_id","tgt_id",
+                "path_mode","path_pos","flags"
+            };
+            std::vector<int32_t> params;
+            for (size_t i = 0; i < 11; ++i)
+                params.push_back(arg_int(s.args, i, names[i], 0));
+            for (size_t i = 11; ; ++i) {
+                const Arg* a = find_arg_by_key(s.args, "p" + std::to_string(i));
+                if (!a) break;
+                params.push_back(a->val.ival);
+            }
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        }
+    });
+
+    // ─── EasyRpg_CloneMapEvent ────────────────────────────────────────────
+    // str=target_name, p0=src_map_mode, p1=src_map,
+    // p2=src_event_mode, p3=src_event,
+    // p4=target_x_mode, p5=target_x,
+    // p6=target_y_mode, p7=target_y,
+    // p8=target_event_mode, p9=target_event [, p10=str_mode, p11=str_id]
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_CloneMapEvent, "EasyRpg_CloneMapEvent",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "src_map_mode","src_map","src_event_mode","src_event",
+                "target_x_mode","target_x","target_y_mode","target_y",
+                "target_event_mode","target_event","str_mode","str_id"
+            };
+            const std::string sv = std::string(c.string.begin(), c.string.end());
+            std::string r = "EasyRpg_CloneMapEvent(";
+            if (!sv.empty()) r += "target_name=" + quote_string(sv) + ", ";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i || !sv.empty()) r += ", ";
+                const char* n = (i < 12) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            LcfCmd c;
+            c.code   = static_cast<int32_t>(LcfCode::EasyRpg_CloneMapEvent);
+            c.indent = ctx.indent;
+            const Arg* na = find_arg_by_key(s.args, "target_name");
+            c.string = lcf::DBString(na ? na->val.sval : std::string());
+            static const char* names[] = {
+                "src_map_mode","src_map","src_event_mode","src_event",
+                "target_x_mode","target_x","target_y_mode","target_y",
+                "target_event_mode","target_event","str_mode","str_id"
+            };
+            std::vector<int32_t> params;
+            for (size_t i = 0; i < 12; ++i)
+                params.push_back(arg_int(s.args, i, names[i], 0));
+            for (size_t i = 12; ; ++i) {
+                const Arg* a = find_arg_by_key(s.args, "p" + std::to_string(i));
+                if (!a) break;
+                params.push_back(a->val.ival);
+            }
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        }
+    });
+
+    // ─── EasyRpg_DestroyMapEvent ──────────────────────────────────────────
+    // p0=mode, p1=target_event
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_DestroyMapEvent, "EasyRpg_DestroyMapEvent",
+        [](const LcfCmd& c) -> std::string {
+            return "EasyRpg_DestroyMapEvent("
+                "mode=" + std::to_string(param(c,0))
+                + ", target_event=" + std::to_string(param(c,1)) + ")";
+        },
+        named_encode(LcfCode::EasyRpg_DestroyMapEvent, {"mode","target_event"})
+    });
+
+    // ─── EasyRpg_StringPictureMenu ── 実装なし、パラメータ不明 ──────────
+    reg.register_cmd(CmdDef{ LcfCode::EasyRpg_StringPictureMenu, "EasyRpg_StringPictureMenu",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "EasyRpg_StringPictureMenu(";
+            const std::string sv = std::string(c.string.begin(), c.string.end());
+            if (!sv.empty()) r += "str=" + quote_string(sv);
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i || !sv.empty()) r += ", ";
+                r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::EasyRpg_StringPictureMenu, {}, "str")
+    });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Maniac Patch コマンド (名前付き引数)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ─── Maniac_GetSaveInfo ───────────────────────────────────────────────
+    // p0=slot_mode, p1=slot, p2=out_date_var, p3=out_time_var,
+    // p4=out_level_var, p5=out_hp_var, p6=(unused), p7=face_mode,
+    // p8..p11=face_pic_ids
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_GetSaveInfo, "Maniac_GetSaveInfo",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "slot_mode","slot","out_date_var","out_time_var",
+                "out_level_var","out_hp_var","p6","face_mode",
+                "face_pic0","face_pic1","face_pic2","face_pic3"
+            };
+            std::string r = "Maniac_GetSaveInfo(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                const char* n = (i < 12) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_GetSaveInfo,
+            {"slot_mode","slot","out_date_var","out_time_var",
+             "out_level_var","out_hp_var","p6","face_mode",
+             "face_pic0","face_pic1","face_pic2","face_pic3"})
+    });
+
+    // ─── Maniac_Save ──────────────────────────────────────────────────────
+    // p0=slot_mode, p1=slot, p2=has_out_var [, p3=out_var]
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_Save, "Maniac_Save",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "Maniac_Save("
+                "slot_mode=" + std::to_string(param(c,0))
+                + ", slot=" + std::to_string(param(c,1))
+                + ", has_out_var=" + std::to_string(param(c,2));
+            if (c.parameters.size() > 3)
+                r += ", out_var=" + std::to_string(param(c,3));
+            r += ")";
+            return r;
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            std::vector<int32_t> params = {
+                arg_int(s.args, 0, "slot_mode",   0),
+                arg_int(s.args, 1, "slot",         1),
+                arg_int(s.args, 2, "has_out_var",  0)
+            };
+            const Arg* ov = find_arg_by_key(s.args, "out_var");
+            if (ov) params.push_back(ov->val.ival);
+            out.push_back(make_cmd(LcfCode::Maniac_Save, ctx.indent, params));
+        }
+    });
+
+    // ─── Maniac_Load ──────────────────────────────────────────────────────
+    // p0=slot_mode, p1=slot, p2=skip_check
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_Load, "Maniac_Load",
+        [](const LcfCmd& c) -> std::string {
+            return "Maniac_Load("
+                "slot_mode=" + std::to_string(param(c,0))
+                + ", slot=" + std::to_string(param(c,1))
+                + ", skip_check=" + bool_str(param(c,2)) + ")";
+        },
+        named_encode(LcfCode::Maniac_Load, {"slot_mode","slot","skip_check"})
+    });
+
+    // ─── Maniac_EndLoadProcess ────────────────────────────────────────────
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_EndLoadProcess, "Maniac_EndLoadProcess",
+        [](const LcfCmd&) -> std::string { return "Maniac_EndLoadProcess()"; },
+        [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
+            out.push_back(make_cmd(LcfCode::Maniac_EndLoadProcess, ctx.indent));
+        }
+    });
+
+    // ─── Maniac_GetMousePosition ──────────────────────────────────────────
+    // p0=x_var, p1=y_var
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_GetMousePosition, "Maniac_GetMousePosition",
+        [](const LcfCmd& c) -> std::string {
+            return "Maniac_GetMousePosition("
+                "x_var=" + std::to_string(param(c,0))
+                + ", y_var=" + std::to_string(param(c,1)) + ")";
+        },
+        named_encode(LcfCode::Maniac_GetMousePosition, {"x_var","y_var"})
+    });
+
+    // ─── Maniac_SetMousePosition ──────────────────────────────────────────
+    // (EasyRPGに実装なし; 3パラメータを汎用保持)
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_SetMousePosition, "Maniac_SetMousePosition",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "Maniac_SetMousePosition(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_SetMousePosition, {})
+    });
+
+    // ─── Maniac_ShowStringPicture ─────────────────────────────────────────
+    // p0=bitfield, p1=pic_id, p2=x, p3=y, p4=magnify_w, p5=top_trans,
+    // p6=red, p7=green, p8=blue, p9=saturation, p10=effect_mode,
+    // p11=effect_power, p12=flags, p13=flags2, p14=flags3,
+    // p15=map_layer, p16=battle_layer, p17=flags4, p18=width,
+    // p19=height, p20=font_size, p21=angle_divisor, p22=str_id
+    // [, p23=magnify_h]
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_ShowStringPicture, "Maniac_ShowStringPicture",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "bitfield","pic_id","x","y","magnify_w","top_trans",
+                "red","green","blue","saturation","effect_mode","effect_power",
+                "flags","flags2","flags3","map_layer","battle_layer","flags4",
+                "width","height","font_size","angle_divisor","str_id","magnify_h"
+            };
+            std::string r = "Maniac_ShowStringPicture(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                const char* n = (i < 24) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_ShowStringPicture,
+            {"bitfield","pic_id","x","y","magnify_w","top_trans",
+             "red","green","blue","saturation","effect_mode","effect_power",
+             "flags","flags2","flags3","map_layer","battle_layer","flags4",
+             "width","height","font_size","angle_divisor","str_id","magnify_h"})
+    });
+
+    // ─── Maniac_GetPictureInfo ────────────────────────────────────────────
+    // p0=bitfield, p1=info_type, p2=coord_mode, p3=pic_id,
+    // p4=out_var, p5=out_var2, p6=out_w_var, p7=out_h_var
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_GetPictureInfo, "Maniac_GetPictureInfo",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "bitfield","info_type","coord_mode","pic_id",
+                "out_var","out_var2","out_w_var","out_h_var"
+            };
+            std::string r = "Maniac_GetPictureInfo(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                const char* n = (i < 8) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_GetPictureInfo,
+            {"bitfield","info_type","coord_mode","pic_id",
+             "out_var","out_var2","out_w_var","out_h_var"})
+    });
+
+    // ─── Maniac_ControlBattle / Maniac_ControlAtbGauge /
+    //     Maniac_ChangeBattleCommandEx / Maniac_GetBattleInfo ────────────
+    // (EasyRPGに実装なし; 汎用保持)
+    {
+        auto generic_battle_decode = [](const char* name) {
+            return [name](const LcfCmd& c) -> std::string {
+                std::string r = std::string(name) + "(";
+                for (size_t i = 0; i < c.parameters.size(); ++i) {
+                    if (i) r += ", ";
+                    r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+                }
+                r += ")";
+                return r;
+            };
+        };
+        reg.register_cmd(CmdDef{ LcfCode::Maniac_ControlBattle,        "Maniac_ControlBattle",
+            generic_battle_decode("Maniac_ControlBattle"),
+            named_encode(LcfCode::Maniac_ControlBattle, {}) });
+        reg.register_cmd(CmdDef{ LcfCode::Maniac_ControlAtbGauge,      "Maniac_ControlAtbGauge",
+            generic_battle_decode("Maniac_ControlAtbGauge"),
+            named_encode(LcfCode::Maniac_ControlAtbGauge, {}) });
+        reg.register_cmd(CmdDef{ LcfCode::Maniac_ChangeBattleCommandEx,"Maniac_ChangeBattleCommandEx",
+            generic_battle_decode("Maniac_ChangeBattleCommandEx"),
+            named_encode(LcfCode::Maniac_ChangeBattleCommandEx, {}) });
+        reg.register_cmd(CmdDef{ LcfCode::Maniac_GetBattleInfo,        "Maniac_GetBattleInfo",
+            generic_battle_decode("Maniac_GetBattleInfo"),
+            named_encode(LcfCode::Maniac_GetBattleInfo, {}) });
+    }
+
+    // ─── Maniac_ControlVarArray ───────────────────────────────────────────
+    // p0=op, p1=mode, p2=target_a, p3=length, p4=target_b
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_ControlVarArray, "Maniac_ControlVarArray",
+        [](const LcfCmd& c) -> std::string {
+            return "Maniac_ControlVarArray("
+                "op=" + std::to_string(param(c,0))
+                + ", mode=" + std::to_string(param(c,1))
+                + ", target_a=" + std::to_string(param(c,2))
+                + ", length=" + std::to_string(param(c,3))
+                + ", target_b=" + std::to_string(param(c,4)) + ")";
+        },
+        named_encode(LcfCode::Maniac_ControlVarArray, {"op","mode","target_a","length","target_b"})
+    });
+
+    // ─── Maniac_KeyInputProcEx ────────────────────────────────────────────
+    // p0=operation, p1=start_var_id, p2=mode_key, p3=key_id
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_KeyInputProcEx, "Maniac_KeyInputProcEx",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "Maniac_KeyInputProcEx("
+                "operation=" + std::to_string(param(c,0))
+                + ", start_var_id=" + std::to_string(param(c,1));
+            if (c.parameters.size() > 2)
+                r += ", mode_key=" + std::to_string(param(c,2));
+            if (c.parameters.size() > 3)
+                r += ", key_id=" + std::to_string(param(c,3));
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_KeyInputProcEx, {"operation","start_var_id","mode_key","key_id"})
+    });
+
+    // ─── Maniac_RewriteMap ────────────────────────────────────────────────
+    // p0=mode, p1=is_replace_range, p2=is_upper_layer, p3=tile_index,
+    // p4=x_start, p5=y_start, p6=width, p7=height, p8=disable_autotile
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_RewriteMap, "Maniac_RewriteMap",
+        [](const LcfCmd& c) -> std::string {
+            return "Maniac_RewriteMap("
+                "mode=" + std::to_string(param(c,0))
+                + ", is_replace_range=" + bool_str(param(c,1))
+                + ", is_upper_layer=" + bool_str(param(c,2))
+                + ", tile_index=" + std::to_string(param(c,3))
+                + ", x_start=" + std::to_string(param(c,4))
+                + ", y_start=" + std::to_string(param(c,5))
+                + ", width=" + std::to_string(param(c,6))
+                + ", height=" + std::to_string(param(c,7))
+                + ", disable_autotile=" + bool_str(param(c,8)) + ")";
+        },
+        named_encode(LcfCode::Maniac_RewriteMap,
+            {"mode","is_replace_range","is_upper_layer","tile_index",
+             "x_start","y_start","width","height","disable_autotile"})
+    });
+
+    // ─── Maniac_ControlGlobalSave ─────────────────────────────────────────
+    // p0=operation, p1=mode_bits, p2=type, p3=game_state_idx,
+    // p4=global_save_idx, p5=length
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_ControlGlobalSave, "Maniac_ControlGlobalSave",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "operation","mode_bits","type","game_state_idx","global_save_idx","length"
+            };
+            std::string r = "Maniac_ControlGlobalSave(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                const char* n = (i < 6) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_ControlGlobalSave,
+            {"operation","mode_bits","type","game_state_idx","global_save_idx","length"})
+    });
+
+    // ─── Maniac_ChangePictureId ── EasyRPGに実装なし ──────────────────────
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_ChangePictureId, "Maniac_ChangePictureId",
+        [](const LcfCmd& c) -> std::string {
+            std::string r = "Maniac_ChangePictureId(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_ChangePictureId, {})
+    });
+
+    // ─── Maniac_SetGameOption ─────────────────────────────────────────────
+    // p0=mode, p1=option_type, p2=value, p3=flags
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_SetGameOption, "Maniac_SetGameOption",
+        [](const LcfCmd& c) -> std::string {
+            return "Maniac_SetGameOption("
+                "mode=" + std::to_string(param(c,0))
+                + ", option_type=" + std::to_string(param(c,1))
+                + ", value=" + std::to_string(param(c,2))
+                + ", flags=" + std::to_string(param(c,3)) + ")";
+        },
+        named_encode(LcfCode::Maniac_SetGameOption, {"mode","option_type","value","flags"})
+    });
+
+    // ─── Maniac_CallCommand ───────────────────────────────────────────────
+    // p0=mode_code, p1=cmd_code, p2=start_or_mode_index, p3=length,
+    // p4=str_mode, p5=str_id  (p5以降はインラインパラメータ列)
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_CallCommand, "Maniac_CallCommand",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "mode_code","cmd_code","start_or_mode_index","length","str_mode","str_id"
+            };
+            const std::string sv = std::string(c.string.begin(), c.string.end());
+            std::string r = "Maniac_CallCommand(";
+            if (!sv.empty()) r += "str=" + quote_string(sv) + ", ";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i || !sv.empty()) r += ", ";
+                const char* n = (i < 6) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            LcfCmd c;
+            c.code   = static_cast<int32_t>(LcfCode::Maniac_CallCommand);
+            c.indent = ctx.indent;
+            const Arg* sa = find_arg_by_key(s.args, "str");
+            c.string = lcf::DBString(sa ? sa->val.sval : std::string());
+            static const char* names[] = {
+                "mode_code","cmd_code","start_or_mode_index","length","str_mode","str_id"
+            };
+            std::vector<int32_t> params;
+            for (size_t i = 0; i < 6; ++i)
+                params.push_back(arg_int(s.args, i, names[i], 0));
+            for (size_t i = 6; ; ++i) {
+                const Arg* a = find_arg_by_key(s.args, "p" + std::to_string(i));
+                if (!a) break;
+                params.push_back(a->val.ival);
+            }
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        }
+    });
+
+    // ─── Maniac_ControlStrings ────────────────────────────────────────────
+    // str=string_literal, p0=mode_bits, p1=str_id_0, p2=str_id_1,
+    // p3=op_flags, p4=arg0, p5=arg1, p6=arg2 [, p7=arg3]
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_ControlStrings, "Maniac_ControlStrings",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "mode_bits","str_id_0","str_id_1","op_flags","arg0","arg1","arg2","arg3"
+            };
+            const std::string sv = std::string(c.string.begin(), c.string.end());
+            std::string r = "Maniac_ControlStrings(";
+            if (!sv.empty()) r += "str=" + quote_string(sv) + ", ";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i || !sv.empty()) r += ", ";
+                const char* n = (i < 8) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            LcfCmd c;
+            c.code   = static_cast<int32_t>(LcfCode::Maniac_ControlStrings);
+            c.indent = ctx.indent;
+            const Arg* sa = find_arg_by_key(s.args, "str");
+            c.string = lcf::DBString(sa ? sa->val.sval : std::string());
+            static const char* names[] = {
+                "mode_bits","str_id_0","str_id_1","op_flags","arg0","arg1","arg2","arg3"
+            };
+            std::vector<int32_t> params;
+            for (size_t i = 0; i < 8; ++i)
+                params.push_back(arg_int(s.args, i, names[i], 0));
+            for (size_t i = 8; ; ++i) {
+                const Arg* a = find_arg_by_key(s.args, "p" + std::to_string(i));
+                if (!a) break;
+                params.push_back(a->val.ival);
+            }
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        }
+    });
+
+    // ─── Maniac_GetGameInfo ───────────────────────────────────────────────
+    // p0=bitfield, p1=info_type, p2=out_var, p3=extra_var,
+    // p4=extra2, p5=coord_x, p6=coord_y, p7=out_var2
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_GetGameInfo, "Maniac_GetGameInfo",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "bitfield","info_type","out_var","extra_var","extra2","coord_x","coord_y","out_var2"
+            };
+            std::string r = "Maniac_GetGameInfo(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                const char* n = (i < 8) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_GetGameInfo,
+            {"bitfield","info_type","out_var","extra_var","extra2","coord_x","coord_y","out_var2"})
+    });
+
+    // ─── Maniac_EditPicture ───────────────────────────────────────────────
+    // p0=bitfield, p1=pic_id, p2=op, p3=mode, p4=arg0, p5=arg1,
+    // p6=arg2, p7=arg3
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_EditPicture, "Maniac_EditPicture",
+        [](const LcfCmd& c) -> std::string {
+            static const char* names[] = {
+                "bitfield","pic_id","op","mode","arg0","arg1","arg2","arg3"
+            };
+            std::string r = "Maniac_EditPicture(";
+            for (size_t i = 0; i < c.parameters.size(); ++i) {
+                if (i) r += ", ";
+                const char* n = (i < 8) ? names[i] : nullptr;
+                if (n) r += std::string(n) + "=";
+                else   r += "p" + std::to_string(i) + "=";
+                r += std::to_string(c.parameters[i]);
+            }
+            r += ")";
+            return r;
+        },
+        named_encode(LcfCode::Maniac_EditPicture,
+            {"bitfield","pic_id","op","mode","arg0","arg1","arg2","arg3"})
+    });
+
+    // ─── Maniac_WritePicture ──────────────────────────────────────────────
+    // p0=mode_bits, p1=target_type, p2=pic_id, p3=filename_id, p4=flags
+    reg.register_cmd(CmdDef{ LcfCode::Maniac_WritePicture, "Maniac_WritePicture",
+        [](const LcfCmd& c) -> std::string {
+            const std::string sv = std::string(c.string.begin(), c.string.end());
+            std::string r = "Maniac_WritePicture(";
+            if (!sv.empty()) r += "filename=" + quote_string(sv) + ", ";
+            r += "mode_bits=" + std::to_string(param(c,0))
+               + ", target_type=" + std::to_string(param(c,1))
+               + ", pic_id=" + std::to_string(param(c,2))
+               + ", filename_id=" + std::to_string(param(c,3))
+               + ", flags=" + std::to_string(param(c,4)) + ")";
+            return r;
+        },
+        [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
+            LcfCmd c;
+            c.code   = static_cast<int32_t>(LcfCode::Maniac_WritePicture);
+            c.indent = ctx.indent;
+            const Arg* fa = find_arg_by_key(s.args, "filename");
+            c.string = lcf::DBString(fa ? fa->val.sval : std::string());
+            std::vector<int32_t> params = {
+                arg_int(s.args, 0, "mode_bits",   0),
+                arg_int(s.args, 1, "target_type", 0),
+                arg_int(s.args, 2, "pic_id",       1),
+                arg_int(s.args, 3, "filename_id",  0),
+                arg_int(s.args, 4, "flags",         0)
+            };
+            c.parameters = lcf::DBArray<int32_t>(params.begin(), params.end());
+            out.push_back(c);
+        }
+    });
+
+    // ─── Maniac_AddMoveRoute / Maniac_EditTile / Maniac_ControlTextProcessing
+    //     EasyRPGに実装なし; 汎用保持
+    {
+        auto generic_decode = [](const char* name) {
+            return [name](const LcfCmd& c) -> std::string {
+                const std::string sv = std::string(c.string.begin(), c.string.end());
+                std::string r = std::string(name) + "(";
+                if (!sv.empty()) r += "str=" + quote_string(sv);
+                for (size_t i = 0; i < c.parameters.size(); ++i) {
+                    if (i || !sv.empty()) r += ", ";
+                    r += "p" + std::to_string(i) + "=" + std::to_string(c.parameters[i]);
+                }
+                r += ")";
+                return r;
+            };
+        };
+        reg.register_cmd(CmdDef{ LcfCode::Maniac_AddMoveRoute, "Maniac_AddMoveRoute",
+            generic_decode("Maniac_AddMoveRoute"),
+            named_encode(LcfCode::Maniac_AddMoveRoute, {}, "str") });
+        reg.register_cmd(CmdDef{ LcfCode::Maniac_EditTile, "Maniac_EditTile",
+            generic_decode("Maniac_EditTile"),
+            named_encode(LcfCode::Maniac_EditTile, {}) });
+        reg.register_cmd(CmdDef{ LcfCode::Maniac_ControlTextProcessing, "Maniac_ControlTextProcessing",
+            generic_decode("Maniac_ControlTextProcessing"),
+            named_encode(LcfCode::Maniac_ControlTextProcessing, {}, "str") });
+    }
 
     // RawCommand: デコーダが未登録コマンドを無損失で出力する形式
     //   RawCommand(code=N, str="...", p0=.., p1=.., ...)
@@ -2374,7 +3539,7 @@ void register_all_commands() {
                 + ", map=" + std::to_string(param(c,1))
                 + ", x=" + std::to_string(param(c,2))
                 + ", y=" + std::to_string(param(c,3))
-                + ", switch_on=" + std::to_string(param(c,4))
+                + ", switch_on=" + bool_str(param(c,4))
                 + ", switch_id=" + std::to_string(param(c,5)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
@@ -2394,7 +3559,7 @@ void register_all_commands() {
             return "EscapeTarget(map=" + std::to_string(param(c,0))
                 + ", x=" + std::to_string(param(c,1))
                 + ", y=" + std::to_string(param(c,2))
-                + ", switch_on=" + std::to_string(param(c,3))
+                + ", switch_on=" + bool_str(param(c,3))
                 + ", switch_id=" + std::to_string(param(c,4)) + ")";
         },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
