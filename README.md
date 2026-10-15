@@ -10,7 +10,7 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 
 ## ダウンロード
 
-[Releases](../../releases) から最新のバイナリをダウンロードしてください。
+[Releases](../../releases/latest) から最新のバイナリをダウンロードしてください。
 
 - Linux: `r2s-linux-x86_64`
 - Windows (MinGW ビルド): `r2s-windows-x86_64.exe`
