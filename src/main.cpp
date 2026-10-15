@@ -40,33 +40,29 @@ static void print_usage(const char* prog) {
 R"(rm2kscript — RPGツクール2000/2003 イベントスクリプトツール
 
 使い方:
-  )" << prog << R"( decode  <Map0001.lmu>           [-o output.rs2k] [-n RPG_RT.ldb]
-  )" << prog << R"( encode  <script.rs2k> <Map.lmu>  [-o output.lmu]  [-n RPG_RT.ldb]
-  )" << prog << R"( decode-db <RPG_RT.ldb>           [-o output.rs2k] [-n RPG_RT.ldb]
-  )" << prog << R"( encode-db <script.rs2k> <RPG_RT.ldb> [-o output.ldb] [-n RPG_RT.ldb]
-  )" << prog << R"( decode-project <game_dir> [out_dir] [-o <out_dir>]  [-n RPG_RT.ldb]
-  )" << prog << R"( encode-project <script_dir> <game_dir>  [-n RPG_RT.ldb]
+  )" << prog << R"( <input> [-o <output>] [options...]
 
-コマンド:
-  decode          LMUマップファイルを独自言語テキストに変換
-  encode          テキストをLMUマップファイルに書き込む
-  decode-db       LDBデータベースのコモンイベントをテキストに変換
-  encode-db       テキストをLDBデータベースのコモンイベントに書き込む
-  decode-project  ゲームディレクトリの全 .lmu と RPG_RT.ldb を一括デコード
-  encode-project  スクリプトディレクトリの全 .rs2k をゲームディレクトリに一括エンコード
+入力ファイルの種類によって操作が自動的に決まります:
+
+  )" << prog << R"( Map0001.lmu             [-o out.rs2k]    # LMU → rs2k (デコード)
+  )" << prog << R"( script.rs2k Map0001.lmu [-o out.lmu]     # rs2k + LMU → LMU (エンコード)
+  )" << prog << R"( RPG_RT.ldb              [-o out.rs2k]    # LDB → rs2k (コモンイベント デコード)
+  )" << prog << R"( script.rs2k RPG_RT.ldb  [-o out.ldb]     # rs2k + LDB → LDB (コモンイベント エンコード)
+  )" << prog << R"( <game_dir>/             [-o <out_dir>/]  # ゲームディレクトリ全体をデコード
+  )" << prog << R"( <script_dir>/ <game_dir>/                # スクリプトをゲームに一括エンコード
 
 オプション:
   -o <file|dir>  出力先ファイルまたはディレクトリ
-                 (decode-project は省略可: 2つ目の引数、無ければ <game_dir>_scripts)
+                 (ゲームディレクトリのデコードは省略可: 無ければ <game_dir>_scripts)
   -e <enc>       文字エンコーディング (デフォルト: 932 / Shift-JIS)
   -n <ldb>       RPG_RT.ldb からスイッチ/変数名テーブルを読み込み、名前で表記する
                  (省略時は入力の隣/ゲームディレクトリの RPG_RT.ldb を自動使用)
   --engine <ver> マップ保存時のエンジン: 2000 (デフォルト) または 2003
-  --prune        encode / encode-project: スクリプトに現れないイベント/ページをマップから削除
+  --prune        エンコード時にスクリプトに現れないイベント/ページをマップから削除
   -h, --help     このヘルプを表示
 
-encode-project は、全ファイルのエンコードが成功した場合のみゲームに書き込みます。
-上書きする .lmu / .ldb は事前に <name>.bak として退避されます(既にあれば上書きしません)。
+一括エンコードは、全ファイルのエンコードが成功した場合のみゲームに書き込みます。
+上書きする .lmu / .ldb は事前に <name>.bak として退避されます。
 
 独自言語仕様 (詳細は docs/language.md):
   event(1, x=3, y=4) {
@@ -538,18 +534,70 @@ static int cmd_encode_project(const std::string& script_dir,
 // main
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ──────────────────────────────────────────────────────────────────────────────
+// 入力ファイルの拡張子/種別からサブコマンドを推定する
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ファイルパスの拡張子を小文字で返す
+static std::string ext_lower(const std::string& path) {
+    auto e = fs::path(path).extension().string();
+    for (char& c : e) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return e;
+}
+
+// positional 引数の拡張子とファイルシステム状態からサブコマンド名を推定する。
+// 推定できない場合は空文字列を返す。
+static std::string infer_command(const std::vector<std::string>& pos) {
+    if (pos.empty()) return "";
+
+    const std::string& p0 = pos[0];
+    std::error_code ec;
+    const bool p0_is_dir = fs::is_directory(p0, ec);
+    const std::string e0 = ext_lower(p0);
+
+    if (pos.size() == 1) {
+        if (p0_is_dir)    return "decode-project";
+        if (e0 == ".lmu") return "decode";
+        if (e0 == ".ldb") return "decode-db";
+        // .rs2k 単体では確定できない
+        return "";
+    }
+
+    // pos.size() >= 2
+    const std::string& p1 = pos[1];
+    std::error_code ec1;
+    const bool p1_is_dir = fs::is_directory(p1, ec1);
+    const std::string e1 = ext_lower(p1);
+
+    if (p0_is_dir && p1_is_dir) return "encode-project";
+    if (p0_is_dir)               return "decode-project"; // 2つ目は out_dir 扱い
+    if (e0 == ".rs2k" && e1 == ".lmu") return "encode";
+    if (e0 == ".rs2k" && e1 == ".ldb") return "encode-db";
+    if (e0 == ".rs2k" && p1_is_dir)    return "encode-project";
+    return "";
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 2) { print_usage(argv[0]); return 1; }
 
-    std::string cmd    = argv[1];
+    // 最初の引数がオプションでもなく既知のサブコマンドでもない場合は拡張子自動判別モード
+    // (後方互換: 既知のサブコマンド名ならそのまま解釈する)
+    static const std::vector<std::string> known_cmds = {
+        "decode", "encode", "decode-db", "encode-db", "decode-project", "encode-project"
+    };
+    std::string cmd = argv[1];
+    // argv[1] がオプション (-h 等) かどうかは後段で処理する
+    const bool first_is_cmd = std::find(known_cmds.begin(), known_cmds.end(), cmd) != known_cmds.end();
+
     if (cmd == "-h" || cmd == "--help") { print_usage(argv[0]); return 0; }
     std::string out_path;
     std::string encoding  = "932"; // デフォルト: Shift-JIS（日本語版ツクール2000/2003）
     std::string names_ldb;         // -n <ldb> で指定する NameTable 用 LDB パス
 
-    // オプション解析
+    // オプション解析: サブコマンドモードなら argv[2] から、自動判別モードなら argv[1] から
     std::vector<std::string> positional;
-    for (int i = 2; i < argc; ++i) {
+    const int start = first_is_cmd ? 2 : 1;
+    for (int i = start; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "-h" || a == "--help") {
             print_usage(argv[0]);
@@ -571,6 +619,15 @@ int main(int argc, char* argv[]) {
             }
         } else {
             positional.push_back(a);
+        }
+    }
+
+    // 自動判別モードの場合、positional からサブコマンドを推定する
+    if (!first_is_cmd) {
+        cmd = infer_command(positional);
+        if (cmd.empty()) {
+            std::cerr << "Error: 入力ファイルの種類を判別できません。-h でヘルプを確認してください。" << std::endl;
+            return 1;
         }
     }
 
