@@ -10,6 +10,11 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
+# Release ビルドではデバッグシンボルをリンク時に除去する (GCC/Clang/MinGW のみ。MSVC は PDB が別ファイルなので不要)
+if(NOT MSVC)
+    add_link_options($<$<CONFIG:Release>:-s>)
+endif()
+
 # liblcf: 既定では git submodule (third_party/liblcf) をソースから組み込む。
 # システムにインストール済みの liblcf を使う場合: cmake -DRM2K_USE_SYSTEM_LIBLCF=ON
 # (submodule が未取得の場合も find_package にフォールバックする)
