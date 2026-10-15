@@ -361,6 +361,45 @@ static bool test_golden_raw_command() {
         {{99999, 0, {1, 2}, "x"}}, "golden RawCommand");
 }
 
+// コメント: ツクールのコメントコマンド = comment("...") / comment_cont("...")。
+// // はコマンドにならない無視されるメモ。
+static bool test_golden_comment() {
+    bool ok = true;
+    // comment + comment_cont → Comment + Comment_2 (1コマンド=1文で対応)
+    ok &= golden("comment(\"1行目\"); comment_cont(\"2行目\");",
+        {{C(LcfCode::Comment),   0, {}, "1行目"},
+         {C(LcfCode::Comment_2), 0, {}, "2行目"}}, "golden comment + comment_cont");
+    // 複数引数形式 comment("a", "b") → Comment + Comment_2 (複数行コメントの記述用)
+    ok &= golden("comment(\"a\", \"b\");",
+        {{C(LcfCode::Comment),   0, {}, "a"},
+         {C(LcfCode::Comment_2), 0, {}, "b"}}, "golden comment multi-arg");
+    // 文字列中の改行はそのまま1コマンドに保持される (実データにこの形がある)
+    ok &= golden("comment(\"x\\ny\");",
+        {{C(LcfCode::Comment), 0, {}, "x\ny"}}, "golden comment embedded newline");
+    return ok;
+}
+
+static bool test_golden_slash_comment_ignored() {
+    // // はどこに置いてもコマンドにはならない (行頭・行末とも無視)
+    return golden("// メモ\nWait(frames=1); // 行末メモ\n// message(\"無効化\");",
+        {{C(LcfCode::Wait), 0, {1}, ""}}, "golden // is an ignored memo");
+}
+
+static bool test_comment_roundtrip() {
+    return roundtrip(R"(
+event(40, x=0, y=0) {
+    page(1, trigger=action, layer=same) {
+        comment("1行目");
+        comment_cont("2行目");
+        comment("");
+        comment("改行\nを含む");
+        comment_cont("");
+        Wait(frames=1);
+    }
+}
+)", "comment roundtrip");
+}
+
 // ─── while ゴールデンテスト ──────────────────────────────────────────────────
 
 static bool test_golden_while() {
@@ -644,6 +683,9 @@ int main() {
     run(test_golden_raw_command);
     run(test_golden_while);
     run(test_golden_for);
+    run(test_golden_comment);
+    run(test_golden_slash_comment_ignored);
+    run(test_comment_roundtrip);
     run(test_while_roundtrip);
     run(test_while_true_roundtrip);
     run(test_for_roundtrip);

@@ -122,105 +122,14 @@ std::vector<Token> Lexer::tokenize() {
         && static_cast<unsigned char>(src_[1]) == 0xBB
         && static_cast<unsigned char>(src_[2]) == 0xBF)
         pos_ = 3;
-    // ── 文脈追跡: 行頭の // コメントを「イベントの注釈コマンド」に変換できるか判定するため ──
-    //   page(...) { ... } の本体 (とその中のブロック) で、文の先頭にある行頭の // だけが対象。
-    //   行末の // (コードの後ろ) や、ページ外・choice 直下・括弧内の // は従来どおり無視する。
-    std::vector<char> braces;               // 'P'=page本体 'S'=文のブロック 'C'=choice本体 'O'=その他
-    std::vector<std::string> paren_owner;   // '(' ごとに、直前の識別子名
-    std::string last_closed_owner;
-    size_t tracked = 0;                     // out[0..tracked) は状態に反映済み
-    int    last_end_line = 0;               // 直前に発行したトークンの終端行
-
-    auto track = [&]() {
-        for (; tracked < out.size(); ++tracked) {
-            const Token& t = out[tracked];
-            const bool prev_ident  = tracked > 0 && out[tracked - 1].kind == TokenKind::Ident;
-            const bool prev_rparen = tracked > 0 && out[tracked - 1].kind == TokenKind::RParen;
-            switch (t.kind) {
-            case TokenKind::LParen:
-                paren_owner.push_back(prev_ident ? out[tracked - 1].text : std::string());
-                break;
-            case TokenKind::RParen:
-                if (!paren_owner.empty()) { last_closed_owner = paren_owner.back(); paren_owner.pop_back(); }
-                break;
-            case TokenKind::LBrace: {
-                const char top = braces.empty() ? '\0' : braces.back();
-                char k = 'O';
-                if (top == 'P' || top == 'S')
-                    k = (prev_rparen && last_closed_owner == "choice") ? 'C' : 'S';
-                else if (top == 'C')
-                    k = (prev_rparen && last_closed_owner == "when") ? 'S' : 'O';
-                else if (prev_rparen && last_closed_owner == "page")
-                    k = 'P';
-                braces.push_back(k);
-                break;
-            }
-            case TokenKind::RBrace:
-                if (!braces.empty()) braces.pop_back();
-                break;
-            default: break;
-            }
-        }
-    };
-
-    // 行頭の // を読む。条件を満たすとき comment("..", ".."); というトークン列に変換する。
-    // 連続する // 行は 1 つの注釈 (複数行注釈 = Comment + Comment_2...) にまとめ、空行で区切られる。
-    auto handle_comment = [&]() {
-        track();
-        const SourceLoc start = here();
-        const bool first_on_line = (last_end_line < line_);
-        const bool in_stmt = !braces.empty() && (braces.back() == 'P' || braces.back() == 'S')
-                             && paren_owner.empty();
-        const bool group = first_on_line && in_stmt;
-
-        std::vector<std::string> lines;
-        while (true) {
-            advance(); advance();                       // "//"
-            std::string text;
-            while (pos_ < src_.size() && peek() != '\n') text += advance();
-            if (!text.empty() && text.back() == '\r') text.pop_back();
-            if (!text.empty() && text[0] == ' ') text.erase(0, 1);   // "// " の区切りスペースを1つだけ除去
-            lines.push_back(text);
-            if (!group) break;
-            // 次の行も // で始まるか (空行は区切り)
-            size_t k = pos_;
-            if (k < src_.size() && src_[k] == '\n') ++k; else break;
-            while (k < src_.size() && (src_[k] == ' ' || src_[k] == '\t')) ++k;
-            if (k + 1 < src_.size() && src_[k] == '/' && src_[k + 1] == '/') {
-                while (pos_ < k) advance();
-                continue;
-            }
-            break;
-        }
-        if (!group) return;
-
-        // 次の有効文字が '{' または else なら、文の途中のコメントとみなして無視する
-        size_t k = pos_;
-        while (k < src_.size() && (src_[k] == ' ' || src_[k] == '\t' || src_[k] == '\r' || src_[k] == '\n')) ++k;
-        if (k < src_.size() && src_[k] == '{') return;
-        if (src_.compare(k, 4, "else") == 0
-            && (k + 4 >= src_.size() || !(is_alnum_c(src_[k + 4]) || src_[k + 4] == '_'))) return;
-
-        auto push = [&](TokenKind kd, const std::string& tx) {
-            Token t; t.kind = kd; t.text = tx; t.ival = 0; t.loc = start;
-            out.push_back(t);
-        };
-        push(TokenKind::Ident,  "comment");
-        push(TokenKind::LParen, "(");
-        for (size_t i = 0; i < lines.size(); ++i) {
-            if (i) push(TokenKind::Comma, ",");
-            push(TokenKind::String, lines[i]);
-        }
-        push(TokenKind::RParen, ")");
-        push(TokenKind::Semi,   ";");
-        last_end_line = line_;
-    };
-
     while (true) {
         while (pos_ < src_.size()) {
             const char ch = peek();
             if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') advance();
-            else if (ch == '/' && peek(1) == '/') handle_comment();
+            else if (ch == '/' && peek(1) == '/') {
+                // // は行末までの無視されるメモ。ツクールのコメントコマンドは comment("...") で書く
+                while (pos_ < src_.size() && peek() != '\n') advance();
+            }
             else break;
         }
         if (pos_ >= src_.size()) break;
@@ -276,7 +185,6 @@ std::vector<Token> Lexer::tokenize() {
                                "(full-width space or Japanese text must be inside \"...\" or after //)", loc);
             throw LexError(std::string("unexpected character: '") + c + "'", loc);
         }
-        last_end_line = line_;
     }
     Token eof; eof.kind = TokenKind::Eof; eof.text = ""; eof.ival = 0; eof.loc = here();
     out.push_back(eof);

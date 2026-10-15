@@ -86,9 +86,6 @@ jobs:
   windows:
     name: Windows (MinGW cross)
     runs-on: ubuntu-latest
-    env:
-      MINGW:  x86_64-w64-mingw32
-      PREFIX: ${{ github.workspace }}/win-sysroot
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,31 +104,14 @@ jobs:
         id: cache-sysroot
         with:
           path: win-sysroot
-          key: win-sysroot-${{ hashFiles('scripts/build-win64.sh') }}-v2
+          key: win-sysroot-${{ hashFiles('Makefile') }}-v2
 
       - name: Build Windows dependencies
         if: steps.cache-sysroot.outputs.cache-hit != 'true'
-        run: bash scripts/build-win64.sh --deps-only
+        run: make win64-deps
 
       - name: Build rm2kscript.exe
-        run: |
-          cmake -B build-win \
-            -DCMAKE_SYSTEM_NAME=Windows \
-            -DCMAKE_CXX_COMPILER=${MINGW}-g++ \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DLIBLCF_WITH_ICU=ON \
-            -DCMAKE_PREFIX_PATH="${PREFIX}" \
-            -DCMAKE_FIND_ROOT_PATH="${PREFIX}" \
-            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-            -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \
-            -DICU_ROOT="${PREFIX}" \
-            -DICU_INCLUDE_DIR="${PREFIX}/include" \
-            -DICU_i18n_LIBRARY="${PREFIX}/lib/libicui18n.a" \
-            -DICU_uc_LIBRARY="${PREFIX}/lib/libicuuc.a" \
-            -DICU_data_LIBRARY="${PREFIX}/lib/libicudata.a" \
-            -G Ninja
-          cmake --build build-win -j$(nproc)
+        run: make win64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

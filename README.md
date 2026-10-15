@@ -165,7 +165,7 @@ cmake --build build --config Release
 
 ### Windows（MinGW-w64 クロスコンパイル、Linux上で実行）
 
-依存ライブラリを自動的にダウンロード・ビルドするスクリプトを用意しています。
+依存ライブラリの自動ダウンロード・ビルドを含むすべての操作は Makefile で行います。
 
 ```bash
 # Arch Linux + mingw-w64 環境が必要
