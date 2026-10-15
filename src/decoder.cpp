@@ -80,10 +80,10 @@ static std::string decode_cond(const lcf::rpg::EventCommand& c,
     switch (type) {
         case 0: { // switch [type,id,val,p3,p4,p5]
             int32_t id  = p(1);
-            int32_t val = p(2); // 0=ON, 1=OFF
+            int32_t val = p(2); // 0=true, 1=false
             if (val != 0 && val != 1) return raw_cond_text(c);
             std::string sw_s = names ? names->sw_label(id) : std::to_string(id);
-            std::string r = "switch[" + sw_s + "] == " + (val ? "OFF" : "ON");
+            std::string r = "switch[" + sw_s + "] == " + (val ? "false" : "true");
             r += extra_cond_params(c, 3);
             return r;
         }
@@ -197,7 +197,7 @@ static std::string decode_control_switches(const lcf::rpg::EventCommand& c, int 
             + ", op_code=" + std::to_string(val) + ")";
         return indent_str(ind) + r + ";";
     }
-    const char* op = (val == 0) ? "OFF" : (val == 1) ? "ON" : "toggle";
+    const char* op = (val == 0) ? "false" : (val == 1) ? "true" : "toggle";
     std::string s = indent_str(ind);
     std::string sw1 = names ? names->sw_label(id1) : std::to_string(id1);
     std::string sw2 = names ? names->sw_label(id2) : std::to_string(id2);

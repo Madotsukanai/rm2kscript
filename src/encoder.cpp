@@ -118,7 +118,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
         return before;                                     // 自然サイズ
     };
 
-    // switch[N] == ON/OFF
+    // switch[N] == true/false
     const Arg* sw = nullptr;
     for (const auto& a : args) {
         if (a.key.empty() && a.val.kind == ArgVal::Indexed && a.val.sval == "switch") {
@@ -144,9 +144,9 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
             if (after_op && a.key.empty()) { val_s = a.val.sval; break; }
         }
         if (val_s.empty()) val_s = arg_ident(args, 1, "");
-        if (val_s != "ON" && val_s != "OFF")
-            throw CompileError("switch condition must be '== ON' or '== OFF'", loc);
-        int32_t val = (val_s == "OFF") ? 1 : 0;
+        if (val_s != "true" && val_s != "false")
+            throw CompileError("switch condition must be '== true' or '== false'", loc);
+        int32_t val = (val_s == "false") ? 1 : 0;
         std::vector<int32_t> p = {0, id, val};
         size_t before3 = p.size();
         size_t after3 = append_cond_extra(args, 3, p);
@@ -645,9 +645,9 @@ void Encoder::encode_switch_assign(const SwitchAssign& s, int32_t indent,
     } else {
         id2_v = id1;
     }
-    if (s.value != "ON" && s.value != "OFF" && s.value != "toggle")
-        throw CompileError("switch assignment must be ON, OFF or toggle (got '" + s.value + "')", s.loc);
-    int32_t op   = (s.value == "ON") ? 1 : (s.value == "toggle") ? 2 : 0;
+    if (s.value != "true" && s.value != "false" && s.value != "toggle")
+        throw CompileError("switch assignment must be true, false or toggle (got '" + s.value + "')", s.loc);
+    int32_t op   = (s.value == "true") ? 1 : (s.value == "toggle") ? 2 : 0;
 
     // バリデーション: switch ID がデータベースの範囲内か
     if (db_ && !s.is_var) {

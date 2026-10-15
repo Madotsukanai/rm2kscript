@@ -93,8 +93,8 @@ event(ID2, x=X2, y=Y2) {
 
 | キー | 値 | 説明 |
 |---|---|---|
-| `cond_switch_a=N` | スイッチID | スイッチAがONのとき |
-| `cond_switch_b=N` | スイッチID | スイッチBがONのとき |
+| `cond_switch_a=N` | スイッチID | スイッチAが true のとき |
+| `cond_switch_b=N` | スイッチID | スイッチBが true のとき |
 | `cond_var=N, cond_var_op=ge, cond_var_val=M` | — | 変数N が M 以上のとき（op: `eq`/`ge`/`le`/`gt`/`lt`/`ne`）|
 | `cond_item=N` | アイテムID | アイテムNを所持しているとき |
 | `cond_actor=N` | アクターID | アクターNがパーティにいるとき |
@@ -115,12 +115,12 @@ event(ID2, x=X2, y=Y2) {
 ### 4.2 スイッチ代入
 
 ```
-switch[N] = ON;
-switch[N] = OFF;
+switch[N] = true;
+switch[N] = false;
 switch[N] = toggle;
-switch[N..M] = ON;          // N〜M の範囲を一括
-switch[var[N]] = ON;        // 変数Nの値をIDとして使用
-switch["スイッチ名"] = ON;  // 名前テーブルがある場合
+switch[N..M] = true;           // N〜M の範囲を一括
+switch[var[N]] = true;         // 変数Nの値をIDとして使用
+switch["スイッチ名"] = true;   // 名前テーブルがある場合
 ```
 
 ### 4.3 変数代入
@@ -151,8 +151,8 @@ if (条件) {
 **条件の書き方：**
 
 ```
-switch[N] == ON
-switch[N] == OFF
+switch[N] == true
+switch[N] == false
 var[N] == 値
 var[N] >= 値
 var[N] <= 値
@@ -185,7 +185,7 @@ while (条件) {
 }
 ```
 
-`if` 文と同じ条件式が使えます。エンコード時に以下の LCF コマンド列に展開されます（デコード結果には `while` は出現しません）。
+`if` 文と同じ条件式が使えます。デコード時にはこのパターンが認識されて `while` として出力されます。エンコード時は以下の LCF コマンド列に展開されます。
 
 ```
 loop {
@@ -200,7 +200,7 @@ while (var[1] < 10) {
     var[1] += 1;
 }
 
-while (switch["ループ中"] == ON) {
+while (switch["ループ中"] == true) {
     CallEvent(common=5);
 }
 ```
@@ -213,7 +213,7 @@ for (var[N] = 初期値; 継続条件; var[N] op= 増分) {
 }
 ```
 
-エンコード時に以下の LCF コマンド列に展開されます。
+デコード時にはこのパターンが認識されて `for` として出力されます。エンコード時は以下の LCF コマンド列に展開されます。
 
 ```
 var[N] = 初期値;
@@ -307,7 +307,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `switch[N] = ON/OFF/toggle` | スイッチ操作 |
+| `switch[N] = true/false/toggle` | スイッチ操作 |
 | `var[N] op= 値` | 変数操作（単純形式）|
 | `var[*var[N]] op= 値` | 変数操作（間接参照：変数Nの値をIDとして代入先を決定）|
 | `ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=V)` | 変数操作（間接参照など特殊形式）|
@@ -333,8 +333,8 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `ChangeExp(party, delta=V)` | パーティ全員のEXP変更 |
 | `ChangeLevel(actor=N, delta=V)` | レベル変更（負数で減少、`delta=var[N]` で変数参照）|
 | `ChangeLevel(actor=N, delta=V, show_levelup=1)` | レベルアップメッセージ表示あり |
-| `ChangeHP(actor=N, delta=N, die_allowed=0)` | HP変更（`delta=-var[N]` で変数参照の減算）|
-| `ChangeSP(actor=N, delta=N)` | SP変更（`delta=-var[N]` で変数参照の減算）|
+| `ChangeHP(actor=N, delta=V, die_allowed=0)` | HP変更（`delta=-var[N]` で変数参照の減算）|
+| `ChangeSP(actor=N, delta=V)` | SP変更（`delta=-var[N]` で変数参照の減算）|
 | `FullHeal(actor=N)` | 全回復（`party` でパーティ全員）|
 | `ChangeSkills(actor=N, op=learn, skill=N)` | スキル習得（`op=forget` で忘却、`skill=var[N]` も可）|
 | `ChangeCondition(actor=N, op=add, state=N)` | 状態変化付与（`op=remove` で解除）|
@@ -408,8 +408,8 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | コマンド | 説明 |
 |---|---|
 | `if (条件) { } else { }` | 条件分岐 |
-| `while (条件) { }` | 条件が真の間繰り返す（コンパイル時展開）|
-| `for (var[N]=init; 条件; var[N] op= step) { }` | カウンタ付きループ（コンパイル時展開）|
+| `while (条件) { }` | 条件が真の間繰り返す |
+| `for (var[N]=init; 条件; var[N] op= step) { }` | カウンタ付きループ |
 | `loop { ... }` | 無限ループ（`BreakLoop()` で脱出）|
 | `BreakLoop()` | ループ脱出 |
 | `Label(N)` | ラベル |
@@ -424,11 +424,11 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `EnemyEncounter(troop=N, type=0, can_escape=1, can_lose=0 [, bg="背景ファイル名"])` | 戦闘開始 |
-| `VictoryHandler()` | 勝利後のハンドラ開始（`EnemyEncounter` の直後に続く）|
-| `EscapeHandler()` | 逃走後のハンドラ開始 |
-| `DefeatHandler()` | 敗北後のハンドラ開始 |
-| `EndBattle()` | 戦闘ハンドラ終了 |
+| `EnemyEncounter(troop=N, type=0, can_escape=1, can_lose=0 [, bg="背景ファイル名"]) { ... }` | 戦闘開始（ハンドラあり形式）|
+| `VictoryHandler { ... }` | 勝利後処理（`EnemyEncounter { }` ブロック内に記述）|
+| `EscapeHandler { ... }` | 逃走後処理 |
+| `DefeatHandler { ... }` | 敗北後処理 |
+| `EndBattle {}` | 戦闘ハンドラ終了 |
 
 ### ショップ・宿屋
 
@@ -544,7 +544,7 @@ event(コモンイベントID) {
 
 event(2) {
     page(1, trigger=auto_start, cond_switch=5) {
-        message("スイッチ5がONのとき自動実行");
+        message("スイッチ5がtrueのとき自動実行");
     }
 }
 ```
@@ -572,7 +572,7 @@ r2s Map0001.lmu -n /path/to/RPG_RT.ldb
 ```
 var["Episode"] = 1;
 var["PartyMemberID01"] = var["Episode"];
-if (switch["イベント済み"] == ON) {
+if (switch["イベント済み"] == true) {
     CallEvent(common=5);
 }
 ```
@@ -590,7 +590,7 @@ if (switch["イベント済み"] == ON) {
 | `switch[N]` の N がデータベースのスイッチ数を超えている | `switch[99999] is out of range (1..5040)` |
 | `switch[N..M]` の M がスイッチ数を超えている | 同上 |
 | `var[N]` の N がデータベースの変数数を超えている | `var[99999] is out of range (1..5000)` |
-| `if (switch[N] == ON)` 等の条件式内でも同様 | 同上 |
+| `if (switch[N] == true)` 等の条件式内でも同様 | 同上 |
 
 エラーが検出されるとエンコードは中断し、行番号・列番号付きのエラーが表示されます。
 

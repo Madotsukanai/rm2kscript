@@ -73,10 +73,10 @@ event(イベントID, x=X座標, y=Y座標) {
     page(ページ番号, trigger=action, layer=same, sprite="Actor1", sprite_index=0) {
         message("こんにちは！");
 
-        if (switch["フラグ名"] == ON) {
+        if (switch["フラグ名"] == true) {
             var["所持金"] += 100;
             ChangeItems(op=add, item=10, amount=1);
-            switch["フラグ名"] = OFF;
+            switch["フラグ名"] = false;
         } else {
             message("もう何もありません。");
         }
@@ -91,10 +91,10 @@ event(イベントID, x=X座標, y=Y座標) {
 
 | 構文 | 説明 |
 |---|---|
-| `switch[N] = ON/OFF/toggle` | スイッチ操作（名前テーブルがあれば `switch["名前"]` も可）|
+| `switch[N] = true/false/toggle` | スイッチ操作（名前テーブルがあれば `switch["名前"]` も可）|
 | `var[N] = 値` / `var[N] += 値` | 変数操作（同様に `var["名前"]` も可）|
 | `message("テキスト")` | メッセージ表示 |
-| `if (switch[N] == ON) { }` | 条件分岐 |
+| `if (switch[N] == true) { }` | 条件分岐 |
 | `choice("A","B") { when("A"){} }` | 選択肢 |
 | `Teleport(map=N, x=X, y=Y)` | テレポート |
 | `CallEvent(common=N)` | コモンイベント呼び出し |
@@ -113,9 +113,6 @@ event(イベントID, x=X座標, y=Y座標) {
 ### Linux / macOS
 
 ```bash
-# liblcf をインストール（Arch Linux の例）
-sudo pacman -S liblcf
-
 # ビルド
 make
 
@@ -137,13 +134,12 @@ make install PREFIX=$HOME/.local
 # vcpkg で依存ライブラリをインストール
 vcpkg install expat inih icu --triplet x64-windows-static
 
-# rm2kscript をビルド
+# r2s をビルド
 cmake -B build `
   -DCMAKE_BUILD_TYPE=Release `
   -DLIBLCF_WITH_ICU=ON `
   "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" `
-  "-DVCPKG_TARGET_TRIPLET=x64-windows-static" `
-  -G "Visual Studio 17 2022" -A x64
+  "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
 cmake --build build --config Release
 ```
 
@@ -156,7 +152,7 @@ cmake --build build --config Release
 # mingw-w64-gcc, mingw-w64-cmake, ninja が必要
 make win64
 
-# 成功すると dist/ に rm2kscript.exe が生成されます
+# 成功すると dist/ に r2s.exe が生成されます
 ```
 
 ### Makefile ターゲット一覧

@@ -79,7 +79,7 @@ R"(rm2kscript — RPGツクール2000/2003 イベントスクリプトツール
   event(1, x=3, y=4) {
       page(1, trigger=action, layer=same) {
           message("こんにちは！");
-          if (switch[1] == ON) {
+          if (switch[1] == true) {
               var[1] = 100;
               Teleport(map=2, x=5, y=3);
           } else {

@@ -425,9 +425,9 @@ StmtPtr Parser::parse_stmt() {
         return s;
     }
 
-    // switch[N] = ON/OFF/toggle  (直接代入)
-    // switch["name"] = ON/OFF/toggle  (名前テーブル使用)
-    // switch[var[N]] = ON/OFF/toggle  (変数インデックス)
+    // switch[N] = true/false/toggle  (直接代入)
+    // switch["name"] = true/false/toggle  (名前テーブル使用)
+    // switch[var[N]] = true/false/toggle  (変数インデックス)
     if (check(TokenKind::Ident) && peek().text == "switch"
         && peek(1).kind == TokenKind::LBracket) {
         SwitchAssign sa;
@@ -469,7 +469,7 @@ StmtPtr Parser::parse_stmt() {
         }
         expect(TokenKind::RBracket, "]");
         expect(TokenKind::Equals, "=");
-        sa.value = expect(TokenKind::Ident, "ON/OFF/toggle").text;
+        sa.value = expect(TokenKind::Ident, "true/false/toggle").text;
         if (check(TokenKind::Semi)) consume();
         return sa;
     }

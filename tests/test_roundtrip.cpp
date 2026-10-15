@@ -95,8 +95,8 @@ static bool test_switch_var() {
     return roundtrip(R"(
 event(2, x=1, y=1) {
     page(1, trigger=action, layer=same) {
-        switch[1] = ON;
-        switch[2] = OFF;
+        switch[1] = true;
+        switch[2] = false;
         switch[1..5] = toggle;
         var[1] = 42;
         var[2] += 10;
@@ -110,7 +110,7 @@ static bool test_if_else() {
     return roundtrip(R"(
 event(3, x=2, y=2) {
     page(1, trigger=action, layer=same) {
-        if (switch[1] == ON) {
+        if (switch[1] == true) {
             message("ONです");
         } else {
             message("OFFです");
@@ -129,10 +129,10 @@ event(4, x=3, y=3) {
     page(1, trigger=action, layer=same) {
         choice("はい", "いいえ", cancel=5) {
             when("はい", index=0) {
-                switch[10] = ON;
+                switch[10] = true;
             }
             when("いいえ", index=1) {
-                switch[10] = OFF;
+                switch[10] = false;
             }
         }
     }
@@ -327,9 +327,9 @@ static bool must_fail_page(const std::string& body, const std::string& page_opts
 }
 
 static bool test_golden_switch_var() {
-    bool a = golden("switch[3] = ON;",
+    bool a = golden("switch[3] = true;",
         {{C(LcfCode::ControlSwitches), 0, {0, 3, 3, 1}, ""}}, "golden switch ON");
-    bool b = golden("switch[5] = OFF;",
+    bool b = golden("switch[5] = false;",
         {{C(LcfCode::ControlSwitches), 0, {0, 5, 5, 0}, ""}}, "golden switch OFF");
     bool c = golden("switch[2] = toggle;",
         {{C(LcfCode::ControlSwitches), 0, {0, 2, 2, 2}, ""}}, "golden switch toggle");
@@ -343,9 +343,9 @@ static bool test_golden_switch_var() {
 
 static bool test_golden_if_else() {
     return golden(
-        "if (switch[1] == ON) { switch[2] = OFF; } else { switch[2] = ON; }",
+        "if (switch[1] == true) { switch[2] = false; } else { switch[2] = true; }",
         {
-            // switch[1]==ON → type=0, id=1, val=0(ON) → cond_pN なし → {0,1,0}
+            // switch[1]==true → type=0, id=1, val=0 → cond_pN なし → {0,1,0}
             {C(LcfCode::ConditionalBranch), 0, {0, 1, 0}, ""},
             {C(LcfCode::ControlSwitches),   1, {0, 2, 2, 0}, ""},
             {C(LcfCode::END),               1, {}, ""},
@@ -542,7 +542,7 @@ static bool test_db_roundtrip() {
     return roundtrip_db(R"(
 event(1, name="init") {
     page(1, trigger=auto_start) {
-        switch[1] = ON;
+        switch[1] = true;
         var[1] = 100;
         message("common event");
     }
@@ -654,7 +654,7 @@ static bool test_errors() {
     ok &= must_fail_page("if (bogus) { Wait(frames=1); }", "", "error: unknown condition");
     ok &= must_fail_page("Wait(frames=1);", ", trigger=actoin", "error: invalid trigger");
     ok &= must_fail_page("Wait(frames=1);", ", no_such_option=1", "error: unknown page option");
-    ok &= must_fail_page("switch[\"名前\"] = ON;", "", "error: name without name table");
+    ok &= must_fail_page("switch[\"名前\"] = true;", "", "error: name without name table");
     ok &= must_fail_page("message(\"unterminated);", "", "error: unterminated string");
     return ok;
 }

@@ -355,7 +355,7 @@ void register_all_commands() {
             int32_t id1  = param(c,1);
             int32_t id2  = param(c,2);
             int32_t val  = param(c,3);
-            std::string op = (val==0?"OFF": val==1?"ON":"toggle");
+            std::string op = (val==0?"false": val==1?"true":"toggle");
             if (type == 0)
                 return "ControlSwitches(switch[" + std::to_string(id1) + "] = " + op + ")";
             if (type == 1)
@@ -393,7 +393,7 @@ void register_all_commands() {
             // switch[N] = OFF → op="=", 次の位置引数="OFF"
             // switch[N] = ON  → op="=", 次の位置引数="ON"
             const Arg* op_a = find_arg_by_key(s.args, "op");
-            std::string op_s = "ON";
+            std::string op_s = "true";
             if (op_a) {
                 if (op_a->val.sval == "=") {
                     // do_compound が = を消費して次の引数が実際の値
@@ -407,7 +407,7 @@ void register_all_commands() {
                     op_s = op_a->val.sval;
                 }
             }
-            int32_t op_i = (op_s=="OFF"?0: op_s=="ON"?1:2);
+            int32_t op_i = (op_s=="false"?0: op_s=="true"?1:2);
             out.push_back(make_cmd(LcfCode::ControlSwitches, ctx.indent, {type, id1, id2, op_i}));
         }
     });
