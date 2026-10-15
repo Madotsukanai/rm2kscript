@@ -210,11 +210,12 @@ $(ICU_STAMP): | win64-check
 	    CXXFLAGS="-O2" )
 
 	# ライブラリとデータだけビルドする (ツール類は不要)。
-	# 一部のサブディレクトリがエラーを返しても成果物ができていれば足りるので、警告にとどめる。
-	# (成果物が無ければ、直後の cp で失敗して止まる)
-	for d in common i18n data; do
-	    $(MAKE) -C "$$win_build/$$d" -j$(JOBS) || echo "[make] warning: ICU の $$d のビルドがエラーを返しました"
-	done
+	# pkgdata が ../lib/sicudt.a を生成するとき win_build/lib/ が存在しないと ar が失敗するので
+	# 事前に作成する。また common → i18n → data の依存順を守るため逐次実行する。
+	mkdir -p "$$win_build/lib"
+	$(MAKE) -C "$$win_build/common" -j$(JOBS)
+	$(MAKE) -C "$$win_build/i18n"   -j$(JOBS)
+	$(MAKE) -C "$$win_build/data"   -j$(JOBS)
 
 	cp "$$win_build/lib/libsicuin.a" "$(SYSROOT_ABS)/lib/libicui18n.a"
 	cp "$$win_build/lib/sicudt.a"    "$(SYSROOT_ABS)/lib/libicudata.a"
