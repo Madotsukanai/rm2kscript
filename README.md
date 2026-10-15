@@ -4,12 +4,9 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 
 ## 機能
 
-- **decode** — `.lmu` マップファイルをテキスト（`.rs2k`）に変換
-- **encode** — テキストを `.lmu` マップファイルに書き戻す
-- **decode-db** — `RPG_RT.ldb` のコモンイベントをテキストに変換
-- **encode-db** — テキストをコモンイベントとして `.ldb` に書き戻す
-- **decode-project** — ゲームディレクトリの全マップ + LDB を一括デコード
-- **encode-project** — スクリプトディレクトリの全 `.rs2k` を一括エンコードしてゲームに書き戻す
+- `.lmu` / `.ldb` → `.rs2k` テキストへのデコード
+- `.rs2k` テキスト → `.lmu` / `.ldb` へのエンコード
+- ゲームディレクトリ全体の一括デコード・エンコード
 
 ## ダウンロード
 
@@ -39,34 +36,31 @@ liblcf のバージョンを上げるときは `git -C third_party/liblcf checko
 
 ## 使い方
 
+入力ファイルの種類から操作が自動的に決まります。
+
 ```bash
-# プロジェクト全体を一括デコード（全マップ + コモンイベント）
-# ゲームディレクトリ内の RPG_RT.ldb からスイッチ・変数名を自動読み込み
-rm2kscript decode-project /path/to/Game -o /path/to/scripts
+# ゲームディレクトリを丸ごとデコード → scripts/ へ
+rm2kscript /path/to/Game -o /path/to/scripts
 
-# 一括エンコードしてゲームに書き戻す
-rm2kscript encode-project /path/to/scripts /path/to/Game
+# scripts/ の内容をゲームに書き戻す
+rm2kscript /path/to/scripts /path/to/Game
 
-# 単体ファイル操作
-rm2kscript decode Map0001.lmu -o Map0001.rs2k
-rm2kscript encode Map0001.rs2k Map0001.lmu
+# 単体ファイル
+rm2kscript Map0001.lmu -o Map0001.rs2k
+rm2kscript Map0001.rs2k Map0001.lmu
 
-# コモンイベント単体
-rm2kscript decode-db RPG_RT.ldb -o CommonEvents.rs2k
-rm2kscript encode-db CommonEvents.rs2k RPG_RT.ldb
-
-# スイッチ・変数名テーブルを明示指定する場合（-n オプション）
-rm2kscript decode-project /path/to/Game -o /path/to/scripts -n /path/to/Game/RPG_RT.ldb
+# コモンイベント
+rm2kscript RPG_RT.ldb -o CommonEvents.rs2k
+rm2kscript CommonEvents.rs2k RPG_RT.ldb
 ```
 
 > [!NOTE]
-> ゲームディレクトリ内に `RPG_RT.ldb` があれば、`-n` を省略してもスイッチ・変数名が自動的に使われます。
-> エンコーディングは日本語版（Shift-JIS / コードページ932）がデフォルトです。別のエンコーディングには `-e` オプションを使用してください（例: `-e 1252` で西欧）。
+> ゲームディレクトリ内に `RPG_RT.ldb` があれば、スイッチ・変数名が自動的に使われます。
+> エンコーディングは Shift-JIS（コードページ 932）がデフォルトです。`-e 1252` のように `-e` で変更できます。
 
 > [!IMPORTANT]
-> `encode-project` は、全ファイルのエンコードが成功した場合のみゲームに書き込みます。上書きされるファイルは事前に `.bak` として退避されます。
-> マップの保存エンジンは `--engine 2003` で RPGツクール2003 形式に切り替えられます（既定は2000）。
-> 未知のコマンド・条件・オプションは黙って無視されず、エラーになります。
+> 一括エンコードは全ファイルが成功した場合のみゲームに書き込みます。上書きされるファイルは事前に `.bak` として退避されます。
+> 未知のコマンド・条件・オプションはエラーになります。
 
 ## スクリプト言語の概要
 
