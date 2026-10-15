@@ -14,6 +14,7 @@ rm2kscript が使うスクリプト言語（`.rs2k` ファイル）の完全な�
 6. [コモンイベント](#6-コモンイベント)
 7. [スイッチ・変数の名前テーブル](#7-スイッチ変数の名前テーブル)
 8. [エンコード時バリデーション](#8-エンコード時バリデーション)
+9. [コマンドラインの補足](#9-コマンドラインの補足)
 
 ---
 
@@ -36,7 +37,7 @@ event(ID2, x=X2, y=Y2) {
 ```
 
 - 1つのファイルに複数の `event` ブロックを並べられます
-- `encode` コマンドは書かれたイベント・ページだけを上書きし、ファイル内に存在しないイベントはそのまま残ります
+- エンコード時は書かれたイベント・ページだけを上書きし、ファイル内に存在しないイベントはそのまま残ります
 
 ---
 
@@ -134,6 +135,7 @@ var[N] %= 値;
 var[N] = var[M];            // 変数Mの値を代入
 var[N..M] = 値;             // N〜M の範囲を一括
 var["変数名"] = 値;         // 名前テーブルがある場合
+var[*var[N]] = 値;          // 間接参照: 変数Nの値をIDとして代入先を決定
 ```
 
 ### 4.4 if 文
@@ -173,6 +175,7 @@ cond_raw(p0=T, p1=.., [str=".."]) // デコーダが高水準表現できなか�
 
 - 上記以外の条件はコンパイルエラーになります（以前のように `switch[1]==ON` へ黙って置き換わることはありません）。
 - 各条件の末尾に `cond_pN=値` を付けて、既知パラメータより後ろの値を保持できます（デコーダが必要なときだけ出力します）。
+- 元データが既知のパラメータ数より少ない場合、デコーダは `cond_p_count=N` を出力します。エンコーダはこれを使って同じバイナリを再生成します。
 
 ### 4.5 while 文
 
@@ -185,7 +188,7 @@ while (条件) {
 `if` 文と同じ条件式が使えます。エンコード時に以下の LCF コマンド列に展開されます（デコード結果には `while` は出現しません）。
 
 ```
-Loop() {
+loop {
     if (条件) {} else { BreakLoop(); }
     // body
 }
@@ -214,7 +217,7 @@ for (var[N] = 初期値; 継続条件; var[N] op= 増分) {
 
 ```
 var[N] = 初期値;
-Loop() {
+loop {
     if (継続条件) {} else { BreakLoop(); }
     // body
     var[N] op= 増分;
@@ -298,7 +301,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `ChangeFaceGraphic(file="face", index=0, right=0, flip=0)` | フェイスグラフィック設定 |
 | `choice("A","B", cancel=5) { when("A"){} }` | 選択肢表示 |
 | `InputNumber(digits=4, var=1)` | 数字入力 |
-| `EnterHeroName(actor=1, max=6)` | 名前入力 |
+| `EnterHeroName(actor=1, p1=0, p2=0)` | 名前入力 |
 
 ### スイッチ・変数
 
@@ -306,6 +309,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 |---|---|
 | `switch[N] = ON/OFF/toggle` | スイッチ操作 |
 | `var[N] op= 値` | 変数操作（単純形式）|
+| `var[*var[N]] op= 値` | 変数操作（間接参照：変数Nの値をIDとして代入先を決定）|
 | `ControlVars(var=N, type=T, id2=M, op_code=op, src=src, src_val=V)` | 変数操作（間接参照など特殊形式）|
 | `TimerOperation(set=N, p1=0, p2=0, p3=0, p4=0)` | タイマーセット |
 | `TimerOperation(start, p1=0, p2=0, p3=0, p4=0)` | タイマー開始 |
@@ -315,7 +319,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `ChangeGold(delta=N)` | 所持金変更（負数で減少、`delta=var[N]` で変数参照）|
+| `ChangeGold(delta=N)` | 所持金変更（負数で減少、`delta=var[N]` または `delta=-var[N]` で変数参照）|
 | `ChangeItems(op=add, item=N, amount=M)` | アイテム増加（`item=var[N]`、`amount=var[N]` 形式も可）|
 | `ChangeItems(op=remove, item=N, amount=M)` | アイテム減少 |
 | `ChangePartyMembers(add, actor=N)` | パーティメンバー追加（`actor=var[N]` も可）|
@@ -325,12 +329,12 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `ChangeExp(actor=N, delta=V)` | EXP変更（`delta=-V` で減少、`delta=var[N]` で変数参照）|
+| `ChangeExp(actor=N, delta=V)` | EXP変更（負数で減少、`delta=var[N]` または `delta=-var[N]` で変数参照）|
 | `ChangeExp(party, delta=V)` | パーティ全員のEXP変更 |
-| `ChangeLevel(actor=N, delta=V)` | レベル変更（`delta=-V` で減少、`delta=var[N]` で変数参照）|
+| `ChangeLevel(actor=N, delta=V)` | レベル変更（負数で減少、`delta=var[N]` で変数参照）|
 | `ChangeLevel(actor=N, delta=V, show_levelup=1)` | レベルアップメッセージ表示あり |
-| `ChangeHP(actor=N, delta=N)` | HP変更 |
-| `ChangeSP(actor=N, delta=N)` | SP変更 |
+| `ChangeHP(actor=N, delta=N, die_allowed=0)` | HP変更（`delta=-var[N]` で変数参照の減算）|
+| `ChangeSP(actor=N, delta=N)` | SP変更（`delta=-var[N]` で変数参照の減算）|
 | `FullHeal(actor=N)` | 全回復（`party` でパーティ全員）|
 | `ChangeSkills(actor=N, op=learn, skill=N)` | スキル習得（`op=forget` で忘却、`skill=var[N]` も可）|
 | `ChangeCondition(actor=N, op=add, state=N)` | 状態変化付与（`op=remove` で解除）|
@@ -339,7 +343,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `ChangeHeroName(actor=N, name="名前")` | アクター名変更 |
 | `ChangeHeroTitle(actor=N, title="肩書き")` | 肩書き変更 |
 | `ChangeSpriteAssociation(actor=N, sprite="ファイル名", sprite_index=0, transparent=0)` | 歩行グラ変更 |
-| `ChangeActorFace(actor=N, face="ファイル名", index=0)` | 顔グラ変更 |
+| `ChangeActorFace(face="ファイル名", actor=N, index=0)` | 顔グラ変更 |
 
 ### 移動・テレポート
 
@@ -355,7 +359,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `EnterExitVehicle()` | 乗り物乗降 |
 | `StoreTerrainID(src=0, x=X, y=Y, var=N)` | 地形IDを変数に格納 |
 | `StoreEventID(src=0, x=X, y=Y, var=N)` | イベントIDを変数に格納 |
-| `MoveEvent(player/boat/ship/airship/this, ...)` / `MoveEvent(event=N, ...)` | イベント移動（対象は 主人公/ボート/船/飛行船/このイベント/イベントID。省略時は `this`）|
+| `MoveEvent(player/boat/ship/airship/this, ...)` / `MoveEvent(event=N, ...)` | イベント移動（省略時は `this`）|
 | `ProceedWithMovement()` | 移動完了まで待機 |
 | `HaltAllMovement()` | 全移動停止 |
 
@@ -363,17 +367,17 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `EraseScreen(type=0)` | 画面消去 |
-| `ShowScreen(type=0)` | 画面表示 |
+| `EraseScreen(type=0)` | 画面消去（`speed=N` で速度指定可）|
+| `ShowScreen(type=0)` | 画面表示（`speed=N` で速度指定可）|
 | `TintScreen(r=100, g=100, b=100, s=100, frames=20, wait=1)` | 色調変更 |
 | `FlashScreen(r=255, g=255, b=255, power=31, frames=20, wait=1)` | フラッシュ |
 | `ShakeScreen(power=5, speed=5, frames=20, wait=1)` | シェイク |
 | `PanScreen(op=move, dir=0, dist=0, speed=0, wait=0)` | 画面スクロール（op: `lock`/`unlock`/`move`/`reset`）|
 | `WeatherEffects(type=0, power=2)` | 天候効果 |
-| `ShowPicture(file="名前", id=N, pos_mode=0, x=X, y=Y, fixed_to_map=0, magnify=100, top_trans=0, use_transparent_color=1, red=100, green=100, blue=100, saturation=100, effect_mode=0, effect_power=0)` | ピクチャ表示（詳細は下表）|
-| `MovePicture(id=N, pos_mode=0, x=X, y=Y, magnify=100, top_trans=0, red=100, green=100, blue=100, saturation=100, effect_mode=0, effect_power=0, duration=8, wait=0)` | ピクチャ移動（詳細は下表）|
+| `ShowPicture(file="名前", id=N, ...)` | ピクチャ表示（詳細は下表）|
+| `MovePicture(id=N, ...)` | ピクチャ移動（詳細は下表）|
 | `ErasePicture(id=N)` | ピクチャ消去 |
-| `ShowBattleAnimation(anim=N, event=this, wait=1)` | バトルアニメ表示（`event=` は player/boat/ship/airship/this またはイベントID）|
+| `ShowBattleAnimation(anim=N, event=this, wait=1 [, global=0])` | バトルアニメ表示（`event=` は player/boat/ship/airship/this またはイベントID）|
 | `FlashSprite(event=this, r=31, g=31, b=31, chroma=31, duration=5, wait=1)` | スプライトフラッシュ |
 | `PlayerVisibility(visible=1)` | プレイヤー表示切替 |
 
@@ -381,13 +385,13 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `PlayBGM("filename", volume=100, tempo=100, balance=50)` | BGM再生（`fade=N` でフェードイン時間(ms)を指定。省略時は即時切り替え）|
+| `PlayBGM("filename", fade=0, volume=100, tempo=100, balance=50)` | BGM再生（`fade=N` でフェードイン時間(ms)を指定。省略時は即時切り替え）|
 | `FadeOutBGM(ms=800)` | BGMフェードアウト |
 | `MemorizeBGM()` | BGM記憶 |
 | `PlayMemorizedBGM()` | 記憶BGM再生 |
 | `PlaySound("filename", volume=60, tempo=100, balance=50)` | SE再生 |
-| `PlayMovie(file="filename", x=0, y=0, w=320, h=240)` | 動画再生 |
-| `ChangeSystemBGM(event=N, bgm="filename", volume=100, tempo=100, balance=50)` | システムBGM変更 |
+| `PlayMovie(file="filename", pos_mode=0, x=0, y=0, w=320, h=240)` | 動画再生 |
+| `ChangeSystemBGM(event=N, bgm="filename", fadein=0, volume=100, tempo=100, balance=50)` | システムBGM変更 |
 | `ChangeSystemSFX(type=N, sfx="filename", volume=100, tempo=100, balance=50)` | システムSE変更 |
 
 ### 待機・入力
@@ -397,6 +401,8 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `Wait(frames=N)` | N フレーム待機 |
 | `KeyInputProc(var=N, wait=1, dir=1, act=1, cancel=1)` | キー入力待機 |
 
+`KeyInputProc` の全引数：`var`, `wait`, `dir`(方向キーまとめ), `act`(決定), `cancel`(キャンセル), `shift`, `key_down`, `key_left`, `key_right`, `key_up`
+
 ### フロー制御
 
 | コマンド | 説明 |
@@ -404,7 +410,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `if (条件) { } else { }` | 条件分岐 |
 | `while (条件) { }` | 条件が真の間繰り返す（コンパイル時展開）|
 | `for (var[N]=init; 条件; var[N] op= step) { }` | カウンタ付きループ（コンパイル時展開）|
-| `Loop() { ... }` | 無限ループ（`BreakLoop()` で脱出）|
+| `loop { ... }` | 無限ループ（`BreakLoop()` で脱出）|
 | `BreakLoop()` | ループ脱出 |
 | `Label(N)` | ラベル |
 | `JumpToLabel(N)` | ラベルへジャンプ |
@@ -418,7 +424,11 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 | コマンド | 説明 |
 |---|---|
-| `EnemyEncounter(troop=N, type=0, can_escape=1, can_lose=0)` | 戦闘開始 |
+| `EnemyEncounter(troop=N, type=0, can_escape=1, can_lose=0 [, bg="背景ファイル名"])` | 戦闘開始 |
+| `VictoryHandler()` | 勝利後のハンドラ開始（`EnemyEncounter` の直後に続く）|
+| `EscapeHandler()` | 逃走後のハンドラ開始 |
+| `DefeatHandler()` | 敗北後のハンドラ開始 |
+| `EndBattle()` | 戦闘ハンドラ終了 |
 
 ### ショップ・宿屋
 
@@ -432,7 +442,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | コマンド | 説明 |
 |---|---|
 | `ChangeMapTileset(id=N)` | チップセット変更 |
-| `ChangePBG(name="ファイル名", p0=0, ...)` | パノラマ変更 |
+| `ChangePBG(name="ファイル名", scroll_horz=0, scroll_vert=0, scroll_horz_auto=0, scroll_horz_speed=0, scroll_vert_auto=0, scroll_vert_speed=0)` | パノラマ変更 |
 | `ChangeEncounterSteps(steps=30)` | エンカウント歩数変更 |
 | `TileSubstitution(chip_set=1, src=N, dst=M)` | タイル置換 |
 | `TeleportTargets(action=0, map=N, x=X, y=Y, switch_on=0, switch_id=1)` | テレポート先追加/削除 |
@@ -479,7 +489,7 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 | `effect_power` | `0` | エフェクト強度 |
 | `bottom_trans` | — | 下側透明度（RPGツクール2003拡張）|
 
-**MovePicture** — `MovePicture(id=N, ...)` — ShowPicture と共通の引数に加え:
+**MovePicture** — `MovePicture(id=N, ...)` — ShowPicture と共通の引数（`file=` を除く）に加え:
 
 | 引数 | デフォルト | 説明 |
 |---|---|---|
@@ -488,9 +498,42 @@ RawCommand(code=12345, str="文字列", p0=1, p1=2);
 
 ---
 
+### MoveEvent の移動コマンドリスト
+
+`MoveEvent` の `move=[...]` に指定できるコマンド名の一覧：
+
+| 名前 | 説明 |
+|---|---|
+| `up` / `right` / `down` / `left` | 上下左右に1歩移動 |
+| `upright` / `downright` / `downleft` / `upleft` | 斜め移動 |
+| `random` | ランダム移動 |
+| `toward_hero` / `away_from_hero` | 主人公へ近づく/離れる |
+| `forward` | 向いている方向へ移動 |
+| `face_up` / `face_right` / `face_down` / `face_left` | 向きを変える |
+| `turn_right` / `turn_left` / `turn_180` / `turn_random` | 回転 |
+| `face_random` / `face_hero` / `face_away` | ランダム向き/主人公の方/逆 |
+| `wait` | 1フレーム待機 |
+| `jump_start` / `jump_end` | ジャンプ開始/終了 |
+| `lock_facing` / `unlock_facing` | 向き固定/解除 |
+| `speed_up` / `speed_down` | 移動速度UP/DOWN |
+| `freq_up` / `freq_down` | 移動頻度UP/DOWN |
+| `switch_on(ID)` / `switch_off(ID)` | スイッチID を ON/OFF |
+| `through_on` / `through_off` | すり抜けON/OFF |
+| `stop_anim` / `start_anim` | アニメ停止/再開 |
+| `transp_up` / `transp_down` | 透明度UP/DOWN |
+
+`change_graphic` / `play_sfx` はパラメータに文字列を含むため、`move=[...]` リスト形式では表現できません。これらを含む `MoveEvent` はデコーダが `pN=` 数値列で出力します。
+
+```
+MoveEvent(this, move=[face_down, wait, forward, wait])
+MoveEvent(event=3, freq=4, repeat=1, skip=0, move=[up, up, right, switch_on(5)])
+```
+
+---
+
 ## 6. コモンイベント
 
-`decode-db` / `encode-db` で扱うコモンイベントのフォーマットは以下の通りです。
+`RPG_RT.ldb` のコモンイベントを扱うフォーマットは以下の通りです。
 
 ```
 event(コモンイベントID) {
@@ -508,20 +551,20 @@ event(2) {
 
 コモンイベントの `trigger` は `none` / `auto_start` / `parallel` の3種類です。  
 `cond_switch=N` でトリガースイッチを指定します（省略すると解除）。`name=` でコモンイベント名を設定できます。
-コモンイベントの `trigger` / `cond_switch` / `name` は `encode-db` で反映されます。
+コモンイベントの `trigger` / `cond_switch` / `name` はエンコード時に反映されます。
 
 ---
 
 ## 7. スイッチ・変数の名前テーブル
 
-ゲームディレクトリ内に `RPG_RT.ldb` がある場合、`decode` / `decode-project` は自動的にそれを参照してスイッチ・変数番号を名前で出力します。
+ゲームディレクトリ内に `RPG_RT.ldb` がある場合、デコード時は自動的にそれを参照してスイッチ・変数番号を名前で出力します。
 
 ```bash
 # -n を省略しても RPG_RT.ldb が同じディレクトリにあれば自動適用
-rm2kscript decode Map0001.lmu
+rm2kscript Map0001.lmu
 
 # 別のディレクトリから LDB を指定する場合
-rm2kscript decode Map0001.lmu -n /path/to/RPG_RT.ldb
+rm2kscript Map0001.lmu -n /path/to/RPG_RT.ldb
 ```
 
 **出力例（名前テーブルあり）：**
@@ -540,7 +583,7 @@ if (switch["イベント済み"] == ON) {
 
 ## 8. エンコード時バリデーション
 
-`encode` / `encode-db` / `encode-project` コマンドは、`RPG_RT.ldb` が参照できる場合（`-n` 指定または自動検出）、以下の項目をコンパイル時にチェックします。
+エンコード時に `RPG_RT.ldb` が参照できる場合（`-n` 指定または自動検出）、以下の項目をコンパイル時にチェックします。
 
 | チェック対象 | エラー例 |
 |---|---|
@@ -561,17 +604,37 @@ Compile error at line 3 col 9: switch[99999] is out of range (1..5040)
 
 ## 9. コマンドラインの補足
 
+入力ファイルの拡張子から操作が自動的に決まります：
+
+```bash
+rm2kscript Map0001.lmu              # デコード → stdout
+rm2kscript Map0001.lmu -o out.rs2k  # デコード → ファイル
+rm2kscript script.rs2k Map0001.lmu  # エンコード（元ファイルを上書き、.bak 退避）
+rm2kscript RPG_RT.ldb -o out.rs2k   # コモンイベント デコード
+rm2kscript script.rs2k RPG_RT.ldb   # コモンイベント エンコード
+rm2kscript Game/ -o scripts/        # プロジェクト全体デコード
+rm2kscript scripts/ Game/           # プロジェクト全体エンコード
+```
+
+サブコマンド名を明示することも引き続き可能です（後方互換）：
+
+```bash
+rm2kscript decode Map0001.lmu -o out.rs2k
+rm2kscript decode-project Game/ -o scripts/
+```
+
 | オプション | 説明 |
 |---|---|
+| `-o <file\|dir>` | 出力先ファイルまたはディレクトリ（プロジェクトデコードは省略可: 無ければ `<game_dir>_scripts`）|
 | `-n <ldb>` | 名前テーブル用の RPG_RT.ldb（省略時は入力の隣 / ゲームディレクトリのものを自動使用）|
-| `-e <enc>` | 文字コード（既定 932）|
+| `-e <enc>` | 文字コード（既定 932 / Shift-JIS）|
 | `--engine 2000\|2003` | マップ保存時のエンジンバージョン（既定 2000）|
-| `--prune` | `encode` / `encode-project`: スクリプトに現れないイベント・ページをマップから削除 |
+| `--prune` | エンコード時にスクリプトに現れないイベント・ページをマップから削除 |
 
-- `encode-project` は全ファイルのエンコードが成功した場合のみゲームに書き込みます。失敗が1つでもあれば何も変更しません。
-- 上書きされる `.lmu` / `.ldb` は、事前に `<元ファイル名>.bak` へ退避されます（既に `.bak` があれば上書きしません）。
+- プロジェクト全体エンコードは全ファイルのエンコードが成功した場合のみゲームに書き込みます。失敗が1つでもあれば何も変更しません。
+- 上書きされる `.lmu` / `.ldb` は、事前に `<元ファイル名>.bak` へ退避されます（既に `.bak` があれば上書き）。
 - UTF-8 BOM 付きのスクリプトも読み込めます。
 - 未知のコマンド名・条件・ページオプション・when のオプションはエラーになります。
 - **キャラクター指定**（`MoveEvent` / `ShowBattleAnimation` / `FlashSprite` / `ChangeEventLocation` / `TradeEventLocations` / `char_facing`）は、`player`=10001、`boat`=10002、`ship`=10003、`airship`=10004、`this`=10005、それ以外はイベントIDです（RPG_RT / EasyRPG Editor の定数）。未知の識別子はエラーになります。
 - ⚠ 以前のバージョンは `this` を 10001（実際は主人公）、`player` を -1 として扱っていました。**旧バージョンでデコードした `.rs2k` を再エンコードすると対象が変わります。** 必ず現在のバージョンで `decode` し直してください（旧 `player`=-1 は `event=-1` として出力されます）。
-- ただし**コマンド引数のキー名のタイプミスは検出されません**（例: `Wait(framez=30)` はエラーにならず既定値が使われます）。引数名は「5. コマンドリファレンス」と見比べて確認してください。
+- **コマンド引数のキー名のタイプミスは検出されません**（例: `Wait(framez=30)` はエラーにならず既定値が使われます）。引数名は「5. コマンドリファレンス」と見比べて確認してください。
