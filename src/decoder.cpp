@@ -711,8 +711,28 @@ static void decode_cmds_impl(
         }
 
         // ── Comment / Comment_2 ──────────────────────────────────────────
-        // 各コマンドを独立して出力 (文字列中の改行はそのまま保持)
+        // Comment (+ 直後の Comment_2 群) を 1 つの // 注釈ブロック (1行=1コマンド) として出力する。
+        // 連続する別々の Comment コマンドは空行で区切る (lexer は連続する // 行を1つにまとめるため)。
+        // 文字列に改行を含む場合は // 形式で表現できないので comment("...") 形式にフォールバックする。
         if (code == LcfCode::Comment) {
+            size_t j = i + 1;
+            while (j < n && cmds[j].code == static_cast<int>(LcfCode::Comment_2)
+                   && cmds[j].indent == cmd.indent) ++j;
+            bool plain = true;
+            for (size_t k = i; k < j && plain; ++k) {
+                const std::string s = lcf_str(cmds[k].string);
+                if (s.find('\n') != std::string::npos || s.find('\r') != std::string::npos) plain = false;
+            }
+            if (plain) {
+                if (i > 0 && (cmds[i-1].code == static_cast<int>(LcfCode::Comment)
+                              || cmds[i-1].code == static_cast<int>(LcfCode::Comment_2)))
+                    out << "\n";
+                for (size_t k = i; k < j; ++k) {
+                    const std::string s = lcf_str(cmds[k].string);
+                    out << indent_str(vis) << (s.empty() ? std::string("//") : "// " + s) << "\n";
+                }
+                i = j; continue;
+            }
             out << indent_str(vis) << "comment(" << quote_str(lcf_str(cmd.string)) << ");\n";
             ++i; continue;
         }

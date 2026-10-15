@@ -44,7 +44,7 @@ R"(rm2kscript — RPGツクール2000/2003 イベントスクリプトツール
   )" << prog << R"( encode  <script.rs2k> <Map.lmu>  [-o output.lmu]  [-n RPG_RT.ldb]
   )" << prog << R"( decode-db <RPG_RT.ldb>           [-o output.rs2k] [-n RPG_RT.ldb]
   )" << prog << R"( encode-db <script.rs2k> <RPG_RT.ldb> [-o output.ldb] [-n RPG_RT.ldb]
-  )" << prog << R"( decode-project <game_dir> -o <out_dir>  [-n RPG_RT.ldb]
+  )" << prog << R"( decode-project <game_dir> [out_dir] [-o <out_dir>]  [-n RPG_RT.ldb]
   )" << prog << R"( encode-project <script_dir> <game_dir>  [-n RPG_RT.ldb]
 
 コマンド:
@@ -57,6 +57,7 @@ R"(rm2kscript — RPGツクール2000/2003 イベントスクリプトツール
 
 オプション:
   -o <file|dir>  出力先ファイルまたはディレクトリ
+                 (decode-project は省略可: 2つ目の引数、無ければ <game_dir>_scripts)
   -e <enc>       文字エンコーディング (デフォルト: 932 / Shift-JIS)
   -n <ldb>       RPG_RT.ldb からスイッチ/変数名テーブルを読み込み、名前で表記する
                  (省略時は入力の隣/ゲームディレクトリの RPG_RT.ldb を自動使用)
@@ -640,6 +641,17 @@ int main(int argc, char* argv[]) {
             return cmd_encode_db(positional[0], positional[1], out_path, encoding, names, val_db_ptr);
         } else if (cmd == "decode-project") {
             if (positional.empty()) { print_usage(argv[0]); return 1; }
+            // 出力先: -o > 2つ目の位置引数 > ゲームディレクトリと同じ場所の <名前>_scripts
+            if (out_path.empty()) {
+                if (positional.size() >= 2) {
+                    out_path = positional[1];
+                } else {
+                    fs::path g = fs::absolute(fs::path(positional[0])).lexically_normal();
+                    if (g.filename().empty()) g = g.parent_path();   // 末尾の '/' を除去
+                    out_path = (g.parent_path() / (g.filename().string() + "_scripts")).string();
+                    std::cerr << "Output directory: " << out_path << std::endl;
+                }
+            }
             return cmd_decode_project(positional[0], out_path, encoding, names);
         } else if (cmd == "encode-project") {
             if (positional.size() < 2) { print_usage(argv[0]); return 1; }
