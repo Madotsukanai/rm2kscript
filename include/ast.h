@@ -7,14 +7,12 @@
 
 namespace rm2k {
 
-// ─── ソース位置 ──────────────────────────────────────────────────────────────
 
 struct SourceLoc {
     int line = 0;
     int col  = 0;
 };
 
-// ─── トークン ────────────────────────────────────────────────────────────────
 
 enum class TokenKind {
     Ident, Int, String,
@@ -39,7 +37,6 @@ struct Token {
     SourceLoc   loc;
 };
 
-// ─── 引数値 ──────────────────────────────────────────────────────────────────
 
 struct ArgVal {
     enum Kind { Int, Str, Ident, Indexed, List } kind = Int;
@@ -58,7 +55,6 @@ struct Arg {
     ArgVal      val;
 };
 
-// ─── AST ノード ──────────────────────────────────────────────────────────────
 
 struct StmtBlock;
 
@@ -170,7 +166,6 @@ struct StmtBlock {
     std::vector<StmtPtr> stmts;
 };
 
-// ─── ページメタデータ ─────────────────────────────────────────────────────────
 
 struct PageMeta {
     int page_id = 1;
@@ -214,7 +209,6 @@ struct EventMeta {
     bool has_name = false;
 };
 
-// ─── ドキュメント ─────────────────────────────────────────────────────────────
 
 struct MapDoc {
     struct PageEntry {

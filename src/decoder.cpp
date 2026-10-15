@@ -10,9 +10,7 @@
 
 namespace rm2k {
 
-// ──────────────────────────────────────────────────────────────────────────────
 // ユーティリティ
-// ──────────────────────────────────────────────────────────────────────────────
 
 static inline std::string quote_str(const std::string& s) { return quote_string(s); }
 
@@ -24,12 +22,10 @@ static inline std::string lcf_str(const lcf::DBString& ds) {
     return std::string(ds.begin(), ds.end());
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // RawCommand: レジストリに無い (または高水準表現できない) コマンドを無損失で保持する形式
 //   RawCommand(code=N, str="...", p0=.., p1=.., ...)
 // エンコーダ側 (commands.cpp の "RawCommand") が同じ形式を読み戻す。
 // 以前は「// [unknown cmd=...]」というコメントで出力しており、エンコード時に失われていた。
-// ──────────────────────────────────────────────────────────────────────────────
 
 static std::string raw_command_text(const lcf::rpg::EventCommand& cmd) {
     std::string r = "RawCommand(code=" + std::to_string(cmd.code);
@@ -41,9 +37,7 @@ static std::string raw_command_text(const lcf::rpg::EventCommand& cmd) {
     return r;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // ConditionalBranch のデコード
-// ──────────────────────────────────────────────────────────────────────────────
 
 // param[0]: condition type
 //   0 = switch, 1 = var compare, 2 = timer, 3 = gold, 4 = item, 5 = hero,
@@ -181,9 +175,7 @@ static std::string decode_cond(const lcf::rpg::EventCommand& c,
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // decode_event_commands: ストリームをインデント付きで文字列化
-// ──────────────────────────────────────────────────────────────────────────────
 
 // ShowMessage + ShowMessage_2 を統合して message("...") に
 // ShowChoice + ShowChoiceOption + ShowChoiceEnd を choice(...){when(){}} に
@@ -356,7 +348,6 @@ static void decode_cmds_impl(
         auto code = static_cast<LcfCode>(cmd.code);
         int vis = cmd.indent + base_indent;
 
-        // ── 停止条件 ─────────────────────────────────────────────────────
         // END (code=10) はブランチ内末尾にも挿入される。
         // indent=0 の END だけが本当の終端。indent>0 の END はスキップ。
         if (code == LcfCode::END) {
@@ -367,7 +358,6 @@ static void decode_cmds_impl(
         if (stop2 != LcfCode::END && code == stop2) break;
         if (stop3 != LcfCode::END && code == stop3) break;
 
-        // ── ShowMessage + ShowMessage_2 を統合 ───────────────────────────
         if (code == LcfCode::ShowMessage) {
             std::string text = lcf_str(cmd.string);
             ++i;
@@ -380,7 +370,6 @@ static void decode_cmds_impl(
             continue;
         }
 
-        // ── ShowChoice + ShowChoiceOption + ShowChoiceEnd を統合 ─────────
         if (code == LcfCode::ShowChoice) {
             std::string sv = lcf_str(cmd.string);
             int32_t cancel = cmd.parameters.size() > 0 ? cmd.parameters[0] : 0;
@@ -424,13 +413,11 @@ static void decode_cmds_impl(
             continue;
         }
 
-        // ── ControlSwitches → switch[N] = OP; ───────────────────────────
         if (code == LcfCode::ControlSwitches) {
             out << decode_control_switches(cmd, vis, names) << "\n";
             ++i; continue;
         }
 
-        // ── ConditionalBranch ────────────────────────────────────────────
         if (code == LcfCode::ConditionalBranch) {
             out << indent_str(vis) << "if (" << decode_cond(cmd, names) << ") {\n";
             ++i; continue;
@@ -457,7 +444,6 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── ControlVars の直後 Loop → for(...) の認識 ────────────────────
         // for (var[id] = init; cond; var[id] op= step) { body }
         // 条件: ControlVars(single=, =) → Loop → while パターン → 末尾ステップが同変数の ControlVars
         if (code == LcfCode::ControlVars) {
@@ -566,7 +552,6 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── Loop / EndLoop ───────────────────────────────────────────────
         if (code == LcfCode::Loop) {
             // while(cond) パターンの認識:
             // Loop(N) ConditionalBranch(N+1) END(N+2) ElseBranch(N+1) BreakLoop(N+2) END(N+2) EndBranch(N+1)
@@ -619,7 +604,6 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── EnemyEncounter { VictoryHandler {...} [EscapeHandler {...}] [DefeatHandler {...}] EndBattle {} } ──
         // 戦闘ブランチはハンドラー+EndBattle で構成される。
         // ハンドラー順は VictoryHandler → (EscapeHandler?) → (DefeatHandler?) → EndBattle。
         // 各ブロックの body は cmd.indent+1 で保存されている。
@@ -702,7 +686,6 @@ static void decode_cmds_impl(
             continue;
         }
 
-        // ── 構造外で現れた ShowChoiceOption/End/ShowMessage_2 ────────────
         // 以前はコメント出力 (エンコード時に消える) だったが、RawCommand で無損失に保持する
         if (code == LcfCode::ShowChoiceOption || code == LcfCode::ShowChoiceEnd
             || code == LcfCode::ShowMessage_2) {
@@ -710,7 +693,6 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── Comment / Comment_2 ──────────────────────────────────────────
         // ツクールのコメントコマンドは常に関数形式で出力する (// は無視されるメモ用で、コマンドにはならない)。
         //   Comment   → comment("...")
         //   Comment_2 → comment_cont("...")   (直前の Comment の続きの行)
@@ -724,7 +706,6 @@ static void decode_cmds_impl(
             ++i; continue;
         }
 
-        // ── 汎用: レジストリ検索 ──────────────────────────────────────────
         {
             const CmdDef* def = CommandRegistry::instance().find_by_code(code);
             if (def && def->decode) {
@@ -749,9 +730,7 @@ std::string Decoder::decode_event_commands(
     return out.str();
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // decode_map: event(N, x=.., y=.., name="..") { page(N, ...) { ... } }
-// ──────────────────────────────────────────────────────────────────────────────
 
 std::string Decoder::decode_map(const lcf::rpg::Map& map,
                                  const std::string& /*encoding*/) {
@@ -838,9 +817,7 @@ std::string Decoder::decode_map(const lcf::rpg::Map& map,
     return out.str();
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // decode_common_events
-// ──────────────────────────────────────────────────────────────────────────────
 
 std::string Decoder::decode_common_events(const lcf::rpg::Database& db,
                                            const std::string& /*encoding*/) {

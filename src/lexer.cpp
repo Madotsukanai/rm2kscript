@@ -9,9 +9,7 @@
 
 namespace rm2k {
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Lexer
-// ──────────────────────────────────────────────────────────────────────────────
 
 Lexer::Lexer(std::string_view src) : src_(src) {}
 
@@ -191,9 +189,7 @@ std::vector<Token> Lexer::tokenize() {
     return out;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Parser helpers
-// ──────────────────────────────────────────────────────────────────────────────
 
 Parser::Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
 
@@ -221,9 +217,7 @@ bool Parser::check(TokenKind k) const {
 
 bool Parser::at_end() const { return check(TokenKind::Eof); }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // op= / = 判定
-// ──────────────────────────────────────────────────────────────────────────────
 
 static std::string compound_op(TokenKind k) {
     switch (k) {
@@ -237,9 +231,7 @@ static std::string compound_op(TokenKind k) {
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // メタデータ キー=値 適用
-// ──────────────────────────────────────────────────────────────────────────────
 
 void Parser::apply_meta_kv(PageMeta& m, const std::string& key,
                             const std::string& val_s, int val_i, SourceLoc loc,
@@ -280,9 +272,7 @@ void Parser::apply_meta_kv(PageMeta& m, const std::string& key,
     else { throw ParseError("unknown page option '" + key + "'", loc); }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // トップレベル parse()
-// ──────────────────────────────────────────────────────────────────────────────
 
 MapDoc Parser::parse() {
     MapDoc doc;
@@ -355,9 +345,7 @@ MapDoc Parser::parse() {
     return doc;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // 旧形式: @event N @page M { }
-// ──────────────────────────────────────────────────────────────────────────────
 
 MapDoc::PageEntry Parser::parse_page_entry_legacy() {
     MapDoc::PageEntry entry;
@@ -398,9 +386,7 @@ MapDoc::PageEntry Parser::parse_page_entry_legacy() {
     return entry;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // ブロック・文
-// ──────────────────────────────────────────────────────────────────────────────
 
 // EndBranch(p0=N,...) がブロック終端として来た場合に消費して params を返す (空なら通常終端)
 std::vector<int32_t> Parser::consume_end_branch_if_present() {
@@ -1112,9 +1098,7 @@ CmdStmt Parser::parse_cmd(Token name_tok) {
     return s;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // 引数パース
-// ──────────────────────────────────────────────────────────────────────────────
 
 std::vector<Arg> Parser::parse_arglist() {
     std::vector<Arg> args;

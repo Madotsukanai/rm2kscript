@@ -14,9 +14,7 @@
 
 namespace rm2k {
 
-// ──────────────────────────────────────────────────────────────────────────────
 // ConditionalBranch エンコード: if (cond_args) の引数を解釈
-// ──────────────────────────────────────────────────────────────────────────────
 
 // テキスト上の if 文の条件を LCF ConditionalBranch パラメータに変換
 // cond_args は parse_arglist() の結果。
@@ -386,9 +384,7 @@ static std::vector<int32_t> encode_cond(const std::vector<Arg>& args,
 // push_branch_end の前方宣言 (encode_stmt で使用するため)
 static void push_branch_end(std::vector<lcf::rpg::EventCommand>& out, int32_t indent);
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Encoder::encode_stmt
-// ──────────────────────────────────────────────────────────────────────────────
 
 void Encoder::encode_stmt(const StmtPtr& stmt_v, int32_t indent,
                           std::vector<lcf::rpg::EventCommand>& out) {
@@ -723,10 +719,8 @@ void Encoder::encode_var_assign(const VarAssign& s, int32_t indent,
     out.push_back(c);
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // while (cond) { body }
 //   展開: Loop { if (!cond) { BreakLoop; } body } EndLoop
-// ──────────────────────────────────────────────────────────────────────────────
 
 void Encoder::encode_while(const WhileStmt& s, int32_t indent,
                              std::vector<lcf::rpg::EventCommand>& out) {
@@ -782,10 +776,8 @@ void Encoder::encode_while(const WhileStmt& s, int32_t indent,
     out.push_back(make_cmd(LcfCode::EndLoop, indent));
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // for (var[N] = init; cond; var[N] op= step) { body }
 //   展開: var[N] = init; Loop { if (!cond) { BreakLoop } body var[N] op= step } EndLoop
-// ──────────────────────────────────────────────────────────────────────────────
 
 void Encoder::encode_for(const ForStmt& s, int32_t indent,
                           std::vector<lcf::rpg::EventCommand>& out) {
@@ -903,9 +895,7 @@ Encoder::encode_stmtblock(const StmtBlock& block, int32_t base_indent, bool appe
     return out;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // encode_to_map: テキストをパースして LMU マップに適用
-// ──────────────────────────────────────────────────────────────────────────────
 
 // 列挙値文字列 → 整数。v が空なら何もしない。未知の値は CompileError (以前は黙って無視していた)
 template <size_t N, typename T>
@@ -985,32 +975,50 @@ void Encoder::encode_to_map(const std::string& source,
             throw CompileError("cond_switch= is only valid for common events; "
                                "use cond_switch_a= / cond_switch_b= for map pages", entry.loc);
 
-        // ── 基本 ────────────────────────────────────────────────────────
+        auto check_range = [&](int v, int lo, int hi, const char* name) {
+            if (v < lo || v > hi)
+                throw CompileError(std::string(name) + "=" + std::to_string(v)
+                    + " is out of range (" + std::to_string(lo) + ".." + std::to_string(hi) + ")",
+                    entry.loc);
+        };
+        auto check_min = [&](int v, int lo, const char* name) {
+            if (v < lo)
+                throw CompileError(std::string(name) + "=" + std::to_string(v)
+                    + " must be >= " + std::to_string(lo), entry.loc);
+        };
+        if (m.sprite_index >= 0)    check_range(m.sprite_index,    0, 7, "sprite_index");
+        if (m.move_freq >= 0)       check_range(m.move_freq,        1, 8, "move_freq");
+        if (m.translucent >= 0)     check_range(m.translucent,      0, 1, "translucent");
+        if (m.overlap_forbidden >= 0) check_range(m.overlap_forbidden, 0, 1, "overlap_forbidden");
+        if (m.has_end >= 0)         check_range(m.has_end,          0, 1, "has_end");
+        if (m.cond_switch_a != 0)   check_min(m.cond_switch_a,      1, "cond_switch_a");
+        if (m.cond_switch_b != 0)   check_min(m.cond_switch_b,      1, "cond_switch_b");
+        if (m.cond_var != 0)        check_min(m.cond_var,           1, "cond_var");
+        if (m.cond_item != 0)       check_min(m.cond_item,          1, "cond_item");
+        if (m.cond_actor != 0)      check_min(m.cond_actor,         1, "cond_actor");
+        if (m.cond_timer >= 0)      check_min(m.cond_timer,         0, "cond_timer");
+        if (m.cond_timer2 >= 0)     check_min(m.cond_timer2,        0, "cond_timer2");
+
         set_enum(triggers, m.trigger, 0, pg->trigger, "trigger", entry.loc);
         set_enum(layers,   m.layer,   0, pg->layer,   "layer",   entry.loc);
 
-        // ── グラフィック ──────────────────────────────────────────────
         // sprite= 省略時は「グラフィックなし」(デコーダも空のとき sprite を出力しない)。sprite="" で明示的に消去もできる
         pg->character_name = lcf::DBString(m.has_sprite ? m.sprite : std::string());
         if (m.sprite_index >= 0)
             pg->character_index = m.sprite_index;
         set_enum(dirs, m.dir, 0, pg->character_direction, "dir", entry.loc);
 
-        // ── 移動 ──────────────────────────────────────────────────────
         set_enum(move_types, m.move_type, 0, pg->move_type, "move_type", entry.loc);
         set_enum(move_speeds, m.move_speed, 1, pg->move_speed, "move_speed", entry.loc);
         if (m.move_freq >= 0)
             pg->move_frequency = m.move_freq;
 
-        // ── アニメ ────────────────────────────────────────────────────
         set_enum(anim_types, m.anim_type, 0, pg->animation_type, "anim_type", entry.loc);
 
-        // ── フラグ ────────────────────────────────────────────────────
         // 省略時は false (デコーダは true のときだけ出力するので、テキストから消すと解除される)
         pg->translucent       = (m.translucent > 0);
         pg->overlap_forbidden = (m.overlap_forbidden > 0);
 
-        // ── 発生条件 ──────────────────────────────────────────────────
         auto& cond = pg->condition;
         // いったん全フラグを解除してからテキストの指定を適用する (テキストから条件を消したときに反映されるように)
         cond.flags.switch_a = false;
@@ -1156,6 +1164,9 @@ void Encoder::encode_to_database(const std::string& source,
         }
         // トリガー / トリガースイッチ / 名前を適用 (以前はコマンド列しか反映されなかった)
         {
+            if (entry.meta.cond_switch < 0)
+                throw CompileError("cond_switch=" + std::to_string(entry.meta.cond_switch)
+                    + " must be >= 1", entry.loc);
             static const std::string ce_trigs[] = {"none", "auto_start", "parallel"};
             set_enum(ce_trigs, entry.meta.trigger, 0, ce->trigger, "common event trigger", entry.loc);
             if (entry.meta.cond_switch > 0) {

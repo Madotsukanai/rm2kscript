@@ -10,9 +10,7 @@
 
 namespace rm2k {
 
-// ──────────────────────────────────────────────────────────────────────────────
 // CommandRegistry
-// ──────────────────────────────────────────────────────────────────────────────
 
 CommandRegistry& CommandRegistry::instance() {
     static CommandRegistry reg;
@@ -46,9 +44,7 @@ const CmdDef* CommandRegistry::find_by_code(LcfCode code) const {
     return &defs_[it->second];
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // 引数ヘルパー (内部)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // find_arg_impl: key が空なら位置検索、非空なら名前検索 → なければ位置検索
 static const Arg* find_arg_impl(const std::vector<Arg>& args, size_t pos, const std::string& key) {
@@ -74,7 +70,6 @@ static const Arg* find_arg_by_key(const std::vector<Arg>& args, const std::strin
     return nullptr;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 
 // 公開ヘルパー (commands.h で宣言)
 const Arg* find_arg(const std::vector<Arg>& args, size_t pos, const std::string& key) {
@@ -127,9 +122,7 @@ int32_t resolve_char_ref(const Arg& a, const char* what) {
         + ": target must be player/boat/ship/airship/this or an event ID");
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // エンコード用ヘルパー: party/actor の解析
-// ──────────────────────────────────────────────────────────────────────────────
 
 static std::pair<int32_t,int32_t> parse_who(const std::vector<Arg>& args) {
     const Arg* pos0 = find_arg_impl(args, 0, "");
@@ -148,9 +141,7 @@ static std::string who_text(int32_t who, int32_t id, bool with_actor_for_party =
     return with_actor_for_party ? "party, actor=" + std::to_string(id) : std::string("party");
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // 余分なパラメータ保持ヘルパー
-// ──────────────────────────────────────────────────────────────────────────────
 
 static void append_extra_params(const CmdStmt& s, size_t known_count,
                                  std::vector<int32_t>& params) {
@@ -164,9 +155,7 @@ static void append_extra_params(const CmdStmt& s, size_t known_count,
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // デコード用ユーティリティ
-// ──────────────────────────────────────────────────────────────────────────────
 
 // textutil.h の quote_string を共通利用する (以前はここに \t を落とす重複実装があった)
 static inline std::string quote(const std::string& s) { return quote_string(s); }
@@ -175,9 +164,7 @@ static inline std::string str(const lcf::DBString& ds) {
     return std::string(ds.begin(), ds.end());
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // register_all_commands
-// ──────────────────────────────────────────────────────────────────────────────
 
 // add/remove を ident (add/remove) または整数 (0/1) で受け取る。それ以外はエラー
 // (以前は arg_ident が Int に対して空文字を返し、op=1 が黙って add 扱いになっていた)
@@ -195,7 +182,6 @@ void register_all_commands() {
     std::call_once(flag, []() {
     auto& reg = CommandRegistry::instance();
 
-    // ── 文章表示 ─────────────────────────────────────────────────────────────
     auto encode_message_fn = [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
         std::string text = arg_str(s.args, 0, "");
         std::vector<std::string> lines;
@@ -234,7 +220,6 @@ void register_all_commands() {
         [](const CmdStmt&, EncodeCtx&, CmdVec&) {}
     });
 
-    // ── コメント ──────────────────────────────────────────────────────────────
     // デコード: 連続する Comment + Comment_2 を1つの comment("...", "...") にまとめる
     // ただし decoder.cpp が逐次呼ぶので、ここでは1コマンド分のみ登録する。
     // 複数行まとめは decoder.cpp 側の decode_cmds_impl で行う。
@@ -295,7 +280,6 @@ void register_all_commands() {
         }
     }
 
-    // ── 選択肢 ───────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ShowChoice, "ShowChoice",
         [](const LcfCmd& c) -> std::string {
             std::string sv = str(c.string);
@@ -336,7 +320,6 @@ void register_all_commands() {
         [](const CmdStmt&, EncodeCtx&, CmdVec&) {}
     });
 
-    // ── メッセージオプション ──────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::MessageOptions, "MessageOptions",
         [](const LcfCmd& c) -> std::string {
             return "MessageOptions(skip=" + std::to_string(param(c,0))
@@ -352,7 +335,6 @@ void register_all_commands() {
         }
     });
 
-    // ── フェイスグラフィック ─────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ChangeFaceGraphic, "ChangeFaceGraphic",
         [](const LcfCmd& c) -> std::string {
             return "ChangeFaceGraphic(file=" + quote(str(c.string))
@@ -367,7 +349,6 @@ void register_all_commands() {
         }
     });
 
-    // ── スイッチ操作 ──────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ControlSwitches, "ControlSwitches",
         [](const LcfCmd& c) -> std::string {
             int32_t type = param(c,0);
@@ -431,7 +412,6 @@ void register_all_commands() {
         }
     });
 
-    // ── 変数操作 ──────────────────────────────────────────────────────────────
     // ControlVars のデコード: src<=1 かつ p[6](src_extra)=0 のとき var[N] op= val; シンプル形式
     // p[6] が存在して非0のとき、または src>=2 のとき、キー形式
     reg.register_cmd(CmdDef{ LcfCode::ControlVars, "ControlVars",
@@ -556,7 +536,6 @@ void register_all_commands() {
         }
     });
 
-    // ── タイマー ─────────────────────────────────────────────────────────────
     // op=0:set, op=1:start, op=2:stop
     // params: [op, val, show_in_battle, show_on_map, p4]
     reg.register_cmd(CmdDef{ LcfCode::TimerOperation, "TimerOperation",
@@ -593,7 +572,6 @@ void register_all_commands() {
         }
     });
 
-    // ── 金 ───────────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ChangeGold, "ChangeGold",
         [](const LcfCmd& c) -> std::string {
             int32_t op  = param(c,0);
@@ -618,7 +596,6 @@ void register_all_commands() {
         }
     });
 
-    // ── アイテム ─────────────────────────────────────────────────────────────
     // params: [op(0=add,1=remove), item_src(0=const,1=var), item_id, amount_src(0=const,1=var), amount]
     // EasyRPG: OperateValue(p[0], p[3], p[4]); AddItem(p[2] or var[p[2]])
     reg.register_cmd(CmdDef{ LcfCode::ChangeItems, "ChangeItems",
@@ -678,7 +655,6 @@ void register_all_commands() {
         }
     });
 
-    // ── パーティ ─────────────────────────────────────────────────────────────
     // params: [op(0=add,1=remove), src(0=const,1=var), actor_id]
     reg.register_cmd(CmdDef{ LcfCode::ChangePartyMembers, "ChangePartyMembers",
         [](const LcfCmd& c) -> std::string {
@@ -726,7 +702,6 @@ void register_all_commands() {
         }
     });
 
-    // ── EXP/レベル ───────────────────────────────────────────────────────────
     // ChangeExp: params=[who, actor_id, op(0=add,1=sub), src(0=const,1=var), val, show_levelup]
     reg.register_cmd(CmdDef{ LcfCode::ChangeExp, "ChangeExp",
         [](const LcfCmd& c) -> std::string {
@@ -814,7 +789,6 @@ void register_all_commands() {
         }
     });
 
-    // ── HP/SP ────────────────────────────────────────────────────────────────
     // params: [who, actor_id, op(0=add,1=sub), src(0=const,1=var), val, die_allowed]
     reg.register_cmd(CmdDef{ LcfCode::ChangeHP, "ChangeHP",
         [](const LcfCmd& c) -> std::string {
@@ -887,7 +861,6 @@ void register_all_commands() {
         }
     });
 
-    // ── スキル/状態 ──────────────────────────────────────────────────────────
     // params: [who(0=actor,1=party), actor_id, op(0=learn,1=forget), src(0=const,1=var), skill_id]
     reg.register_cmd(CmdDef{ LcfCode::ChangeSkills, "ChangeSkills",
         [](const LcfCmd& c) -> std::string {
@@ -957,7 +930,6 @@ void register_all_commands() {
         }
     });
 
-    // ── 名前/肩書き ──────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ChangeHeroName, "ChangeHeroName",
         [](const LcfCmd& c) -> std::string {
             return "ChangeHeroName(actor=" + std::to_string(param(c,0))
@@ -996,7 +968,6 @@ void register_all_commands() {
         }
     });
 
-    // ── テレポート ────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::Teleport, "Teleport",
         [](const LcfCmd& c) -> std::string {
             std::string r = "Teleport(map=" + std::to_string(param(c,0))
@@ -1047,7 +1018,6 @@ void register_all_commands() {
         }
     });
 
-    // ── ストア ────────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::StoreTerrainID, "StoreTerrainID",
         [](const LcfCmd& c) -> std::string {
             return "StoreTerrainID(src=" + std::to_string(param(c,0))
@@ -1078,7 +1048,6 @@ void register_all_commands() {
         }
     });
 
-    // ── 画面効果 ──────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::EraseScreen, "EraseScreen",
         [](const LcfCmd& c) -> std::string {
             if (c.parameters.size() >= 2)
@@ -1205,7 +1174,6 @@ void register_all_commands() {
         }
     });
 
-    // ── ピクチャ ─────────────────────────────────────────────────────────────
     // ShowPicture params[0..13] (RPG2k標準):
     //   0=id, 1=pos_mode(0=const/1=var), 2=x, 3=y, 4=fixed_to_map,
     //   5=magnify, 6=top_trans, 7=use_transparent_color,
@@ -1287,7 +1255,6 @@ void register_all_commands() {
         }
     });
 
-    // ── バトルアニメ ──────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ShowBattleAnimation, "ShowBattleAnimation",
         [](const LcfCmd& c) -> std::string {
             int32_t who = param(c,1);
@@ -1315,7 +1282,6 @@ void register_all_commands() {
         }
     });
 
-    // ── プレイヤー表示 ────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::PlayerVisibility, "PlayerVisibility",
         [](const LcfCmd& c) -> std::string {
             return "PlayerVisibility(visible=" + std::to_string(param(c,0)) + ")";
@@ -1325,7 +1291,6 @@ void register_all_commands() {
         }
     });
 
-    // ── イベント移動 ──────────────────────────────────────────────────────────
     // params: [who, freq, repeat, skippable, <move_cmds...>]
     // 移動コマンド列: 各コマンドはコードの後に可変長の引数が続く
     //   code 0-31, 36-41: 引数なし（1要素）
@@ -1506,7 +1471,6 @@ void register_all_commands() {
         }
     });
 
-    // ── 待機 ─────────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::Wait, "Wait",
         [](const LcfCmd& c) -> std::string {
             std::string r = "Wait(frames=" + std::to_string(param(c,0));
@@ -1522,7 +1486,6 @@ void register_all_commands() {
         }
     });
 
-    // ── BGM ──────────────────────────────────────────────────────────────────
     // params: [fadein_ms, volume, tempo, balance]  (EasyRPG でも p[0] は fadein。テキスト上は fade=N)
     // p[0] はフェードイン(ms)。FadeOutBGM は別コマンド。
     reg.register_cmd(CmdDef{ LcfCode::PlayBGM, "PlayBGM",
@@ -1579,7 +1542,6 @@ void register_all_commands() {
         }
     });
 
-    // ── SE ───────────────────────────────────────────────────────────────────
     // params: [volume, tempo, balance]  (3個固定)
     reg.register_cmd(CmdDef{ LcfCode::PlaySound, "PlaySound",
         [](const LcfCmd& c) -> std::string {
@@ -1637,7 +1599,6 @@ void register_all_commands() {
         }
     });
 
-    // ── キー入力 ─────────────────────────────────────────────────────────────
     // params: [var, wait, dir(方向まとめ), act(決定), cancel, shift, key_down, key_left, key_right, key_up]
     static const char* key_input_names[] = {
         "var","wait","dir","act","cancel","shift",
@@ -1691,7 +1652,6 @@ void register_all_commands() {
         }
     });
 
-    // ── 戦闘 ─────────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::EnemyEncounter, "EnemyEncounter",
         [](const LcfCmd& c) -> std::string {
             std::string r = "EnemyEncounter(troop=" + std::to_string(param(c,0))
@@ -1724,7 +1684,6 @@ void register_all_commands() {
         }
     });
 
-    // ── ショップ/宿屋 ─────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::OpenShop, "OpenShop",
         [](const LcfCmd& c) -> std::string {
             std::string r = "OpenShop(type=" + std::to_string(param(c,0));
@@ -1767,7 +1726,6 @@ void register_all_commands() {
         }
     });
 
-    // ── ラベル/ジャンプ/ループ ─────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::Label, "Label",
         [](const LcfCmd& c) -> std::string { return "Label(" + std::to_string(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
@@ -1801,7 +1759,6 @@ void register_all_commands() {
         [](const CmdStmt&, EncodeCtx&, CmdVec&) {}
     });
 
-    // ── フロー制御 ────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ConditionalBranch, "ConditionalBranch",
         [](const LcfCmd& c) -> std::string {
             return "if (/* cond type=" + std::to_string(param(c,0)) + " */) {";
@@ -1833,7 +1790,6 @@ void register_all_commands() {
         }
     });
 
-    // ── CallEvent ─────────────────────────────────────────────────────────────
     // params: [type, id, page]
     // EasyRPG: type=0 → コモンイベント, type=1 → マップイベント, type=2 → 変数指定
     reg.register_cmd(CmdDef{ LcfCode::CallEvent, "CallEvent",
@@ -1883,7 +1839,6 @@ void register_all_commands() {
         }
     });
 
-    // ── ゲームオーバー/タイトル ──────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::GameOver, "GameOver",
         [](const LcfCmd&) -> std::string { return "GameOver()"; },
         [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
@@ -1898,7 +1853,6 @@ void register_all_commands() {
         }
     });
 
-    // ── セーブ/メニュー ─────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::OpenSaveMenu, "OpenSaveMenu",
         [](const LcfCmd&) -> std::string { return "OpenSaveMenu()"; },
         [](const CmdStmt&, EncodeCtx& ctx, CmdVec& out) {
@@ -1927,7 +1881,6 @@ void register_all_commands() {
         }
     });
 
-    // ── アクセス制御 ─────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ChangeSaveAccess, "ChangeSaveAccess",
         [](const LcfCmd& c) -> std::string { return "ChangeSaveAccess(enable=" + std::to_string(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
@@ -1956,7 +1909,6 @@ void register_all_commands() {
         }
     });
 
-    // ── マップシステム ────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::ChangeMapTileset, "ChangeMapTileset",
         [](const LcfCmd& c) -> std::string { return "ChangeMapTileset(id=" + std::to_string(param(c,0)) + ")"; },
         [](const CmdStmt& s, EncodeCtx& ctx, CmdVec& out) {
@@ -1978,7 +1930,6 @@ void register_all_commands() {
         }
     });
 
-    // ── システム設定 ────────────────────────────────────────────────────────
     // params: [event(context), fadein?, volume?, tempo?, balance?, var_flags?]
     // var_flags is a bitfield: bit N means p(N+1) is a variable ID instead of direct value
     reg.register_cmd(CmdDef{ LcfCode::ChangeSystemBGM, "ChangeSystemBGM",
@@ -2048,7 +1999,6 @@ void register_all_commands() {
         }
     });
 
-    // ── 入力数字 ─────────────────────────────────────────────────────────────
     reg.register_cmd(CmdDef{ LcfCode::InputNumber, "InputNumber",
         [](const LcfCmd& c) -> std::string {
             return "InputNumber(digits=" + std::to_string(param(c,0)) + ", var=" + std::to_string(param(c,1)) + ")";
@@ -2075,7 +2025,6 @@ void register_all_commands() {
         }
     });
 
-    // ── バトル関連 ────────────────────────────────────────────────────────────
     // EnemyEncounter の後は VictoryHandler が来て victory body (indent+1) が続く。
     // VictoryHandler/EscapeHandler/EndBattle ブロックの END は body コマンドの LCF indent が
     // デコード→エンコード往復で保存されないため、現状ではバイナリ完全再現はできない。
@@ -2218,7 +2167,6 @@ void register_all_commands() {
         }
     });
 
-    // ── END ──────────────────────────────────────────────────────────────────
     // RawCommand: デコーダが未登録コマンドを無損失で出力する形式
     //   RawCommand(code=N, str="...", p0=.., p1=.., ...)
     {

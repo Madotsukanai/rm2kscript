@@ -20,6 +20,19 @@
 
 using namespace rm2k;
 
+// gcc 形式エラー出力: <file>:<line>:<col>: error: <message>
+
+static void print_error(const std::string& file, int line, int col,
+                        const std::string& msg) {
+    std::cerr << file << ":" << line << ":" << col << ": error: " << msg << "\n";
+}
+
+// LexError / ParseError / CompileError を gcc 形式で出力する
+static void print_loc_error(const std::string& file, SourceLoc loc,
+                             const std::string& msg) {
+    print_error(file, loc.line, loc.col, msg);
+}
+
 // LMU 保存時のエンジンバージョン (--engine 2000|2003 で変更。デフォルトは 2000)
 static lcf::EngineVersion g_engine = lcf::EngineVersion::e2k;
 // --prune: スクリプトに現れないイベント/ページをマップから削除する
@@ -31,9 +44,7 @@ static bool parse_engine(const std::string& s, lcf::EngineVersion& out) {
     return false;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // ヘルプ
-// ──────────────────────────────────────────────────────────────────────────────
 
 static void print_usage(const char* prog) {
     std::cerr <<
@@ -81,9 +92,7 @@ R"(rm2kscript — RPGツクール2000/2003 イベントスクリプトツール
 )" << std::endl;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // ファイル読み込みユーティリティ
-// ──────────────────────────────────────────────────────────────────────────────
 
 static std::string read_text_file(const std::string& path) {
     std::ifstream f(path, std::ios::binary);
@@ -114,15 +123,11 @@ static bool backup_file(const std::string& path) {
     return true;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // NameTable を LDB から構築
-// ──────────────────────────────────────────────────────────────────────────────
 
 // (NameTable は main() で LDB を 1 回だけロードして構築する: バリデーション用 DB と共用)
 
-// ──────────────────────────────────────────────────────────────────────────────
 // サブコマンド
-// ──────────────────────────────────────────────────────────────────────────────
 
 static int cmd_decode(const std::string& lmu_path,
                       const std::string& out_path,
@@ -166,16 +171,13 @@ static int cmd_encode(const std::string& script_path,
     try {
         enc.encode_to_map(source, *map, encoding);
     } catch (const CompileError& e) {
-        std::cerr << "Compile error at line " << e.loc().line
-                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        print_loc_error(script_path, e.loc(), e.what());
         return 1;
     } catch (const ParseError& e) {
-        std::cerr << "Parse error at line " << e.loc().line
-                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        print_loc_error(script_path, e.loc(), e.what());
         return 1;
     } catch (const LexError& e) {
-        std::cerr << "Lex error at line " << e.loc().line
-                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        print_loc_error(script_path, e.loc(), e.what());
         return 1;
     }
 
@@ -231,16 +233,13 @@ static int cmd_encode_db(const std::string& script_path,
     try {
         enc.encode_to_database(source, *db, encoding);
     } catch (const CompileError& e) {
-        std::cerr << "Compile error at line " << e.loc().line
-                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        print_loc_error(script_path, e.loc(), e.what());
         return 1;
     } catch (const ParseError& e) {
-        std::cerr << "Parse error at line " << e.loc().line
-                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        print_loc_error(script_path, e.loc(), e.what());
         return 1;
     } catch (const LexError& e) {
-        std::cerr << "Lex error at line " << e.loc().line
-                  << " col " << e.loc().col << ": " << e.what() << std::endl;
+        print_loc_error(script_path, e.loc(), e.what());
         return 1;
     }
 
@@ -255,9 +254,7 @@ static int cmd_encode_db(const std::string& script_path,
     return 0;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // decode-project / encode-project
-// ──────────────────────────────────────────────────────────────────────────────
 
 namespace fs = std::filesystem;
 
@@ -416,22 +413,16 @@ static int cmd_encode_project(const std::string& script_dir,
             try {
                 enc.encode_to_database(source, *db, encoding);
             } catch (const LexError& e) {
-                std::cerr << "Lex error in " << rs2k_path.filename().string()
-                          << " at line " << e.loc().line << " col " << e.loc().col
-                          << ": " << e.what() << "\n";
+                print_loc_error(rs2k_path.string(), e.loc(), e.what());
                 ++errors; continue;
             } catch (const ParseError& e) {
-                std::cerr << "Parse error in " << rs2k_path.filename().string()
-                          << " at line " << e.loc().line << " col " << e.loc().col
-                          << ": " << e.what() << "\n";
+                print_loc_error(rs2k_path.string(), e.loc(), e.what());
                 ++errors; continue;
             } catch (const CompileError& e) {
-                std::cerr << "Compile error in " << rs2k_path.filename().string()
-                          << " at line " << e.loc().line << " col " << e.loc().col
-                          << ": " << e.what() << "\n";
+                print_loc_error(rs2k_path.string(), e.loc(), e.what());
                 ++errors; continue;
             } catch (const std::exception& e) {
-                std::cerr << "Error encoding " << rs2k_path.filename() << ": " << e.what() << "\n";
+                std::cerr << rs2k_path.string() << ": error: " << e.what() << "\n";
                 ++errors; continue;
             }
             fs::path tmp = ldb_path;
@@ -459,22 +450,16 @@ static int cmd_encode_project(const std::string& script_dir,
             try {
                 enc.encode_to_map(source, *map, encoding);
             } catch (const LexError& e) {
-                std::cerr << "Lex error in " << rs2k_path.filename().string()
-                          << " at line " << e.loc().line << " col " << e.loc().col
-                          << ": " << e.what() << "\n";
+                print_loc_error(rs2k_path.string(), e.loc(), e.what());
                 ++errors; continue;
             } catch (const ParseError& e) {
-                std::cerr << "Parse error in " << rs2k_path.filename().string()
-                          << " at line " << e.loc().line << " col " << e.loc().col
-                          << ": " << e.what() << "\n";
+                print_loc_error(rs2k_path.string(), e.loc(), e.what());
                 ++errors; continue;
             } catch (const CompileError& e) {
-                std::cerr << "Compile error in " << rs2k_path.filename().string()
-                          << " at line " << e.loc().line << " col " << e.loc().col
-                          << ": " << e.what() << "\n";
+                print_loc_error(rs2k_path.string(), e.loc(), e.what());
                 ++errors; continue;
             } catch (const std::exception& e) {
-                std::cerr << "Error encoding " << rs2k_path.filename() << ": " << e.what() << "\n";
+                std::cerr << rs2k_path.string() << ": error: " << e.what() << "\n";
                 ++errors; continue;
             }
             fs::path tmp = lmu_path;
@@ -530,13 +515,9 @@ static int cmd_encode_project(const std::string& script_dir,
     return 0;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // main
-// ──────────────────────────────────────────────────────────────────────────────
 
-// ──────────────────────────────────────────────────────────────────────────────
 // 入力ファイルの拡張子/種別からサブコマンドを推定する
-// ──────────────────────────────────────────────────────────────────────────────
 
 // ファイルパスの拡張子を小文字で返す
 static std::string ext_lower(const std::string& path) {
@@ -719,7 +700,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     } catch (const std::exception& ex) {
-        std::cerr << "Fatal error: " << ex.what() << std::endl;
+        std::cerr << "rm2kscript: error: " << ex.what() << "\n";
         return 1;
     }
 }

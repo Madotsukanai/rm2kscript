@@ -39,9 +39,7 @@ submodules:
 		git submodule update --init --recursive; \
 	fi
 
-# ────────────────────────────────────────────────────────────────────────────
 # Release ビルド
-# ────────────────────────────────────────────────────────────────────────────
 
 all: release
 
@@ -50,31 +48,23 @@ release: submodules
 	cmake -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
-# ────────────────────────────────────────────────────────────────────────────
 # Debug ビルド
-# ────────────────────────────────────────────────────────────────────────────
 
 debug: submodules
 	cmake -B $(DEBUG_DIR) -DCMAKE_BUILD_TYPE=Debug $(CMAKE_FLAGS)
 	cmake --build $(DEBUG_DIR) -j$(JOBS)
 
-# ────────────────────────────────────────────────────────────────────────────
 # テスト
-# ────────────────────────────────────────────────────────────────────────────
 
 test: release
 	cd $(BUILD_DIR) && ctest --output-on-failure -j$(JOBS)
 
-# ────────────────────────────────────────────────────────────────────────────
 # インストール
-# ────────────────────────────────────────────────────────────────────────────
 
 install: release
 	cmake --install $(BUILD_DIR) --prefix $(PREFIX)
 
-# ────────────────────────────────────────────────────────────────────────────
 # Windows クロスビルド (MinGW-w64)
-# ────────────────────────────────────────────────────────────────────────────
 # 必要なツール
 #   Arch Linux: sudo pacman -S mingw-w64-gcc mingw-w64-cmake ninja
 #   Ubuntu    : sudo apt-get install cmake ninja-build gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
@@ -113,7 +103,6 @@ win64-check:
 
 win64-deps: $(EXPAT_STAMP) $(INIH_STAMP) $(ICU_STAMP)
 
-# ── expat ───────────────────────────────────────────────────────────────────
 $(EXPAT_STAMP): | win64-check
 	src="$(WORK_ABS)/expat-$(EXPAT_VERSION)"
 	build="$(WORK_ABS)/build-expat"
@@ -139,7 +128,6 @@ $(EXPAT_STAMP): | win64-check
 	ninja -C "$$build" install
 	echo "[make] expat: 完了"
 
-# ── inih ────────────────────────────────────────────────────────────────────
 $(INIH_STAMP): | win64-check
 	src="$(WORK_ABS)/inih-$(INIH_VERSION)"
 	mkdir -p "$(WORK_ABS)" "$(SYSROOT_ABS)/include" "$(SYSROOT_ABS)/lib/cmake/inih"
@@ -165,7 +153,6 @@ $(INIH_STAMP): | win64-check
 	$(MINGW)-ar rcs "$(SYSROOT_ABS)/lib/libinih.a" "$(WORK_ABS)/ini.o"
 	echo "[make] inih: 完了"
 
-# ── ICU ─────────────────────────────────────────────────────────────────────
 # クロスビルドにはホスト向けにビルドしたツール (pkgdata など) が必要なので、
 # ホスト向けビルド → MinGW 向けビルド の順に行う。
 $(ICU_STAMP): | win64-check
@@ -225,7 +212,6 @@ $(ICU_STAMP): | win64-check
 	cp "$$win_build/lib/libsicuuc.a" "$(SYSROOT_ABS)/lib/libicuuc.a"
 	echo "[make] ICU: 完了"
 
-# ── rm2kscript.exe ──────────────────────────────────────────────────────────
 win64: submodules win64-check win64-deps
 	echo "[make] rm2kscript.exe をビルド中..."
 	rm -rf "$(WIN_BUILD)"
@@ -249,9 +235,7 @@ win64: submodules win64-check win64-deps
 	cp "$(WIN_BUILD)/rm2kscript.exe" "$(DIST_DIR)/"
 	echo "[make] 完了: $(DIST_DIR)/rm2kscript.exe ($$(du -sh "$(DIST_DIR)/rm2kscript.exe" | cut -f1))"
 
-# ────────────────────────────────────────────────────────────────────────────
 # クリーン
-# ────────────────────────────────────────────────────────────────────────────
 
 clean:
 	rm -rf $(BUILD_DIR) $(DEBUG_DIR) $(WIN_BUILD) $(DIST_DIR)
