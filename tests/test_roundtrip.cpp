@@ -338,7 +338,16 @@ static bool test_golden_switch_var() {
     // ControlVars キー形式も末尾0を省略した6パラメータで出力されること
     bool e = golden("ControlVars(var=3, type=0, id2=3, op_code=0, src=0, src_val=99);",
         {{C(LcfCode::ControlVars), 0, {0, 3, 3, 0, 0, 99}, ""}}, "golden ControlVars key-form trim zeros");
-    return a && b && c && d && e;
+    // type=2 (switch[var[N]]): id2 は実行時未使用だが id1 と同じ値を書く
+    bool f = golden("switch[var[7]] = true;",
+        {{C(LcfCode::ControlSwitches), 0, {2, 7, 7, 1}, ""}}, "golden switch var-index id2=id1");
+    // キー形式で id2 を明示した場合はその値を保持する
+    bool g = golden("ControlSwitches(type=2, id=4, id2=9, op_code=1);",
+        {{C(LcfCode::ControlSwitches), 0, {2, 4, 9, 1}, ""}}, "golden ControlSwitches key-form keeps id2");
+    // INT32_MIN の絶対値: std::abs の UB を避け INT32_MAX に飽和する
+    bool h = golden("ChangeGold(delta=-2147483648);",
+        {{C(LcfCode::ChangeGold), 0, {1, 0, 2147483647}, ""}}, "golden ChangeGold INT32_MIN saturates");
+    return a && b && c && d && e && f && g && h;
 }
 
 static bool test_golden_if_else() {

@@ -637,9 +637,9 @@ void Encoder::encode_switch_assign(const SwitchAssign& s, int32_t indent,
     int32_t id2_v;
     if (s.is_range) {
         id2_v = resolve_sw_id(s.id2_label, s.id2, names_, s.loc);
-    } else if (s.is_var) {
-        id2_v = 0;
     } else {
+        // type=2 (変数インデックス) の id2 は実行時未使用だが、
+        // commands.cpp の ControlSwitches 経路と揃えて id1 を書く
         id2_v = id1;
     }
     if (s.value != "true" && s.value != "false" && s.value != "toggle")

@@ -311,6 +311,10 @@ static int cmd_decode_project(const std::string& game_dir,
     Decoder dec;
     dec.set_name_table(names);
 
+    // 全ファイルをメモリ上でデコードし、全成功後にのみ書き込む (部分出力を残さない)
+    struct Output { fs::path dest; std::string text; std::string label; };
+    std::vector<Output> outputs;
+
     for (const auto& lmu_path : lmu_files) {
         auto map = lcf::LMU_Reader::Load(lmu_path.string(), encoding);
         if (!map) {
@@ -320,8 +324,8 @@ static int cmd_decode_project(const std::string& game_dir,
         std::string text = dec.decode_map(*map, encoding);
         // 拡張子を .rs2k に変えて出力
         fs::path out = odir / lmu_path.stem().concat(".rs2k");
-        write_text_file(out.string(), text);
-        std::cerr << lmu_path.filename().string() << " -> " << out.filename().string() << "\n";
+        outputs.push_back({ out, std::move(text),
+                            lmu_path.filename().string() + " -> " + out.filename().string() });
     }
 
     // RPG_RT.ldb
@@ -333,17 +337,51 @@ static int cmd_decode_project(const std::string& game_dir,
             ++errors;
         } else {
             std::string text = dec.decode_common_events(*db, encoding);
-            fs::path out = odir / "CommonEvents.rs2k";
-            write_text_file(out.string(), text);
-            std::cerr << "RPG_RT.ldb -> CommonEvents.rs2k\n";
+            outputs.push_back({ odir / "CommonEvents.rs2k", std::move(text),
+                                "RPG_RT.ldb -> CommonEvents.rs2k" });
         }
     }
 
-    if (errors == 0)
-        std::cerr << "decode-project: " << lmu_files.size() << " maps + LDB -> " << out_dir << "\n";
-    else
-        std::cerr << "decode-project: " << errors << " error(s)\n";
-    return errors ? 1 : 0;
+    if (errors != 0) {
+        std::cerr << "decode-project: " << errors << " error(s); no files were written\n";
+        return 1;
+    }
+
+    // 各出力を一時ファイルに書き、全成功後に差し替える (書き込み途中の失敗でも部分出力を残さない)
+    std::vector<std::pair<fs::path, fs::path>> pending; // (tmp, dest)
+    for (const auto& o : outputs) {
+        fs::path tmp = o.dest;
+        tmp += ".rs2k_new";
+        try {
+            write_text_file(tmp.string(), o.text);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
+            std::error_code ec2;
+            for (const auto& p : pending) fs::remove(p.first, ec2);
+            fs::remove(tmp, ec2);
+            std::cerr << "decode-project: no files were written\n";
+            return 1;
+        }
+        pending.emplace_back(tmp, o.dest);
+    }
+
+    std::error_code ec;
+    for (size_t i = 0; i < pending.size(); ++i) {
+        ec.clear();
+        fs::rename(pending[i].first, pending[i].second, ec);
+        if (ec) {
+            std::cerr << "Error: cannot write " << pending[i].second << ": " << ec.message() << "\n";
+            std::error_code ec2;
+            for (const auto& p : pending) fs::remove(p.first, ec2);
+            std::cerr << "decode-project: " << i << " of " << pending.size()
+                      << " files were written before the failure\n";
+            return 1;
+        }
+        std::cerr << outputs[i].label << "\n";
+    }
+
+    std::cerr << "decode-project: " << outputs.size() << " files -> " << out_dir << "\n";
+    return 0;
 }
 
 // スクリプトディレクトリの .rs2k をゲームディレクトリの .lmu / .ldb に書き戻す
@@ -481,19 +519,38 @@ static int cmd_encode_project(const std::string& script_dir,
         return 1;
     }
 
-    // 全て成功: まず全ファイルを .bak に退避する (この段階で失敗しても元ファイルは未変更)
+    // 全て成功: まず全ファイルを一時バックアップ (<dest>.bak.new) に退避する。
+    // 既存の *.bak は全バックアップが成功するまで書き換えないため、途中で失敗しても
+    // 以前のバックアップを失わない。
+    std::vector<std::pair<fs::path, fs::path>> baks; // (bak_tmp, bak)
     for (const auto& pr : pending) {
         fs::path bak = pr.second;
         bak += ".bak";
+        fs::path bak_tmp = bak;
+        bak_tmp += ".new";
         ec.clear();
-        // .bak が既に存在する場合も overwrite_existing で常に上書きする
-        // (以前は exists() チェックで存在時に copy_file を省略していたため ec が空=成功扱いのまま
-        //  バックアップなしに本番ファイルが上書きされていた)
-        fs::copy_file(pr.second, bak, fs::copy_options::overwrite_existing, ec);
+        fs::copy_file(pr.second, bak_tmp, fs::copy_options::overwrite_existing, ec);
         if (ec) {
             std::cerr << "Error: cannot back up " << pr.second << ": " << ec.message() << "\n"
                       << "encode-project: no files were modified\n";
-            for (const auto& q : pending) { std::error_code ec2; fs::remove(q.first, ec2); }
+            std::error_code ec2;
+            for (const auto& b : baks) fs::remove(b.first, ec2);
+            fs::remove(bak_tmp, ec2);
+            for (const auto& q : pending) fs::remove(q.first, ec2);
+            return 1;
+        }
+        baks.emplace_back(bak_tmp, bak);
+    }
+    // 全バックアップが揃ったので *.bak に反映する (同一ディレクトリ内の rename は原子的)
+    for (const auto& b : baks) {
+        ec.clear();
+        fs::rename(b.first, b.second, ec);
+        if (ec) {
+            std::cerr << "Error: cannot finalize backup " << b.second << ": " << ec.message() << "\n"
+                      << "encode-project: no files were modified\n";
+            std::error_code ec2;
+            for (const auto& b2 : baks) fs::remove(b2.first, ec2);
+            for (const auto& q : pending) fs::remove(q.first, ec2);
             return 1;
         }
     }

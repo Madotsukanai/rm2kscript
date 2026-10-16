@@ -75,6 +75,14 @@ static const Arg* find_arg_by_key(const std::vector<Arg>& args, const std::strin
 // bool 値を "true"/"false" で出力するヘルパー
 static inline std::string bool_str(int32_t v) { return v ? "true" : "false"; }
 
+// std::abs(INT32_MIN) は未定義動作になるため、int64_t 経由で計算し
+// int32_t に飽和させる (INT32_MIN の絶対値は int32_t で表現できない)。
+static int32_t abs_i32(int32_t v) {
+    int64_t a = v < 0 ? -static_cast<int64_t>(v) : static_cast<int64_t>(v);
+    if (a > 2147483647LL) return 2147483647;
+    return static_cast<int32_t>(a);
+}
+
 // 公開ヘルパー (commands.h で宣言)
 const Arg* find_arg(const std::vector<Arg>& args, size_t pos, const std::string& key) {
     return find_arg_impl(args, pos, key);
@@ -613,7 +621,7 @@ void register_all_commands() {
             } else {
                 int32_t delta = da ? da->val.ival : 0;
                 out.push_back(make_cmd(LcfCode::ChangeGold, ctx.indent,
-                    {delta < 0 ? 1 : 0, 0, std::abs(delta)}));
+                    {delta < 0 ? 1 : 0, 0, abs_i32(delta)}));
             }
         }
     });
@@ -750,7 +758,7 @@ void register_all_commands() {
                 } else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") {
                     src = 1; val = da->val.ival; op_i = 1;
                 } else {
-                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = std::abs(da->val.ival);
+                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = abs_i32(da->val.ival);
                 }
             } else {
                 // 旧形式互換
@@ -796,7 +804,7 @@ void register_all_commands() {
                 } else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") {
                     src = 1; val = da->val.ival; op_i = 1;
                 } else {
-                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = std::abs(da->val.ival);
+                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = abs_i32(da->val.ival);
                 }
             } else {
                 op_i = arg_int(s.args,0,"op",0);
@@ -836,7 +844,7 @@ void register_all_commands() {
                     // デコーダは減算の変数参照を delta=-var[N] と出力する (以前はここで定数 N の加算にすり替わっていた)
                     src = 1; val = da->val.ival; op_i = 1;
                 } else {
-                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = std::abs(da->val.ival);
+                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = abs_i32(da->val.ival);
                 }
             }
             out.push_back(make_cmd(LcfCode::ChangeHP, ctx.indent,
@@ -863,7 +871,7 @@ void register_all_commands() {
                 } else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") {
                     src = 1; val = da->val.ival; op_i = 1;
                 } else {
-                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = std::abs(da->val.ival);
+                    src = 0; op_i = da->val.ival < 0 ? 1 : 0; val = abs_i32(da->val.ival);
                 }
             }
             out.push_back(make_cmd(LcfCode::ChangeSP, ctx.indent,
@@ -1901,7 +1909,7 @@ void register_all_commands() {
             if (da) {
                 if (da->val.kind == ArgVal::Indexed && da->val.sval == "var")  { src=1; val=da->val.ival; op=0; }
                 else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") { src=1; val=da->val.ival; op=1; }
-                else { src=0; op=da->val.ival<0?1:0; val=std::abs(da->val.ival); }
+                else { src=0; op=da->val.ival<0?1:0; val=abs_i32(da->val.ival); }
             }
             out.push_back(make_cmd(LcfCode::ChangeMonsterHP, ctx.indent, {
                 arg_int(s.args, 0, "enemy", 0), op, src, val,
@@ -1925,7 +1933,7 @@ void register_all_commands() {
             if (da) {
                 if (da->val.kind == ArgVal::Indexed && da->val.sval == "var")  { src=1; val=da->val.ival; op=0; }
                 else if (da->val.kind == ArgVal::Indexed && da->val.sval == "-var") { src=1; val=da->val.ival; op=1; }
-                else { src=0; op=da->val.ival<0?1:0; val=std::abs(da->val.ival); }
+                else { src=0; op=da->val.ival<0?1:0; val=abs_i32(da->val.ival); }
             }
             out.push_back(make_cmd(LcfCode::ChangeMonsterMP, ctx.indent, {
                 arg_int(s.args, 0, "enemy", 0), op, src, val

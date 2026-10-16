@@ -16,24 +16,6 @@ RPGツクール2000/2003 のイベントスクリプトをC言語風のテキス
 - macOS: `r2s-macos-x86_64`
 - Windows: `r2s-windows-x86_64.exe`
 
-## ビルド
-
-liblcf は git submodule (`third_party/liblcf`) として同梱しており、ソースから直接ビルドされます。
-
-```bash
-git clone --recurse-submodules <this repo>
-# 既に clone 済みの場合: git submodule update --init --recursive
-
-# liblcf が使う依存 (expat / inih / ICU) はシステムで用意する (例: Ubuntu)
-sudo apt-get install cmake ninja-build libexpat1-dev libinih-dev libicu-dev
-
-make          # Release ビルド -> build/r2s
-make test     # テスト (make test GAME_DIR=/path/to/Game で実ゲームの往復テストも実行)
-```
-
-システムにインストール済みの liblcf を使いたい場合は `CMAKE_FLAGS=-DRM2K_USE_SYSTEM_LIBLCF=ON make` とします。
-liblcf のバージョンを上げるときは `git -C third_party/liblcf checkout <tag>` の後、メインリポジトリでサブモジュールの変更をコミットしてください。
-
 ## 使い方
 
 入力ファイルの種類から操作が自動的に決まります。
@@ -92,8 +74,8 @@ event(イベントID, x=X座標, y=Y座標) {
 
 | 構文 | 説明 |
 |---|---|
-| `switch[N] = true/false/toggle` | スイッチ操作（名前テーブルがあれば `switch["名前"]` も可）|
-| `var[N] = 値` / `var[N] += 値` | 変数操作（同様に `var["名前"]` も可）|
+| `switch[N] = true/false/toggle` | スイッチ操作（名前テーブルがあれば `switch["名前"]` も可。デコード時は `switch["名前[ID]"]` 形式で出力）|
+| `var[N] = 値` / `var[N] += 値` | 変数操作（同様に `var["名前"]` も可。デコード時は `var["名前[ID]"]` 形式で出力）|
 | `message("テキスト")` | メッセージ表示 |
 | `if (switch[N] == true) { }` | 条件分岐 |
 | `choice("A","B") { when("A"){} }` | 選択肢 |
@@ -103,22 +85,25 @@ event(イベントID, x=X座標, y=Y座標) {
 | `Wait(frames=N)` | 待機 |
 | `PlayBGM("filename", volume=100, tempo=100, balance=50)` | BGM再生 |
 
-## ビルド方法
+## ビルド
 
 ### 依存ライブラリ
 
-- [liblcf](https://github.com/EasyRPG/liblcf) (EasyRPG Project)
+- [liblcf](https://github.com/EasyRPG/liblcf) (EasyRPG Project) — git submodule (`third_party/liblcf`) として同梱しており、ソースから直接ビルドされます
 - CMake 3.16 以上
 - C++17 対応コンパイラ
 
 ### Linux / macOS
 
 ```bash
-# ビルド
-make
+git clone --recurse-submodules <this repo>
+# 既に clone 済みの場合: git submodule update --init --recursive
 
-# テスト
-make test
+# liblcf が使う依存 (expat / inih / ICU) はシステムで用意する (例: Ubuntu)
+sudo apt-get install cmake ninja-build libexpat1-dev libinih-dev libicu-dev
+
+make          # Release ビルド -> build/r2s
+make test     # テスト (make test GAME_DIR=/path/to/Game で実ゲームの往復テストも実行)
 
 # インストール (デフォルト: /usr/local)
 make install
@@ -126,6 +111,9 @@ make install
 # インストール先を変更する場合
 make install PREFIX=$HOME/.local
 ```
+
+システムにインストール済みの liblcf を使いたい場合は `CMAKE_FLAGS=-DRM2K_USE_SYSTEM_LIBLCF=ON make` とします。
+liblcf のバージョンを上げるときは `git -C third_party/liblcf checkout <tag>` の後、メインリポジトリでサブモジュールの変更をコミットしてください。
 
 ### Windows（MSVC / Visual Studio）
 
